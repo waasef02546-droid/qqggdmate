@@ -13,7 +13,6 @@ SAGA 已经解决“哪个 agent 可以联系哪个 agent”的问题，但它�
 - `paper/pre_saga_draft.md`：PRE-SAGA 中文论文初稿。
 - `paper/publication_plan.md`：对标 SAGA 的长期论文产出计划、代码框架和实验路线。
 - `EXPERIMENT_TRACKING.md`：实验跟踪日志，后续实验进展追加到该文件末尾。
-- `improve.md`：本次会话和协作方式的改进记录。
 - `paper/system_architecture.mmd`：PRE-SAGA 系统架构 Mermaid 图。
 - `prototype/pre_saga.py`：PRE-SAGA 协议行为模拟原型。
 - `prototype/run_experiments.py`：四类数据共享安全场景实验脚本。

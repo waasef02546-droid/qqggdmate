@@ -35,6 +35,9 @@ saga_reproduction/runtime/
 *.db
 *.dump
 
+# Local conversation / coordination notes, not part of the public repository
+local_conversation_management/
+
 # Keep only redacted reproduction summaries and screenshots under saga_reproduction/
 !saga_reproduction/
 !saga_reproduction/*.md
