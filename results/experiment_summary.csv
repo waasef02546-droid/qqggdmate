@@ -1,0 +1,5 @@
+scenario,success,total,success_rate,avg_elapsed_ms
+normal_data_sharing,20,20,1.00,0.125
+denied_by_data_policy,20,20,1.00,0.044
+provider_plaintext_blindness,20,20,1.00,0.066
+token_misuse_blocked,20,20,1.00,0.073

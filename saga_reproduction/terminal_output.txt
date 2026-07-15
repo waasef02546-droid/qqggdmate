@@ -1,0 +1,36 @@
+﻿SAGA standard reproduction smoke run
+timestamp=2026-07-14 18:20:20
+official_repo=https://github.com/gsiros/saga
+local_repo=D:\Users\New project 1\saga_reproduction\saga_clean\saga-main
+
+[1] Official repository files
+dir=.github
+dir=agent_backend
+dir=assets
+dir=docs
+dir=experiments
+dir=proofs
+dir=saga
+dir=templates
+dir=user_configs
+
+[2] Crypto smoke test
+signature_valid= True
+x25519_public_len= 32
+
+[3] User config load smoke test
+email= alice@mail.com
+agent= dummy_agent
+port= 7000
+Dropping extra args {'passwd': 'alice'}
+
+[4] Official CA credential generation
+
+Name   Length
+----   ------
+ca.crt    619
+ca.key    119
+ca.pub     32
+
+[5] Full endpoint reproduction status
+blocked: MongoDB server is not installed/running on 127.0.0.1:27017; official Provider requires MongoDB.

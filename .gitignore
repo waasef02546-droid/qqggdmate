@@ -1,0 +1,42 @@
+# Python / local runtime
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# SAGA downloaded upstream source and local working copies
+saga_reproduction/saga-main/
+saga_reproduction/saga_work/
+saga_reproduction/saga_clean/
+saga_reproduction/saga-main.zip
+
+# SAGA runtime outputs that may contain private keys, tokens, passwords, or local paths
+saga_reproduction/runtime/
+*.log
+*.err
+
+# Cryptographic material generated during reproduction
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+
+# Local database / deployment artifacts
+*.sqlite
+*.db
+*.dump
+
+# Keep only redacted reproduction summaries and screenshots under saga_reproduction/
+!saga_reproduction/
+!saga_reproduction/*.md
+!saga_reproduction/*terminal_output.txt
+!saga_reproduction/*terminal_screenshot.png
