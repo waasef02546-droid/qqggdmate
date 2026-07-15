@@ -1,0 +1,30 @@
+stateDiagram-v2
+    [*] --> NoContact
+
+    NoContact --> ContactAuthorized: SAGA contact policy allows
+    NoContact --> Denied: contact_not_authorized
+
+    ContactAuthorized --> DataRequestSubmitted: requester sends data access request
+
+    DataRequestSubmitted --> PolicyDenied: no matching Data Sharing Policy
+    DataRequestSubmitted --> PolicyDenied: data_class_denied
+    DataRequestSubmitted --> PolicyDenied: purpose_mismatch
+    DataRequestSubmitted --> PolicyDenied: version_out_of_bounds
+    DataRequestSubmitted --> PolicyAllowed: policy_match
+
+    PolicyAllowed --> DataTokenIssued: bind owner/requester/record/purpose/version/max_uses
+    DataTokenIssued --> TransformDenied: token_expired
+    DataTokenIssued --> TransformDenied: token_exhausted
+    DataTokenIssued --> TransformDenied: requester_mismatch
+    DataTokenIssued --> TransformDenied: requester_key_mismatch
+    DataTokenIssued --> TransformReady: token_valid
+
+    TransformReady --> ReEncrypted: PRE transform EDEK_o to EDEK_r
+    ReEncrypted --> AuditAllow: write allow audit event
+    AuditAllow --> Delivered: return EDEK_r and ciphertext_ref
+    Delivered --> [*]
+
+    PolicyDenied --> AuditDeny: write deny audit event
+    TransformDenied --> AuditDeny: write deny audit event
+    AuditDeny --> Denied
+    Denied --> [*]
