@@ -35,8 +35,11 @@ saga_reproduction/runtime/
 *.db
 *.dump
 
-# Local conversation / coordination notes, not part of the public repository
+# Local private notes, not part of the public repository
 local_conversation_management/
+
+# Local binary screenshots for PRE-SAGA results; SVG screenshots are kept in Git.
+project/result/*.png
 
 # Keep only redacted reproduction summaries and screenshots under saga_reproduction/
 !saga_reproduction/

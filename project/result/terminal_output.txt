@@ -1,0 +1,15 @@
+test_policy_token_pre_store_full_flow (integration.test_normal_sharing.NormalSharingIntegrationTest.test_policy_token_pre_store_full_flow) ... ok
+test_allows_matching_request (unit.test_data_policy.DataPolicyEvaluatorTest.test_allows_matching_request) ... ok
+test_denies_purpose_mismatch (unit.test_data_policy.DataPolicyEvaluatorTest.test_denies_purpose_mismatch) ... ok
+test_denies_version_out_of_bounds (unit.test_data_policy.DataPolicyEvaluatorTest.test_denies_version_out_of_bounds) ... ok
+test_denies_wrong_data_class (unit.test_data_policy.DataPolicyEvaluatorTest.test_denies_wrong_data_class) ... ok
+test_denies_wrong_requester (unit.test_data_policy.DataPolicyEvaluatorTest.test_denies_wrong_requester) ... ok
+test_consumes_max_uses (unit.test_token_service.TokenServiceTest.test_consumes_max_uses) ... ok
+test_issues_and_validates_bound_token (unit.test_token_service.TokenServiceTest.test_issues_and_validates_bound_token) ... ok
+test_rejects_purpose_mismatch (unit.test_token_service.TokenServiceTest.test_rejects_purpose_mismatch) ... ok
+test_rejects_requester_mismatch (unit.test_token_service.TokenServiceTest.test_rejects_requester_mismatch) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.001s
+
+OK

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1160" height="560" viewBox="0 0 1160 560" role="img" aria-label="Successful unittest terminal output">
+  <rect width="1160" height="560" rx="16" fill="#0b1020"/>
+  <rect x="0" y="0" width="1160" height="42" rx="16" fill="#111827"/>
+  <circle cx="26" cy="21" r="7" fill="#ef4444"/>
+  <circle cx="50" cy="21" r="7" fill="#f59e0b"/>
+  <circle cx="74" cy="21" r="7" fill="#22c55e"/>
+  <text x="96" y="27" fill="#cbd5e1" font-family="Consolas, 'Courier New', monospace" font-size="15">python -m unittest discover -s tests -v</text>
+  <g fill="#d1d5db" font-family="Consolas, 'Courier New', monospace" font-size="16">
+    <text x="28" y="76">test_policy_token_pre_store_full_flow (integration.test_normal_sharing.NormalSharingIntegrationTest.test_policy_token_pre_store_full_flow) ... ok</text>
+    <text x="28" y="104">test_allows_matching_request (unit.test_data_policy.DataPolicyEvaluatorTest.test_allows_matching_request) ... ok</text>
+    <text x="28" y="132">test_denies_purpose_mismatch (unit.test_data_policy.DataPolicyEvaluatorTest.test_denies_purpose_mismatch) ... ok</text>
+    <text x="28" y="160">test_denies_version_out_of_bounds (unit.test_data_policy.DataPolicyEvaluatorTest.test_denies_version_out_of_bounds) ... ok</text>
+    <text x="28" y="188">test_denies_wrong_data_class (unit.test_data_policy.DataPolicyEvaluatorTest.test_denies_wrong_data_class) ... ok</text>
+    <text x="28" y="216">test_denies_wrong_requester (unit.test_data_policy.DataPolicyEvaluatorTest.test_denies_wrong_requester) ... ok</text>
+    <text x="28" y="244">test_consumes_max_uses (unit.test_token_service.TokenServiceTest.test_consumes_max_uses) ... ok</text>
+    <text x="28" y="272">test_issues_and_validates_bound_token (unit.test_token_service.TokenServiceTest.test_issues_and_validates_bound_token) ... ok</text>
+    <text x="28" y="300">test_rejects_purpose_mismatch (unit.test_token_service.TokenServiceTest.test_rejects_purpose_mismatch) ... ok</text>
+    <text x="28" y="328">test_rejects_requester_mismatch (unit.test_token_service.TokenServiceTest.test_rejects_requester_mismatch) ... ok</text>
+    <text x="28" y="384">----------------------------------------------------------------------</text>
+    <text x="28" y="412">Ran 10 tests in 0.001s</text>
+    <text x="28" y="460" fill="#86efac">OK</text>
+  </g>
+</svg>
