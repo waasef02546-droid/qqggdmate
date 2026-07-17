@@ -1,0 +1,70 @@
+(* PRE-SAGA symbolic model: re-encryption authorization binding.
+
+   This file models the authentication condition that a transform is issued
+   only after token and Data Sharing Policy fields match the request.
+*)
+
+type agent.
+type record.
+type data_class.
+type purpose.
+type version.
+type pubkey_hash.
+type token.
+
+free c: channel.
+
+fun data_token(agent, agent, record, data_class, purpose, version, pubkey_hash): token.
+fun key_hash(agent): pubkey_hash.
+
+event TokenIssued(agent, agent, record, data_class, purpose, version, pubkey_hash).
+event TransformAccepted(agent, agent, record, data_class, purpose, version, pubkey_hash).
+event TransformRejected(agent, agent, record, data_class, purpose, version).
+
+free owner: agent [private].
+free bob: agent [private].
+free carol: agent.
+free rec1: record [private].
+free rec2: record.
+free calendar: data_class.
+free mail: data_class.
+free meeting: purpose.
+free expense: purpose.
+free v1: version.
+free v2: version.
+
+query owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose, v: version, kh: pubkey_hash;
+  event(TransformAccepted(owner_a, requester_a, r, cls, p, v, kh))
+  ==> event(TokenIssued(owner_a, requester_a, r, cls, p, v, kh)).
+
+let validate_and_transform(
+  tok: token,
+  owner_a: agent,
+  requester_a: agent,
+  r: record,
+  cls: data_class,
+  p: purpose,
+  v: version,
+  kh: pubkey_hash
+) =
+  if tok = data_token(owner_a, requester_a, r, cls, p, v, kh) then
+    event TransformAccepted(owner_a, requester_a, r, cls, p, v, kh)
+  else
+    event TransformRejected(owner_a, requester_a, r, cls, p, v).
+
+process
+  let kh_bob = key_hash(bob) in
+  let valid_token = data_token(owner, bob, rec1, calendar, meeting, v1, kh_bob) in
+  event TokenIssued(owner, bob, rec1, calendar, meeting, v1, kh_bob);
+  out(c, valid_token);
+
+  (* Accepted use. *)
+  validate_and_transform(valid_token, owner, bob, rec1, calendar, meeting, v1, kh_bob);
+
+  (* Mismatched requester, record, data class, purpose, and version are modeled
+     as non-equal token checks and should not emit TransformAccepted. *)
+  validate_and_transform(valid_token, owner, carol, rec1, calendar, meeting, v1, key_hash(carol));
+  validate_and_transform(valid_token, owner, bob, rec2, calendar, meeting, v1, kh_bob);
+  validate_and_transform(valid_token, owner, bob, rec1, mail, meeting, v1, kh_bob);
+  validate_and_transform(valid_token, owner, bob, rec1, calendar, expense, v1, kh_bob);
+  validate_and_transform(valid_token, owner, bob, rec1, calendar, meeting, v2, kh_bob)
