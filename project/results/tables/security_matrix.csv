@@ -1,0 +1,5 @@
+attack,baseline_contact_allowed,expected_blocked,blocked,success,reason,latency_ms,audit_id,strength_note
+unauthorized_data_class,True,True,True,True,data_class_denied,0.903,audit-789770b8e6dc9984,SAGA-style contact gate allows the requester; PRE-SAGA blocks at Data Sharing Policy.
+purpose_mismatch,True,True,True,True,purpose_mismatch,0.242,audit-0cb1d14fbb85bda7,"A valid token is first issued, then misused with a different purpose to test token binding."
+token_reuse,True,True,True,True,token_exhausted,0.217,audit-36138f7e8973f8e3,The first authorized transform consumes the only allowed use; the replay is rejected.
+requester_mismatch,True,True,True,True,requester_mismatch,0.125,audit-ae6185e4635fb041,"Carol also passes contact policy, but cannot use Bob's data token."

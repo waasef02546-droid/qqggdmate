@@ -32,3 +32,18 @@ All tests should pass. The tests cover:
 - token max-use exhaustion
 - encrypted store round trip
 - PRE transform without Provider plaintext DEK exposure
+
+## Run stage 3 attack experiments
+
+```powershell
+cd project
+python -m experiments.attacks.run_all
+```
+
+The attack runner generates:
+
+```text
+results/tables/security_matrix.csv
+```
+
+The current stage 3 scripts intentionally run after a SAGA-style contact gate allows the requester. This shows that PRE-SAGA blocks data-layer abuse even when contact is permitted.
