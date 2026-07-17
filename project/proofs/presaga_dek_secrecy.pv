@@ -1,0 +1,60 @@
+(* PRE-SAGA symbolic model: DEK secrecy boundary.
+
+   This model treats PRE as an abstract constructor/destructor pair. It is not
+   a proof of a concrete PRE primitive. The intended property is that the
+   Provider can transform encrypted DEKs without learning the plaintext DEK.
+*)
+
+type agent.
+type key.
+type record.
+type purpose.
+type version.
+type data_class.
+type dek.
+type ciphertext.
+type token.
+
+free c: channel.
+
+fun pk(agent): key.
+fun sk(agent): key [private].
+fun enc_dek(key, dek, record, data_class, version): ciphertext.
+fun rekey(agent, agent, record, data_class, purpose, version): key.
+fun token_for(agent, agent, record, data_class, purpose, version): token.
+fun transform(ciphertext, key): ciphertext.
+
+reduc forall owner: agent, requester: agent, r: record, cls: data_class, p: purpose, v: version, d: dek;
+  transform(enc_dek(pk(owner), d, r, cls, v), rekey(owner, requester, r, cls, p, v))
+  = enc_dek(pk(requester), d, r, cls, v).
+
+event PolicyAllow(agent, agent, record, data_class, purpose, version).
+event TransformIssued(agent, agent, record, data_class, purpose, version).
+event RequesterDecrypt(agent, record, data_class, purpose, version).
+
+free owner: agent [private].
+free requester: agent [private].
+free intruder_agent: agent.
+free rec1: record [private].
+free calendar: data_class.
+free meeting: purpose.
+free v1: version.
+free secret_dek: dek [private].
+
+query attacker(secret_dek).
+
+query owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose, v: version;
+  event(TransformIssued(owner_a, requester_a, r, cls, p, v))
+  ==> event(PolicyAllow(owner_a, requester_a, r, cls, p, v)).
+
+let provider_transform(owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose, v: version, edek_owner: ciphertext) =
+  event PolicyAllow(owner_a, requester_a, r, cls, p, v);
+  let rk = rekey(owner_a, requester_a, r, cls, p, v) in
+  let edek_requester = transform(edek_owner, rk) in
+  event TransformIssued(owner_a, requester_a, r, cls, p, v);
+  out(c, edek_requester).
+
+process
+  let edek_owner = enc_dek(pk(owner), secret_dek, rec1, calendar, v1) in
+  out(c, edek_owner);
+  provider_transform(owner, requester, rec1, calendar, meeting, v1, edek_owner)
