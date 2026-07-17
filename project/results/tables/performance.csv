@@ -1,0 +1,13 @@
+experiment,baseline,policy_rules,iterations,avg_latency_ms,p95_latency_ms,provider_plaintext_data_visible,provider_plaintext_dek_visible,data_layer_control
+baseline_comparison,saga_contact_only,10,50,0.0019,0.0021,False,False,False
+policy_scalability,presaga_policy_only,10,50,0.003,0.0031,False,False,True
+baseline_comparison,plaintext_token_server,10,50,0.0151,0.0154,True,True,True
+baseline_comparison,presaga,10,50,0.107,0.1231,False,False,True
+baseline_comparison,saga_contact_only,100,50,0.0019,0.002,False,False,False
+policy_scalability,presaga_policy_only,100,50,0.017,0.0207,False,False,True
+baseline_comparison,plaintext_token_server,100,50,0.0304,0.0312,True,True,True
+baseline_comparison,presaga,100,50,0.1184,0.13,False,False,True
+baseline_comparison,saga_contact_only,1000,50,0.0019,0.0019,False,False,False
+policy_scalability,presaga_policy_only,1000,50,0.1512,0.1837,False,False,True
+baseline_comparison,plaintext_token_server,1000,50,0.168,0.1926,True,True,True
+baseline_comparison,presaga,1000,50,0.2667,0.3304,False,False,True
