@@ -1,0 +1,2 @@
+{"record_id":"cal-001","owner_aid":"alice@mail.com:calendar_agent","data_class":"calendar","data_subclass":"availability","version":1,"plaintext":"Alice is free from 10:00 to 11:00.","purpose":"schedule_meeting"}
+{"record_id":"cal-002","owner_aid":"alice@mail.com:calendar_agent","data_class":"calendar","data_subclass":"event_detail","version":1,"plaintext":"Private medical appointment at 15:00.","purpose":"private"}

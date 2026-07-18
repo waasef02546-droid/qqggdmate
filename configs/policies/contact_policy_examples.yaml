@@ -1,0 +1,8 @@
+owner_aid: alice@mail.com:calendar_agent
+contact_rulebook:
+  - pattern: bob@mail.com:scheduler_agent
+    budget: 20
+  - pattern: carol@mail.com:research_agent
+    budget: 5
+  - pattern: "*@mail.com:*_agent"
+    budget: 1

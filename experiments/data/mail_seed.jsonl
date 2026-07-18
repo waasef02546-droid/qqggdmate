@@ -1,0 +1,2 @@
+{"record_id":"mail-001","owner_aid":"alice@mail.com:mail_agent","data_class":"mail","data_subclass":"receipt_summary","version":1,"plaintext":"Taxi receipt total 42.50 USD.","purpose":"expense_report"}
+{"record_id":"mail-002","owner_aid":"alice@mail.com:mail_agent","data_class":"mail","data_subclass":"body","version":1,"plaintext":"Confidential negotiation details.","purpose":"private"}

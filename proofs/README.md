@@ -15,6 +15,7 @@ They are not a proof of a new proxy re-encryption primitive. They model the prot
 
 | File | Goal |
 |---|---|
+| `presaga_token_secrecy.pv` | Model that data token acceptance implies matching token issuance. |
 | `presaga_dek_secrecy.pv` | Model that the Provider / attacker cannot learn `dek` without requester authorization. |
 | `presaga_rekey_authentication.pv` | Model that requester, purpose, record, and version bindings are checked before re-encryption. |
 

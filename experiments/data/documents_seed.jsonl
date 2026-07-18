@@ -1,0 +1,2 @@
+{"record_id":"doc-001","owner_aid":"alice@mail.com:document_agent","data_class":"document","data_subclass":"outline","version":1,"plaintext":"Draft outline for joint report.","purpose":"collaborative_writing"}
+{"record_id":"doc-002","owner_aid":"alice@mail.com:document_agent","data_class":"document","data_subclass":"full_text","version":1,"plaintext":"Full confidential document body.","purpose":"private"}
