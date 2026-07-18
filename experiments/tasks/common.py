@@ -61,6 +61,9 @@ def run_authorized_task(
     contact = app.issue_contact_session(owner_aid, requester_aid)
     if contact is None:
         return TaskResult(task_name, False, "contact_denied", 0.0, "", 0)
+    contact_decision = app.validate_contact_session(contact, owner_aid=owner_aid, requester_aid=requester_aid)
+    if contact_decision.effect != "allow":
+        return TaskResult(task_name, False, contact_decision.reason, 0.0, "", 0)
 
     record = DataRecord(
         record_id=seed["record_id"],
