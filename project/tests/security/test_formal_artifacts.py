@@ -16,6 +16,12 @@ class FormalArtifactTest(unittest.TestCase):
         self.assertIn("event TransformIssued", content)
         self.assertIn("==> event(PolicyAllow", content)
 
+    def test_token_model_contains_acceptance_query(self):
+        content = (PROOFS / "presaga_token_secrecy.pv").read_text(encoding="utf-8")
+        self.assertIn("event DataTokenIssued", content)
+        self.assertIn("event DataTokenAccepted", content)
+        self.assertIn("==> event(DataTokenIssued", content)
+
     def test_rekey_authentication_model_contains_binding_events(self):
         content = (PROOFS / "presaga_rekey_authentication.pv").read_text(encoding="utf-8")
         self.assertIn("event TokenIssued", content)

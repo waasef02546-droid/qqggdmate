@@ -1,0 +1,5 @@
+task,success,reason,latency_ms,plaintext,audit_events
+schedule_meeting,True,task_completed,0.818,Alice is free from 10:00 to 11:00.,1
+expense_report,True,task_completed,1.162,Taxi receipt total 42.50 USD.,1
+collaborative_writing,True,task_completed,1.235,Draft outline for joint report.,1
+cross_agent_memory_query,True,task_completed,1.233,Alice prefers morning meetings.,1

@@ -1,0 +1,56 @@
+(* PRE-SAGA symbolic model: token secrecy and token binding.
+
+   This is a ProVerif-style draft model. It records the intended theorem that a
+   data token should only authorize the requester, record, class, purpose, and
+   version that were signed into it.
+*)
+
+type agent.
+type record.
+type data_class.
+type purpose.
+type version.
+type token.
+type signingkey.
+
+free c: channel.
+
+fun sign_token(signingkey, agent, agent, record, data_class, purpose, version): token.
+fun provider_sk(): signingkey [private].
+
+event DataTokenIssued(agent, agent, record, data_class, purpose, version).
+event DataTokenAccepted(agent, agent, record, data_class, purpose, version).
+event DataTokenRejected(agent, agent, record, data_class, purpose, version).
+
+free owner: agent [private].
+free bob: agent [private].
+free carol: agent.
+free rec1: record [private].
+free rec2: record.
+free calendar: data_class.
+free mail: data_class.
+free meeting: purpose.
+free expense: purpose.
+free v1: version.
+free v2: version.
+
+query owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose, v: version;
+  event(DataTokenAccepted(owner_a, requester_a, r, cls, p, v))
+  ==> event(DataTokenIssued(owner_a, requester_a, r, cls, p, v)).
+
+let validate_token(tok: token, owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose, v: version) =
+  if tok = sign_token(provider_sk(), owner_a, requester_a, r, cls, p, v) then
+    event DataTokenAccepted(owner_a, requester_a, r, cls, p, v)
+  else
+    event DataTokenRejected(owner_a, requester_a, r, cls, p, v).
+
+process
+  let tok = sign_token(provider_sk(), owner, bob, rec1, calendar, meeting, v1) in
+  event DataTokenIssued(owner, bob, rec1, calendar, meeting, v1);
+  out(c, tok);
+  validate_token(tok, owner, bob, rec1, calendar, meeting, v1);
+  validate_token(tok, owner, carol, rec1, calendar, meeting, v1);
+  validate_token(tok, owner, bob, rec2, calendar, meeting, v1);
+  validate_token(tok, owner, bob, rec1, mail, meeting, v1);
+  validate_token(tok, owner, bob, rec1, calendar, expense, v1);
+  validate_token(tok, owner, bob, rec1, calendar, meeting, v2)

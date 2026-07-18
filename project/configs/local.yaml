@@ -1,0 +1,12 @@
+runtime:
+  backend: toy_pre
+  issuer_key_label: local-development-token-key
+  audit_enabled: true
+
+provider:
+  mode: in_memory
+  contact_budget_default: 100
+
+experiments:
+  iterations: 20
+  output_dir: results

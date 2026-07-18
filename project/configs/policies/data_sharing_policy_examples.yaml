@@ -1,0 +1,23 @@
+policies:
+  - policy_id: policy-calendar-availability-v1
+    owner_aid: alice@mail.com:calendar_agent
+    requester_selector:
+      type: aid_exact
+      value: bob@mail.com:scheduler_agent
+    data_scope:
+      data_classes:
+        - calendar
+      data_subclasses:
+        - availability
+      record_ids:
+        - cal-001
+    purposes:
+      - schedule_meeting
+    validity:
+      ttl_minutes: 10
+    limits:
+      max_uses: 3
+      max_records: 1
+    version_constraints:
+      min_version: 1
+      max_version: 1

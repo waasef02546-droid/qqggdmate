@@ -1,0 +1,22 @@
+experiments:
+  tasks:
+    - schedule_meeting
+    - expense_report
+    - collaborative_writing
+    - cross_agent_memory_query
+  attacks:
+    - unauthorized_data_class
+    - purpose_mismatch
+    - token_reuse
+    - requester_mismatch
+  baselines:
+    - saga_contact_only
+    - token_plaintext_server
+    - presaga
+
+metrics:
+  - success
+  - reason
+  - latency_ms
+  - provider_plaintext_data_visible
+  - provider_plaintext_dek_visible

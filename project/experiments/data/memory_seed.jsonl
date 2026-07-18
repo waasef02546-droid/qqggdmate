@@ -1,0 +1,2 @@
+{"record_id":"mem-001","owner_aid":"alice@mail.com:memory_agent","data_class":"memory","data_subclass":"summary","version":1,"plaintext":"Alice prefers morning meetings.","purpose":"memory_query"}
+{"record_id":"mem-002","owner_aid":"alice@mail.com:memory_agent","data_class":"memory","data_subclass":"sensitive_note","version":1,"plaintext":"Do not disclose salary discussion notes.","purpose":"private"}
