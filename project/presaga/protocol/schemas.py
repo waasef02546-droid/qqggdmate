@@ -111,6 +111,19 @@ class DataToken:
     issuer_signature: str
 
 
+@dataclass
+class ContactToken:
+    token_id: str
+    owner_aid: str
+    requester_aid: str
+    contact_session_ref: str
+    matched_pattern: str
+    not_before: datetime
+    expires_at: datetime
+    remaining_budget_after_issue: int | None
+    issuer_signature: str
+
+
 @dataclass(frozen=True)
 class TokenDecision:
     effect: DecisionEffect
