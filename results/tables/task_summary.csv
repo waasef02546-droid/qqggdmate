@@ -1,0 +1,6 @@
+metric,value
+total_tasks,4
+successful_tasks,4
+failed_tasks,0
+task_success_rate,4/4
+total_audit_events,4

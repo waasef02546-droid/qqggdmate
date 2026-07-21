@@ -1,0 +1,8 @@
+reason,count,attacks
+data_class_denied,2,unauthorized_data_class;compromised_requester_exfiltration
+provider_plaintext_not_observed,1,provider_plaintext_probe
+purpose_mismatch,1,purpose_mismatch
+record_scope_denied,1,metadata_linkage_probe
+requester_mismatch,1,requester_mismatch
+token_exhausted,1,token_reuse
+version_out_of_bounds,1,stale_rekey_use
