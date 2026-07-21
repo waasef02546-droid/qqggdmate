@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="460" viewBox="0 0 980 460">
+<rect width="100%" height="100%" fill="#f9fafb"/>
+<text x="490.0" y="34" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700">Task-level Latency</text>
+<line x1="80" y1="60" x2="80" y2="350" stroke="#374151"/>
+<line x1="80" y1="350" x2="940" y2="350" stroke="#374151"/>
+<text x="24" y="230.0" transform="rotate(-90 24 230.0)" text-anchor="middle" font-family="Arial" font-size="13">Total latency (ms)</text>
+<text x="490.0" y="442" text-anchor="middle" font-family="Arial" font-size="13">Task</text>
+<rect x="98" y="80.00" width="192" height="270.00" fill="#0f766e" rx="4"/>
+<text x="194.0" y="72.00" text-anchor="middle" font-family="Arial" font-size="11">1.66</text>
+<text x="194.0" y="368" transform="rotate(35 194.0 368)" text-anchor="start" font-family="Arial" font-size="10">schedule_meeting</text>
+<rect x="308" y="137.42" width="192" height="212.58" fill="#0f766e" rx="4"/>
+<text x="404.0" y="129.42" text-anchor="middle" font-family="Arial" font-size="11">1.307</text>
+<text x="404.0" y="368" transform="rotate(35 404.0 368)" text-anchor="start" font-family="Arial" font-size="10">expense_report</text>
+<rect x="518" y="148.96" width="192" height="201.04" fill="#0f766e" rx="4"/>
+<text x="614.0" y="140.96" text-anchor="middle" font-family="Arial" font-size="11">1.236</text>
+<text x="614.0" y="368" transform="rotate(35 614.0 368)" text-anchor="start" font-family="Arial" font-size="10">collaborative_writing</text>
+<rect x="728" y="169.30" width="192" height="180.70" fill="#0f766e" rx="4"/>
+<text x="824.0" y="161.30" text-anchor="middle" font-family="Arial" font-size="11">1.111</text>
+<text x="824.0" y="368" transform="rotate(35 824.0 368)" text-anchor="start" font-family="Arial" font-size="10">cross_agent_memory_query</text>
+</svg>

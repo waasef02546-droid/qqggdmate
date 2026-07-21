@@ -31,6 +31,11 @@ class TaskResult:
     latency_ms: float
     plaintext: str
     audit_events: int
+    contact_ms: float = 0.0
+    policy_ms: float = 0.0
+    token_issue_ms: float = 0.0
+    pre_transform_ms: float = 0.0
+    decrypt_ms: float = 0.0
 
 
 def load_seed(filename: str) -> dict:
@@ -58,12 +63,15 @@ def run_authorized_task(
     app.register_agent(owner_aid, owner.public_key)
     app.register_agent(requester_aid, requester.public_key)
     app.set_contact_rulebook(owner_aid, [{"pattern": requester_aid, "budget": 10}])
+
+    contact_started = time.perf_counter()
     contact = app.issue_contact_session(owner_aid, requester_aid)
     if contact is None:
         return TaskResult(task_name, False, "contact_denied", 0.0, "", 0)
     contact_decision = app.validate_contact_session(contact, owner_aid=owner_aid, requester_aid=requester_aid)
+    contact_ms = round((time.perf_counter() - contact_started) * 1000, 3)
     if contact_decision.effect != "allow":
-        return TaskResult(task_name, False, contact_decision.reason, 0.0, "", 0)
+        return TaskResult(task_name, False, contact_decision.reason, 0.0, "", 0, contact_ms=contact_ms)
 
     record = DataRecord(
         record_id=seed["record_id"],
@@ -101,22 +109,63 @@ def run_authorized_task(
         version=record.version,
         requester_public_key=requester.public_key,
     )
+    policy_started = time.perf_counter()
     decision = app.evaluate_data_request(request)
+    policy_ms = round((time.perf_counter() - policy_started) * 1000, 3)
     if decision.effect != "allow":
-        return TaskResult(task_name, False, decision.reason, 0.0, "", len(app.audit_query()))
+        return TaskResult(
+            task_name,
+            False,
+            decision.reason,
+            0.0,
+            "",
+            len(app.audit_query()),
+            contact_ms=contact_ms,
+            policy_ms=policy_ms,
+        )
 
+    token_started = time.perf_counter()
     token = app.issue_data_token(decision, request)
+    token_issue_ms = round((time.perf_counter() - token_started) * 1000, 3)
     rekey = backend.generate_rekey(owner.private_key, requester.public_key, store.context(record))
+
+    transform_started = time.perf_counter()
     result = app.request_re_encryption(
         token=token,
         request=request,
         encrypted_dek_owner=stored.encrypted_dek_owner,
         rekey=rekey,
     )
+    pre_transform_ms = round((time.perf_counter() - transform_started) * 1000, 3)
     if result.decision != "allow" or result.transformed_encrypted_dek is None:
-        return TaskResult(task_name, False, result.reason, 0.0, "", len(app.audit_query()))
+        return TaskResult(
+            task_name,
+            False,
+            result.reason,
+            0.0,
+            "",
+            len(app.audit_query()),
+            contact_ms=contact_ms,
+            policy_ms=policy_ms,
+            token_issue_ms=token_issue_ms,
+            pre_transform_ms=pre_transform_ms,
+        )
 
+    decrypt_started = time.perf_counter()
     dek = backend.unwrap_dek(result.transformed_encrypted_dek, requester.private_key, store.context(record))
     plaintext = store.decrypt_with_dek(stored, dek).decode("utf-8")
+    decrypt_ms = round((time.perf_counter() - decrypt_started) * 1000, 3)
     latency_ms = round((time.perf_counter() - started) * 1000, 3)
-    return TaskResult(task_name, True, "task_completed", latency_ms, plaintext, len(app.audit_query()))
+    return TaskResult(
+        task_name,
+        True,
+        "task_completed",
+        latency_ms,
+        plaintext,
+        len(app.audit_query()),
+        contact_ms=contact_ms,
+        policy_ms=policy_ms,
+        token_issue_ms=token_issue_ms,
+        pre_transform_ms=pre_transform_ms,
+        decrypt_ms=decrypt_ms,
+    )

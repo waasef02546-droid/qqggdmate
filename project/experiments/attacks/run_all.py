@@ -15,7 +15,7 @@ from experiments.attacks.unauthorized_data_class import run_attack as run_unauth
 from experiments.attacks.common import write_security_matrix
 
 
-def run_all():
+def run_all(output_path: Path = Path("results") / "tables" / "security_matrix.csv"):
     results = [
         run_unauthorized_data_class(),
         run_purpose_mismatch(),
@@ -26,7 +26,6 @@ def run_all():
         run_metadata_linkage_probe(),
         run_compromised_requester_exfiltration(),
     ]
-    output_path = Path("results") / "tables" / "security_matrix.csv"
     write_security_matrix(results, output_path)
     return results, output_path
 
