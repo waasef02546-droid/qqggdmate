@@ -1,0 +1,5 @@
+status=tool_unavailable
+tool=proverif
+proof=presaga_token_secrecy.pv
+message=The proverif executable was not found on PATH; install ProVerif and rerun `python -m proofs.run_proverif`.
+architecture_contribution=Connects P1 ContactToken/DataToken layering to P2 token misuse attacks.

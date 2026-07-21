@@ -21,7 +21,21 @@ They are not a proof of a new proxy re-encryption primitive. They model the prot
 
 ## Current Status
 
-The local repository includes smoke tests that check the artifacts contain the expected queries, events, and boundary statements. Running ProVerif itself is a later environment-dependent step.
+The local repository includes smoke tests that check the artifacts contain the expected queries, events, and boundary statements.
+
+P4 adds `run_proverif.py`, which attempts to execute every `.pv` model with the local `proverif` executable and writes reproducible outputs under `results/proofs/`. If ProVerif is not installed, the runner records `tool_unavailable` instead of claiming a successful proof run.
+
+```powershell
+python -m proofs.run_proverif
+```
+
+## Linkage with implementation stages
+
+| Stage | Formal-analysis linkage |
+|---|---|
+| P1 SAGA-compatible adapter | `presaga_token_secrecy.pv` models that accepted data-token use must correspond to issued token fields. |
+| P2 attack matrix | `presaga_rekey_authentication.pv` maps requester, record, data class, purpose, version, and key binding to mismatch/stale-token attacks. |
+| P3 task-level evaluation | `presaga_dek_secrecy.pv` states the Provider/PRE Proxy visibility boundary used by the plaintext-probe and evaluation reports. |
 
 ## Boundary
 

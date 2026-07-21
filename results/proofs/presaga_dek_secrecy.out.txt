@@ -1,0 +1,5 @@
+status=tool_unavailable
+tool=proverif
+proof=presaga_dek_secrecy.pv
+message=The proverif executable was not found on PATH; install ProVerif and rerun `python -m proofs.run_proverif`.
+architecture_contribution=Connects PRE transform design to provider_plaintext_probe and P3 latency visibility boundaries.
