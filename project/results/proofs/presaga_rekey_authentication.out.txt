@@ -1,0 +1,5 @@
+status=tool_unavailable
+tool=proverif
+proof=presaga_rekey_authentication.pv
+message=The proverif executable was not found on PATH; install ProVerif and rerun `python -m proofs.run_proverif`.
+architecture_contribution=Connects requester/purpose/record/version binding to P2 stale-rekey and mismatch attacks.
