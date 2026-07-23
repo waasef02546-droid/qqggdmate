@@ -1,5 +1,82 @@
-status=tool_unavailable
-tool=proverif
+status=passed
+tool=D:\Users\New project 1\tools\proverif2.05\proverif.exe
 proof=presaga_token_secrecy.pv
-message=The proverif executable was not found on PATH; install ProVerif and rerun `python -m proofs.run_proverif`.
+return_code=0
 architecture_contribution=Connects P1 ContactToken/DataToken layering to P2 token misuse attacks.
+
+[stdout]
+Process 0 (that is, the initial process):
+{1}let tok: token = sign_token(provider_sk,owner,bob,rec1,calendar,meeting,v1) in
+{2}event DataTokenIssued(owner,bob,rec1,calendar,meeting,v1);
+{3}out(c, tok);
+{4}if (tok = sign_token(provider_sk,owner,bob,rec1,calendar,meeting,v1)) then
+    {5}event DataTokenAccepted(owner,bob,rec1,calendar,meeting,v1)
+else
+    {6}event DataTokenRejected(owner,bob,rec1,calendar,meeting,v1);
+    {7}if (tok = sign_token(provider_sk,owner,carol,rec1,calendar,meeting,v1)) then
+        {8}event DataTokenAccepted(owner,carol,rec1,calendar,meeting,v1)
+    else
+        {9}event DataTokenRejected(owner,carol,rec1,calendar,meeting,v1);
+        {10}if (tok = sign_token(provider_sk,owner,bob,rec2,calendar,meeting,v1)) then
+            {11}event DataTokenAccepted(owner,bob,rec2,calendar,meeting,v1)
+        else
+            {12}event DataTokenRejected(owner,bob,rec2,calendar,meeting,v1);
+            {13}if (tok = sign_token(provider_sk,owner,bob,rec1,mail,meeting,v1)) then
+                {14}event DataTokenAccepted(owner,bob,rec1,mail,meeting,v1)
+            else
+                {15}event DataTokenRejected(owner,bob,rec1,mail,meeting,v1);
+                {16}if (tok = sign_token(provider_sk,owner,bob,rec1,calendar,expense,v1)) then
+                    {17}event DataTokenAccepted(owner,bob,rec1,calendar,expense,v1)
+                else
+                    {18}event DataTokenRejected(owner,bob,rec1,calendar,expense,v1);
+                    {19}if (tok = sign_token(provider_sk,owner,bob,rec1,calendar,meeting,v2)) then
+                        {20}event DataTokenAccepted(owner,bob,rec1,calendar,meeting,v2)
+                    else
+                        {21}event DataTokenRejected(owner,bob,rec1,calendar,meeting,v2)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{2}event DataTokenIssued(owner,bob,rec1,calendar,meeting,v1);
+{1}let tok: token = sign_token(provider_sk,owner,bob,rec1,calendar,meeting,v1) in
+{3}out(c, tok);
+{4}if (tok = sign_token(provider_sk,owner,bob,rec1,calendar,meeting,v1)) then
+    {5}event DataTokenAccepted(owner,bob,rec1,calendar,meeting,v1)
+else
+    {6}event DataTokenRejected(owner,bob,rec1,calendar,meeting,v1);
+    {7}if (tok = sign_token(provider_sk,owner,carol,rec1,calendar,meeting,v1)) then
+        {8}event DataTokenAccepted(owner,carol,rec1,calendar,meeting,v1)
+    else
+        {9}event DataTokenRejected(owner,carol,rec1,calendar,meeting,v1);
+        {10}if (tok = sign_token(provider_sk,owner,bob,rec2,calendar,meeting,v1)) then
+            {11}event DataTokenAccepted(owner,bob,rec2,calendar,meeting,v1)
+        else
+            {12}event DataTokenRejected(owner,bob,rec2,calendar,meeting,v1);
+            {13}if (tok = sign_token(provider_sk,owner,bob,rec1,mail,meeting,v1)) then
+                {14}event DataTokenAccepted(owner,bob,rec1,mail,meeting,v1)
+            else
+                {15}event DataTokenRejected(owner,bob,rec1,mail,meeting,v1);
+                {16}if (tok = sign_token(provider_sk,owner,bob,rec1,calendar,expense,v1)) then
+                    {17}event DataTokenAccepted(owner,bob,rec1,calendar,expense,v1)
+                else
+                    {18}event DataTokenRejected(owner,bob,rec1,calendar,expense,v1);
+                    {19}if (tok = sign_token(provider_sk,owner,bob,rec1,calendar,meeting,v2)) then
+                        {20}event DataTokenAccepted(owner,bob,rec1,calendar,meeting,v2)
+                    else
+                        {21}event DataTokenRejected(owner,bob,rec1,calendar,meeting,v2)
+
+-- Query event(DataTokenAccepted(owner_a,requester_a,r,cls,p,v)) ==> event(DataTokenIssued(owner_a,requester_a,r,cls,p,v)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(DataTokenAccepted(owner_a,requester_a,r,cls,p,v)) ==> event(DataTokenIssued(owner_a,requester_a,r,cls,p,v))
+goal reachable: b-event(DataTokenIssued(owner[],bob[],rec1[],calendar[],meeting[],v1[])) -> event(DataTokenAccepted(owner[],bob[],rec1[],calendar[],meeting[],v1[]))
+RESULT event(DataTokenAccepted(owner_a,requester_a,r,cls,p,v)) ==> event(DataTokenIssued(owner_a,requester_a,r,cls,p,v)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(DataTokenAccepted(owner_a,requester_a,r,cls,p,v)) ==> event(DataTokenIssued(owner_a,requester_a,r,cls,p,v)) is true.
+
+--------------------------------------------------------------
+
+
+
+[stderr]

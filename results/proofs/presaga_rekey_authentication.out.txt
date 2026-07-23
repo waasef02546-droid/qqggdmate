@@ -1,5 +1,84 @@
-status=tool_unavailable
-tool=proverif
+status=passed
+tool=D:\Users\New project 1\tools\proverif2.05\proverif.exe
 proof=presaga_rekey_authentication.pv
-message=The proverif executable was not found on PATH; install ProVerif and rerun `python -m proofs.run_proverif`.
+return_code=0
 architecture_contribution=Connects requester/purpose/record/version binding to P2 stale-rekey and mismatch attacks.
+
+[stdout]
+Process 0 (that is, the initial process):
+{1}let kh_bob: pubkey_hash = key_hash(bob) in
+{2}let valid_token: token = data_token(owner,bob,rec1,calendar,meeting,v1,kh_bob) in
+{3}event TokenIssued(owner,bob,rec1,calendar,meeting,v1,kh_bob);
+{4}out(c, valid_token);
+{5}if (valid_token = data_token(owner,bob,rec1,calendar,meeting,v1,kh_bob)) then
+    {6}event TransformAccepted(owner,bob,rec1,calendar,meeting,v1,kh_bob)
+else
+    {7}event TransformRejected(owner,bob,rec1,calendar,meeting,v1);
+    {8}if (valid_token = data_token(owner,carol,rec1,calendar,meeting,v1,key_hash(carol))) then
+        {9}event TransformAccepted(owner,carol,rec1,calendar,meeting,v1,key_hash(carol))
+    else
+        {10}event TransformRejected(owner,carol,rec1,calendar,meeting,v1);
+        {11}if (valid_token = data_token(owner,bob,rec2,calendar,meeting,v1,kh_bob)) then
+            {12}event TransformAccepted(owner,bob,rec2,calendar,meeting,v1,kh_bob)
+        else
+            {13}event TransformRejected(owner,bob,rec2,calendar,meeting,v1);
+            {14}if (valid_token = data_token(owner,bob,rec1,mail,meeting,v1,kh_bob)) then
+                {15}event TransformAccepted(owner,bob,rec1,mail,meeting,v1,kh_bob)
+            else
+                {16}event TransformRejected(owner,bob,rec1,mail,meeting,v1);
+                {17}if (valid_token = data_token(owner,bob,rec1,calendar,expense,v1,kh_bob)) then
+                    {18}event TransformAccepted(owner,bob,rec1,calendar,expense,v1,kh_bob)
+                else
+                    {19}event TransformRejected(owner,bob,rec1,calendar,expense,v1);
+                    {20}if (valid_token = data_token(owner,bob,rec1,calendar,meeting,v2,kh_bob)) then
+                        {21}event TransformAccepted(owner,bob,rec1,calendar,meeting,v2,kh_bob)
+                    else
+                        {22}event TransformRejected(owner,bob,rec1,calendar,meeting,v2)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}let kh_bob: pubkey_hash = key_hash(bob) in
+{3}event TokenIssued(owner,bob,rec1,calendar,meeting,v1,kh_bob);
+{2}let valid_token: token = data_token(owner,bob,rec1,calendar,meeting,v1,kh_bob) in
+{4}out(c, valid_token);
+{5}if (valid_token = data_token(owner,bob,rec1,calendar,meeting,v1,kh_bob)) then
+    {6}event TransformAccepted(owner,bob,rec1,calendar,meeting,v1,kh_bob)
+else
+    {7}event TransformRejected(owner,bob,rec1,calendar,meeting,v1);
+    {8}if (valid_token = data_token(owner,carol,rec1,calendar,meeting,v1,key_hash(carol))) then
+        {9}event TransformAccepted(owner,carol,rec1,calendar,meeting,v1,key_hash(carol))
+    else
+        {10}event TransformRejected(owner,carol,rec1,calendar,meeting,v1);
+        {11}if (valid_token = data_token(owner,bob,rec2,calendar,meeting,v1,kh_bob)) then
+            {12}event TransformAccepted(owner,bob,rec2,calendar,meeting,v1,kh_bob)
+        else
+            {13}event TransformRejected(owner,bob,rec2,calendar,meeting,v1);
+            {14}if (valid_token = data_token(owner,bob,rec1,mail,meeting,v1,kh_bob)) then
+                {15}event TransformAccepted(owner,bob,rec1,mail,meeting,v1,kh_bob)
+            else
+                {16}event TransformRejected(owner,bob,rec1,mail,meeting,v1);
+                {17}if (valid_token = data_token(owner,bob,rec1,calendar,expense,v1,kh_bob)) then
+                    {18}event TransformAccepted(owner,bob,rec1,calendar,expense,v1,kh_bob)
+                else
+                    {19}event TransformRejected(owner,bob,rec1,calendar,expense,v1);
+                    {20}if (valid_token = data_token(owner,bob,rec1,calendar,meeting,v2,kh_bob)) then
+                        {21}event TransformAccepted(owner,bob,rec1,calendar,meeting,v2,kh_bob)
+                    else
+                        {22}event TransformRejected(owner,bob,rec1,calendar,meeting,v2)
+
+-- Query event(TransformAccepted(owner_a,requester_a,r,cls,p,v,kh)) ==> event(TokenIssued(owner_a,requester_a,r,cls,p,v,kh)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(TransformAccepted(owner_a,requester_a,r,cls,p,v,kh)) ==> event(TokenIssued(owner_a,requester_a,r,cls,p,v,kh))
+goal reachable: b-event(TokenIssued(owner[],bob[],rec1[],calendar[],meeting[],v1[],key_hash(bob[]))) -> event(TransformAccepted(owner[],bob[],rec1[],calendar[],meeting[],v1[],key_hash(bob[])))
+RESULT event(TransformAccepted(owner_a,requester_a,r,cls,p,v,kh)) ==> event(TokenIssued(owner_a,requester_a,r,cls,p,v,kh)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(TransformAccepted(owner_a,requester_a,r,cls,p,v,kh)) ==> event(TokenIssued(owner_a,requester_a,r,cls,p,v,kh)) is true.
+
+--------------------------------------------------------------
+
+
+
+[stderr]

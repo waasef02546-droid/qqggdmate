@@ -22,10 +22,9 @@ fun sk(agent): key [private].
 fun enc_dek(key, dek, record, data_class, version): ciphertext.
 fun rekey(agent, agent, record, data_class, purpose, version): key.
 fun token_for(agent, agent, record, data_class, purpose, version): token.
-fun transform(ciphertext, key): ciphertext.
 
 reduc forall owner: agent, requester: agent, r: record, cls: data_class, p: purpose, v: version, d: dek;
-  transform(enc_dek(pk(owner), d, r, cls, v), rekey(owner, requester, r, cls, p, v))
+  pre_transform(enc_dek(pk(owner), d, r, cls, v), rekey(owner, requester, r, cls, p, v))
   = enc_dek(pk(requester), d, r, cls, v).
 
 event PolicyAllow(agent, agent, record, data_class, purpose, version).
@@ -47,14 +46,11 @@ query owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose
   event(TransformIssued(owner_a, requester_a, r, cls, p, v))
   ==> event(PolicyAllow(owner_a, requester_a, r, cls, p, v)).
 
-let provider_transform(owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose, v: version, edek_owner: ciphertext) =
-  event PolicyAllow(owner_a, requester_a, r, cls, p, v);
-  let rk = rekey(owner_a, requester_a, r, cls, p, v) in
-  let edek_requester = transform(edek_owner, rk) in
-  event TransformIssued(owner_a, requester_a, r, cls, p, v);
-  out(c, edek_requester).
-
 process
   let edek_owner = enc_dek(pk(owner), secret_dek, rec1, calendar, v1) in
   out(c, edek_owner);
-  provider_transform(owner, requester, rec1, calendar, meeting, v1, edek_owner)
+  event PolicyAllow(owner, requester, rec1, calendar, meeting, v1);
+  let rk = rekey(owner, requester, rec1, calendar, meeting, v1) in
+  let edek_requester = pre_transform(edek_owner, rk) in
+  event TransformIssued(owner, requester, rec1, calendar, meeting, v1);
+  out(c, edek_requester)

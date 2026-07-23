@@ -39,8 +39,31 @@ P4 is considered complete for the current local environment if:
 - the status is not silently inferred or manually fabricated;
 - test coverage verifies the runner output.
 
-## Current limitation
+## Current local result
 
-If ProVerif is not installed on PATH, the current status is a reproducible
-environment-blocked run. Installing ProVerif and rerunning the same command will
-replace `tool_unavailable` outputs with real verifier output.
+ProVerif 2.05 was installed under the local D-drive tool directory:
+
+```text
+D:\Users\New project 1\tools\proverif2.05\proverif.exe
+```
+
+The proof runner detected this executable and generated real verifier outputs.
+All three local proof runs currently report `passed`:
+
+- `presaga_token_secrecy.pv`
+- `presaga_dek_secrecy.pv`
+- `presaga_rekey_authentication.pv`
+
+The DEK secrecy model additionally reports:
+
+```text
+RESULT not attacker(secret_dek[]) is true.
+```
+
+## Remaining limitation
+
+The models are still abstract symbolic models. They support protocol-level
+claims about token binding, requester/purpose/record/version matching, and
+Provider non-plaintext visibility. They do not prove the concrete security of
+the toy PRE backend or cover endpoint compromise after a requester legitimately
+decrypts plaintext.

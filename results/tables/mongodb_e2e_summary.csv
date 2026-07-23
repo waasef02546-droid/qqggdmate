@@ -1,0 +1,2 @@
+scenario,mongo_connected,normal_success,attack_blocked,decrypted_plaintext,denial_reason,provider_plaintext_data_visible,provider_plaintext_dek_visible,persisted_agents,persisted_policies,persisted_contact_tokens,persisted_data_tokens,persisted_audit_events,persisted_encrypted_objects,latency_ms
+mongodb_alice_bob_mallory_e2e,True,True,True,Alice is free from 10:00 to 11:00.,requester_mismatch,False,False,3,1,1,1,2,1,37.098

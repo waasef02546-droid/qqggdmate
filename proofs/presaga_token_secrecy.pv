@@ -38,19 +38,31 @@ query owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose
   event(DataTokenAccepted(owner_a, requester_a, r, cls, p, v))
   ==> event(DataTokenIssued(owner_a, requester_a, r, cls, p, v)).
 
-let validate_token(tok: token, owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose, v: version) =
-  if tok = sign_token(provider_sk(), owner_a, requester_a, r, cls, p, v) then
-    event DataTokenAccepted(owner_a, requester_a, r, cls, p, v)
-  else
-    event DataTokenRejected(owner_a, requester_a, r, cls, p, v).
-
 process
   let tok = sign_token(provider_sk(), owner, bob, rec1, calendar, meeting, v1) in
   event DataTokenIssued(owner, bob, rec1, calendar, meeting, v1);
   out(c, tok);
-  validate_token(tok, owner, bob, rec1, calendar, meeting, v1);
-  validate_token(tok, owner, carol, rec1, calendar, meeting, v1);
-  validate_token(tok, owner, bob, rec2, calendar, meeting, v1);
-  validate_token(tok, owner, bob, rec1, mail, meeting, v1);
-  validate_token(tok, owner, bob, rec1, calendar, expense, v1);
-  validate_token(tok, owner, bob, rec1, calendar, meeting, v2)
+  if tok = sign_token(provider_sk(), owner, bob, rec1, calendar, meeting, v1) then
+    event DataTokenAccepted(owner, bob, rec1, calendar, meeting, v1)
+  else
+    event DataTokenRejected(owner, bob, rec1, calendar, meeting, v1);
+  if tok = sign_token(provider_sk(), owner, carol, rec1, calendar, meeting, v1) then
+    event DataTokenAccepted(owner, carol, rec1, calendar, meeting, v1)
+  else
+    event DataTokenRejected(owner, carol, rec1, calendar, meeting, v1);
+  if tok = sign_token(provider_sk(), owner, bob, rec2, calendar, meeting, v1) then
+    event DataTokenAccepted(owner, bob, rec2, calendar, meeting, v1)
+  else
+    event DataTokenRejected(owner, bob, rec2, calendar, meeting, v1);
+  if tok = sign_token(provider_sk(), owner, bob, rec1, mail, meeting, v1) then
+    event DataTokenAccepted(owner, bob, rec1, mail, meeting, v1)
+  else
+    event DataTokenRejected(owner, bob, rec1, mail, meeting, v1);
+  if tok = sign_token(provider_sk(), owner, bob, rec1, calendar, expense, v1) then
+    event DataTokenAccepted(owner, bob, rec1, calendar, expense, v1)
+  else
+    event DataTokenRejected(owner, bob, rec1, calendar, expense, v1);
+  if tok = sign_token(provider_sk(), owner, bob, rec1, calendar, meeting, v2) then
+    event DataTokenAccepted(owner, bob, rec1, calendar, meeting, v2)
+  else
+    event DataTokenRejected(owner, bob, rec1, calendar, meeting, v2)

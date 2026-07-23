@@ -12,6 +12,7 @@ by PRE-SAGA data sharing:
 - toy PRE interface
 - attack matrix
 - task-level evaluation
+- MongoDB-backed E2E persistence experiment
 - formal-analysis runner
 
 The cryptographic backend is intentionally marked as `toy_pre`. It is used to validate protocol behavior and test bindings, not for production security.
@@ -55,6 +56,8 @@ results/tables/task_summary.csv
 results/tables/denial_reason_summary.csv
 results/tables/task_latency_breakdown.csv
 results/tables/task_scalability.csv
+results/tables/mongodb_e2e_summary.csv
+results/mongodb_e2e_report.md
 results/proofs/proverif_summary.csv
 ```
 
@@ -72,3 +75,16 @@ python -m proofs.run_proverif
 If ProVerif is installed and on PATH, the runner saves real verifier output
 under `results/proofs/`. If it is not installed, the runner records
 `tool_unavailable` so the verification status remains auditable.
+
+## Run MongoDB-backed E2E
+
+Start a local MongoDB instance on `127.0.0.1:27017`, then run:
+
+```powershell
+cd project
+python -m experiments.e2e.mongodb_e2e
+```
+
+The E2E persists agent registry state, data policies, contact tokens, data
+tokens, audit events, and encrypted objects in MongoDB. It verifies a normal
+Alice/Bob data-sharing path and a Mallory requester-mismatch denial path.

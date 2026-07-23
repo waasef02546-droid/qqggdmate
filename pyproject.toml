@@ -3,6 +3,9 @@ name = "pre-saga-prototype"
 version = "0.1.0"
 description = "PRE-SAGA stage 2 prototype for policy-bound encrypted data sharing"
 requires-python = ">=3.10"
+dependencies = [
+  "pymongo>=4.0",
+]
 
 [tool.unittest]
 start-directory = "tests"
