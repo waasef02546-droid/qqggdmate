@@ -37,21 +37,6 @@ query owner_a: agent, requester_a: agent, r: record, cls: data_class, p: purpose
   event(TransformAccepted(owner_a, requester_a, r, cls, p, v, kh))
   ==> event(TokenIssued(owner_a, requester_a, r, cls, p, v, kh)).
 
-let validate_and_transform(
-  tok: token,
-  owner_a: agent,
-  requester_a: agent,
-  r: record,
-  cls: data_class,
-  p: purpose,
-  v: version,
-  kh: pubkey_hash
-) =
-  if tok = data_token(owner_a, requester_a, r, cls, p, v, kh) then
-    event TransformAccepted(owner_a, requester_a, r, cls, p, v, kh)
-  else
-    event TransformRejected(owner_a, requester_a, r, cls, p, v).
-
 process
   let kh_bob = key_hash(bob) in
   let valid_token = data_token(owner, bob, rec1, calendar, meeting, v1, kh_bob) in
@@ -59,12 +44,30 @@ process
   out(c, valid_token);
 
   (* Accepted use. *)
-  validate_and_transform(valid_token, owner, bob, rec1, calendar, meeting, v1, kh_bob);
+  if valid_token = data_token(owner, bob, rec1, calendar, meeting, v1, kh_bob) then
+    event TransformAccepted(owner, bob, rec1, calendar, meeting, v1, kh_bob)
+  else
+    event TransformRejected(owner, bob, rec1, calendar, meeting, v1);
 
   (* Mismatched requester, record, data class, purpose, and version are modeled
      as non-equal token checks and should not emit TransformAccepted. *)
-  validate_and_transform(valid_token, owner, carol, rec1, calendar, meeting, v1, key_hash(carol));
-  validate_and_transform(valid_token, owner, bob, rec2, calendar, meeting, v1, kh_bob);
-  validate_and_transform(valid_token, owner, bob, rec1, mail, meeting, v1, kh_bob);
-  validate_and_transform(valid_token, owner, bob, rec1, calendar, expense, v1, kh_bob);
-  validate_and_transform(valid_token, owner, bob, rec1, calendar, meeting, v2, kh_bob)
+  if valid_token = data_token(owner, carol, rec1, calendar, meeting, v1, key_hash(carol)) then
+    event TransformAccepted(owner, carol, rec1, calendar, meeting, v1, key_hash(carol))
+  else
+    event TransformRejected(owner, carol, rec1, calendar, meeting, v1);
+  if valid_token = data_token(owner, bob, rec2, calendar, meeting, v1, kh_bob) then
+    event TransformAccepted(owner, bob, rec2, calendar, meeting, v1, kh_bob)
+  else
+    event TransformRejected(owner, bob, rec2, calendar, meeting, v1);
+  if valid_token = data_token(owner, bob, rec1, mail, meeting, v1, kh_bob) then
+    event TransformAccepted(owner, bob, rec1, mail, meeting, v1, kh_bob)
+  else
+    event TransformRejected(owner, bob, rec1, mail, meeting, v1);
+  if valid_token = data_token(owner, bob, rec1, calendar, expense, v1, kh_bob) then
+    event TransformAccepted(owner, bob, rec1, calendar, expense, v1, kh_bob)
+  else
+    event TransformRejected(owner, bob, rec1, calendar, expense, v1);
+  if valid_token = data_token(owner, bob, rec1, calendar, meeting, v2, kh_bob) then
+    event TransformAccepted(owner, bob, rec1, calendar, meeting, v2, kh_bob)
+  else
+    event TransformRejected(owner, bob, rec1, calendar, meeting, v2)

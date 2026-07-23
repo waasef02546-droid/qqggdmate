@@ -36,7 +36,7 @@ def run_proofs(
     output_root: Path = Path("results") / "proofs",
 ) -> list[ProofRunResult]:
     output_root.mkdir(parents=True, exist_ok=True)
-    executable = shutil.which("proverif")
+    executable = _find_proverif(proofs_dir)
     results: list[ProofRunResult] = []
 
     for proof_name in PROOF_FILES:
@@ -96,6 +96,25 @@ def run_proofs(
     _write_summary(results, output_root / "proverif_summary.csv")
     _write_report(results, output_root / "proverif_report.md")
     return results
+
+
+def _find_proverif(proofs_dir: Path) -> str | None:
+    from_path = shutil.which("proverif")
+    if from_path:
+        return from_path
+
+    project_root = proofs_dir.parent.resolve()
+    workspace_root = project_root.parent
+    candidates = [
+        workspace_root / "tools" / "proverif2.05" / "proverif.exe",
+        workspace_root / "tools" / "proverif2.05" / "proverif_32bits.exe",
+        project_root / "tools" / "proverif2.05" / "proverif.exe",
+        project_root / "tools" / "proverif2.05" / "proverif_32bits.exe",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return None
 
 
 def _contribution(proof_name: str) -> str:
@@ -167,8 +186,10 @@ def _write_report(results: list[ProofRunResult], path: Path) -> None:
                 "```",
             ]
         )
+    elif statuses == {"passed"}:
+        lines.append("All configured PRE-SAGA proof artifacts were executed by ProVerif and returned a zero exit code. Inspect each output file for the exact verifier query results.")
     else:
-        lines.append("At least one proof was executed by ProVerif. Inspect each output file for the verifier's query result.")
+        lines.append("At least one proof did not pass. Inspect each output file before using the corresponding claim in the paper.")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

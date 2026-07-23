@@ -1,5 +1,46 @@
-status=tool_unavailable
-tool=proverif
+status=passed
+tool=D:\Users\New project 1\tools\proverif2.05\proverif.exe
 proof=presaga_dek_secrecy.pv
-message=The proverif executable was not found on PATH; install ProVerif and rerun `python -m proofs.run_proverif`.
+return_code=0
 architecture_contribution=Connects PRE transform design to provider_plaintext_probe and P3 latency visibility boundaries.
+
+[stdout]
+Process 0 (that is, the initial process):
+{1}let edek_owner: ciphertext = enc_dek(pk(owner),secret_dek,rec1,calendar,v1) in
+{2}out(c, edek_owner);
+{3}event PolicyAllow(owner,requester,rec1,calendar,meeting,v1);
+{4}let rk: key = rekey(owner,requester,rec1,calendar,meeting,v1) in
+{5}let edek_requester: ciphertext = pre_transform(edek_owner,rk) in
+{6}event TransformIssued(owner,requester,rec1,calendar,meeting,v1);
+{7}out(c, edek_requester)
+
+-- Query not attacker(secret_dek[]) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Termination warning: Selecting an hypothesis matching the conclusion.
+In case of non-termination, try a noselect declaration implying the following one:
+   noselect v:version, cls:data_class, r:record, d:dek, owner_1:agent; attacker(enc_dek(pk(*owner_1),*d,*r,*cls,*v)).
+Starting query not attacker(secret_dek[])
+RESULT not attacker(secret_dek[]) is true.
+-- Query event(TransformIssued(owner_a,requester_a,r,cls,p,v)) ==> event(PolicyAllow(owner_a,requester_a,r,cls,p,v)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Termination warning: Selecting an hypothesis matching the conclusion.
+In case of non-termination, try a noselect declaration implying the following one:
+   noselect v:version, cls:data_class, r:record, d:dek, owner_1:agent; attacker(enc_dek(pk(*owner_1),*d,*r,*cls,*v)).
+Starting query event(TransformIssued(owner_a,requester_a,r,cls,p,v)) ==> event(PolicyAllow(owner_a,requester_a,r,cls,p,v))
+goal reachable: b-event(PolicyAllow(owner[],requester[],rec1[],calendar[],meeting[],v1[])) -> event(TransformIssued(owner[],requester[],rec1[],calendar[],meeting[],v1[]))
+RESULT event(TransformIssued(owner_a,requester_a,r,cls,p,v)) ==> event(PolicyAllow(owner_a,requester_a,r,cls,p,v)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(secret_dek[]) is true.
+
+Query event(TransformIssued(owner_a,requester_a,r,cls,p,v)) ==> event(PolicyAllow(owner_a,requester_a,r,cls,p,v)) is true.
+
+--------------------------------------------------------------
+
+
+
+[stderr]
