@@ -17,7 +17,7 @@ Alice stores encrypted calendar availability in MongoDB. Bob obtains contact aut
 - persisted_data_tokens: `1`
 - persisted_audit_events: `2`
 - persisted_encrypted_objects: `1`
-- latency_ms: `17.654`
+- latency_ms: `16.092`
 
 ## Architecture impact
 

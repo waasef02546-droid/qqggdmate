@@ -10,6 +10,7 @@ if __package__ is None or __package__ == "":
 
 from experiments.attacks.run_all import run_all as run_attacks
 from experiments.e2e.mongodb_e2e import run_mongodb_e2e
+from experiments.e2e.saga_bridge import run_saga_bridge
 from experiments.evaluation.run_p3_evaluation import run_p3_evaluation
 from experiments.tasks.run_all import run_all as run_tasks
 from experiments.performance.run_performance import run_performance
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     performance_rows = run_performance()
     p3_outputs = run_p3_evaluation(task_results=task_results, attack_results=results)
     proof_results = run_proofs()
+    saga_bridge_results = run_saga_bridge()
     try:
         mongodb_e2e = run_mongodb_e2e()
         mongodb_e2e_status = (
@@ -47,4 +49,6 @@ if __name__ == "__main__":
     print(f"p3_task_summary={p3_outputs.task_summary_path}")
     print(f"p3_task_scalability_rows={p3_outputs.scalability_rows}")
     print(f"proof_statuses={proof_statuses}")
+    print(f"saga_bridge_cases={len(saga_bridge_results)}")
+    print("saga_bridge_summary=results\\tables\\saga_bridge_summary.csv")
     print(f"mongodb_e2e_status={mongodb_e2e_status}")

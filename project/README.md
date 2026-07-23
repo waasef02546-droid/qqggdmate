@@ -85,7 +85,9 @@ results/tables/denial_reason_summary.csv
 results/tables/task_latency_breakdown.csv
 results/tables/task_scalability.csv
 results/tables/mongodb_e2e_summary.csv
+results/tables/saga_bridge_summary.csv
 results/mongodb_e2e_report.md
+results/saga_bridge_report.md
 results/proofs/proverif_summary.csv
 ```
 
@@ -104,6 +106,19 @@ If ProVerif is installed and on PATH, the runner saves real verifier output
 under `results/proofs/`. If it is not installed, the runner records
 `tool_unavailable` so the verification status remains auditable.
 
+## Traceability from formal claims to code and evidence
+
+[`docs/traceability_matrix.md`](docs/traceability_matrix.md) maps each
+paper-level security claim to the ProVerif event/query, protocol fields,
+implementation path, and repeatable test or attack experiment.  The matrix
+also states the prototype boundary: it does not treat the toy PRE backend as a
+concrete cryptographic proof.
+
+```powershell
+cd project
+python -m unittest tests.security.test_traceability -v
+```
+
 ## Run MongoDB-backed E2E
 
 Start a local MongoDB instance on `127.0.0.1:27017`, then run:
@@ -116,3 +131,22 @@ python -m experiments.e2e.mongodb_e2e
 The E2E persists agent registry state, data policies, contact tokens, data
 tokens, audit events, and encrypted objects in MongoDB. It verifies a normal
 Alice/Bob data-sharing path and a Mallory requester-mismatch denial path.
+
+## Run the SAGA-to-PRE-SAGA bridge
+
+```powershell
+cd project
+python -m experiments.e2e.saga_bridge
+```
+
+The bridge does not start a SAGA socket or claim direct runtime compatibility.
+It reads the recorded SAGA Alice/Bob and Alice/Bob/Mallory terminal evidence
+under `../saga_reproduction/`, then runs a PRE-SAGA data-layer extension for
+the same narrative.  The output distinguishes a normal Bob calendar release
+from a Mallory case where SAGA-style contact is allowed but PRE-SAGA data access
+is denied.  It writes:
+
+```text
+results/tables/saga_bridge_summary.csv
+results/saga_bridge_report.md
+```

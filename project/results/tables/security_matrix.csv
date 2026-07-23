@@ -1,9 +1,9 @@
 attack,baseline_contact_allowed,expected_blocked,blocked,success,reason,latency_ms,audit_id,strength_note
-unauthorized_data_class,True,True,True,True,data_class_denied,0.177,audit-9a9ed2a3cd1b565f,SAGA-style contact gate allows the requester; PRE-SAGA blocks at Data Sharing Policy.
-purpose_mismatch,True,True,True,True,purpose_mismatch,0.214,audit-02b56f3852d125f6,"A valid token is first issued, then misused with a different purpose to test token binding."
-token_reuse,True,True,True,True,token_exhausted,0.235,audit-bb59fde6d0b49bc6,The first authorized transform consumes the only allowed use; the replay is rejected.
-requester_mismatch,True,True,True,True,requester_mismatch,0.149,audit-f64cc7092803ddec,"Carol also passes contact policy, but cannot use Bob's data token."
-stale_rekey_use,True,True,True,True,version_out_of_bounds,0.137,audit-53db528095401174,A stale rekey is coupled with a stale version-bound token; PRE-SAGA rejects before PRE transform.
-provider_plaintext_probe,True,True,True,True,provider_plaintext_not_observed,0.176,audit-0de7aee7f90532a1,"A valid transform succeeds, but the proxy audit confirms no plaintext DEK or data is exposed to the Provider."
-metadata_linkage_probe,True,True,True,True,record_scope_denied,0.134,audit-e6733919b5423f96,The requester has contact permission but cannot use a data token as an oracle for records outside its bound scope.
-compromised_requester_exfiltration,True,True,True,True,data_class_denied,0.129,audit-4b246d8560180761,A compromised requester keeps its identity/key but cannot broaden the token to another data class or exfiltration purpose.
+unauthorized_data_class,True,True,True,True,data_class_denied,0.138,audit-44e2261130dca99f,SAGA-style contact gate allows the requester; PRE-SAGA blocks at Data Sharing Policy.
+purpose_mismatch,True,True,True,True,purpose_mismatch,0.215,audit-88c005802c8c828b,"A valid token is first issued, then misused with a different purpose to test token binding."
+token_reuse,True,True,True,True,token_exhausted,0.22,audit-1961594c8da49863,The first authorized transform consumes the only allowed use; the replay is rejected.
+requester_mismatch,True,True,True,True,requester_mismatch,0.137,audit-2af4db72e883a522,"Carol also passes contact policy, but cannot use Bob's data token."
+stale_rekey_use,True,True,True,True,version_out_of_bounds,0.124,audit-60ec3e6f5f406dcc,A stale rekey is coupled with a stale version-bound token; PRE-SAGA rejects before PRE transform.
+provider_plaintext_probe,True,True,True,True,provider_plaintext_not_observed,0.155,audit-54832b32e8d56995,"A valid transform succeeds, but the proxy audit confirms no plaintext DEK or data is exposed to the Provider."
+metadata_linkage_probe,True,True,True,True,record_scope_denied,0.112,audit-498730bf3e6dee8c,The requester has contact permission but cannot use a data token as an oracle for records outside its bound scope.
+compromised_requester_exfiltration,True,True,True,True,data_class_denied,0.112,audit-a203c96c7c949004,A compromised requester keeps its identity/key but cannot broaden the token to another data class or exfiltration purpose.
