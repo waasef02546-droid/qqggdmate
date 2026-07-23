@@ -1,5 +1,10 @@
-"""Mail data store alias for experiments."""
+"""Policy-aware mail tool storage."""
 
-from presaga.storage.encrypted_store import EncryptedStore
+from presaga.storage.policy_aware_store import PolicyAwareStore
 
-__all__ = ["EncryptedStore"]
+
+class MailStore(PolicyAwareStore):
+    data_class = "mail"
+
+
+__all__ = ["MailStore"]

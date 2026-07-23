@@ -8,14 +8,19 @@ by PRE-SAGA data sharing:
 - SAGA-compatible contact token adapter
 - Data Sharing Policy evaluator
 - data token service
-- encrypted store
+- policy-aware mail, calendar, document, and memory stores with record filtering and field projection
 - toy PRE interface
 - attack matrix
 - task-level evaluation
 - MongoDB-backed E2E persistence experiment
 - formal-analysis runner
 
-The cryptographic backend is intentionally marked as `toy_pre`. It is used to validate protocol behavior and test bindings, not for production security.
+The data-encryption path uses standard AES-256-GCM envelope encryption with a
+fresh 96-bit nonce and record-bound associated data.  The bundled `toy_pre` and
+`hpke-kem-stub` key-transform backends remain deliberately insecure protocol
+stubs: they validate authorization bindings and control flow only, and are not
+production PRE/HPKE implementations.  A reviewed PRE or HPKE adapter is still
+required before protecting real keys or data.
 
 ## Run tests
 
@@ -23,6 +28,29 @@ The cryptographic backend is intentionally marked as `toy_pre`. It is used to va
 cd project
 python -m unittest discover -s tests -v
 ```
+
+## Run the local Provider service
+
+The dependency-free HTTP service keeps `PREProviderApp` as the domain layer and
+uses a JSON file for local persistent Provider state.  It is intended for the
+prototype/E2E workflow, not as a production authentication service.
+
+```powershell
+cd project
+python -m presaga.provider.server --host 127.0.0.1 --port 8080 --state-file provider-state.json
+```
+
+The JSON APIs are:
+
+- `POST /v1/agents` — `{aid, public_key_b64}` registers an agent.
+- `POST /v1/contact-rulebooks` — `{owner_aid, rulebook}` configures the SAGA-compatible contact policy needed by session issuance.
+- `POST /v1/data-policies` — adds a policy using the `DataSharingPolicy` JSON schema.
+- `POST /v1/contact-sessions` — `{owner_aid, requester_aid}` issues a contact token.
+- `POST /v1/data-tokens` — accepts a data-access request and returns a policy decision and, if allowed, a data token.
+- `POST /v1/re-encryptions` — `{token_id, request, encrypted_dek_owner_b64, rekey_b64}` validates and consumes a token before transforming the encrypted DEK.
+- `GET /v1/audit` — returns audit records; optional `owner_aid`, `requester_aid`, `decision`, and `event_type` query filters are supported.
+
+`GET /healthz` provides a lightweight service-health endpoint.
 
 ## Expected result
 

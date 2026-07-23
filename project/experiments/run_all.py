@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from experiments.attacks.run_all import run_all as run_attacks
 from experiments.e2e.mongodb_e2e import run_mongodb_e2e
 from experiments.evaluation.run_p3_evaluation import run_p3_evaluation

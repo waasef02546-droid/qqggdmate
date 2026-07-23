@@ -1,5 +1,10 @@
-"""Calendar data store alias for experiments."""
+"""Policy-aware calendar tool storage."""
 
-from presaga.storage.encrypted_store import EncryptedStore
+from presaga.storage.policy_aware_store import PolicyAwareStore
 
-__all__ = ["EncryptedStore"]
+
+class CalendarStore(PolicyAwareStore):
+    data_class = "calendar"
+
+
+__all__ = ["CalendarStore"]

@@ -1,4 +1,9 @@
-"""Proxy re-encryption backend interface."""
+"""Proxy re-encryption backend interface.
+
+The bundled implementations are intentionally non-production stubs.  This
+interface is the seam where a reviewed PRE or HPKE-based key-sharing adapter
+must be integrated before any real deployment.
+"""
 
 from __future__ import annotations
 

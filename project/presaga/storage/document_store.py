@@ -1,5 +1,10 @@
-"""Document data store alias for experiments."""
+"""Policy-aware document tool storage."""
 
-from presaga.storage.encrypted_store import EncryptedStore
+from presaga.storage.policy_aware_store import PolicyAwareStore
 
-__all__ = ["EncryptedStore"]
+
+class DocumentStore(PolicyAwareStore):
+    data_class = "document"
+
+
+__all__ = ["DocumentStore"]

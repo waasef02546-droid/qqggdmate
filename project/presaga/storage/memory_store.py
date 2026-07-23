@@ -1,5 +1,10 @@
-"""Memory data store alias for experiments."""
+"""Policy-aware cross-agent memory storage."""
 
-from presaga.storage.encrypted_store import EncryptedStore
+from presaga.storage.policy_aware_store import PolicyAwareStore
 
-__all__ = ["EncryptedStore"]
+
+class MemoryStore(PolicyAwareStore):
+    data_class = "memory"
+
+
+__all__ = ["MemoryStore"]

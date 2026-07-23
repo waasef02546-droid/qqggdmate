@@ -20,7 +20,7 @@ from presaga.protocol.schemas import (
     VersionConstraints,
 )
 from presaga.provider.app import PREProviderApp
-from presaga.storage.encrypted_store import EncryptedStore
+from presaga.storage import CalendarStore, DocumentStore, MailStore, MemoryStore, PolicyAwareStore
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ def run_authorized_task(
     owner = backend.generate_keypair()
     requester = backend.generate_keypair()
     app = PREProviderApp(backend)
-    store = EncryptedStore(backend)
+    store = _store_for_data_class(backend, seed["data_class"])
 
     owner_aid = seed["owner_aid"]
     app.register_agent(owner_aid, owner.public_key)
@@ -80,7 +80,16 @@ def run_authorized_task(
         data_subclass=seed["data_subclass"],
         version=int(seed["version"]),
     )
-    stored = store.put(record, seed["plaintext"].encode("utf-8"), owner.public_key)
+    allowed_fields = [seed["data_subclass"]]
+    stored = store.put_payload(
+        record,
+        {
+            seed["data_subclass"]: seed["plaintext"],
+            "owner_internal_note": "not released to delegated agents",
+        },
+        owner.public_key,
+        purposes=[seed["purpose"]],
+    )
     now = datetime.now(timezone.utc)
     app.add_data_policy(
         DataSharingPolicy(
@@ -153,7 +162,22 @@ def run_authorized_task(
 
     decrypt_started = time.perf_counter()
     dek = backend.unwrap_dek(result.transformed_encrypted_dek, requester.private_key, store.context(record))
-    plaintext = store.decrypt_with_dek(stored, dek).decode("utf-8")
+    # This is the tool-facing data access point: it applies the approved
+    # requester, purpose, record scope, data class, and field projection.
+    grant = store.grant_access(
+        requester_aid=request.requester_aid,
+        purpose=request.purpose,
+        data_class=request.data_class,
+        record_scope=[request.record_id],
+        allowed_fields=allowed_fields,
+    )
+    projected = store.read_projection(
+        grant=grant,
+        record_id=request.record_id,
+        dek=dek,
+        requested_fields=allowed_fields,
+    )
+    plaintext = json.dumps(projected, sort_keys=True)
     decrypt_ms = round((time.perf_counter() - decrypt_started) * 1000, 3)
     latency_ms = round((time.perf_counter() - started) * 1000, 3)
     return TaskResult(
@@ -169,3 +193,16 @@ def run_authorized_task(
         pre_transform_ms=pre_transform_ms,
         decrypt_ms=decrypt_ms,
     )
+
+
+def _store_for_data_class(backend: ToyPRE, data_class: str) -> PolicyAwareStore:
+    stores: dict[str, type[PolicyAwareStore]] = {
+        "calendar": CalendarStore,
+        "mail": MailStore,
+        "document": DocumentStore,
+        "memory": MemoryStore,
+    }
+    try:
+        return stores[data_class](backend)
+    except KeyError as exc:
+        raise ValueError(f"No policy-aware tool store for {data_class!r}") from exc

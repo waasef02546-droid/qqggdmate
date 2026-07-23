@@ -1,8 +1,9 @@
-"""HPKE/KEM-style wrapping stub.
+"""INSECURE HPKE/KEM-shaped compatibility stub.
 
 This module separates protocol logic from the toy PRE backend. It mimics a KEM
 wrapping interface for tests and future adapter work, but it is not a production
-HPKE implementation.
+HPKE implementation, is not interoperable with HPKE, and must never protect
+real keys or data.
 """
 
 from __future__ import annotations

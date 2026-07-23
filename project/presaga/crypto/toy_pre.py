@@ -1,10 +1,13 @@
-"""Toy PRE backend used for protocol-level tests.
+"""INSECURE toy PRE backend used only for protocol-level tests.
 
 The transform works by XORing an owner-wrapped DEK with a rekey delta so that
 the result can be unwrapped by the requester key. The proxy only receives the
 owner-wrapped DEK and rekey delta; it does not need plaintext DEK.
 
-This backend is not a secure PRE construction.
+This backend is not a secure PRE construction, does not provide a security
+proof, and must never protect real keys or data.  Its sole purpose is to keep
+the policy/token/transform control-flow testable while a real PRE/HPKE adapter
+is selected and integrated.
 """
 
 from __future__ import annotations
