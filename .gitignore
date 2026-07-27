@@ -4,6 +4,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 .venv/
 venv/
 
@@ -11,6 +13,8 @@ venv/
 .DS_Store
 Thumbs.db
 desktop.ini
+tmp/
+*.tmp
 
 # SAGA downloaded upstream source and local working copies
 saga_reproduction/saga-main/

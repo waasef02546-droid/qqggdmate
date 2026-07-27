@@ -1,0 +1,84 @@
+schema_version: 1
+captured_at: "2026-07-28"
+hash_method: "sha256(sorted(relative_path|file_sha256) joined with LF); single files use file SHA256"
+policy:
+  destructive_actions: forbidden_without_explicit_user_authorization
+  preserve_unknown_user_material: true
+  verify_before_and_after_move: true
+entries:
+  - source: project/result
+    classification: legacy_evidence
+    files: 5
+    bytes: 61059
+    manifest_sha256: f544eb21a9e9537212fd14c377bce70c0fd7bd8468ce32d6a1a3e63f01f1786e
+    proposed_target: project/results/legacy/stage2
+    action: plan_only
+    blocker: update old paper and self-references
+  - source: comparison_reports
+    classification: research_review
+    files: 2
+    bytes: 21720
+    manifest_sha256: 7c4cbe6feab44a3878c52103ce05704e91af971d80b9a96d17aad26688e98e34
+    proposed_target: docs/reviews/saga
+    action: plan_only
+    blocker: update paper progress references
+  - source: prototype
+    classification: legacy_implementation
+    files: 3
+    bytes: 15578
+    manifest_sha256: 1efe103e3d062122ef8b5384ff76ef97263d6ff89e36973f3b953313278cb616
+    proposed_target: archive/legacy-prototype/prototype
+    action: plan_only
+    blocker: migrate together with legacy config and result CSV
+  - source: configs
+    classification: legacy_design_artifact
+    files: 1
+    bytes: 5060
+    manifest_sha256: 5757e5c0ad513b35ad41de4096e6eeb357d833aa8401335486cdaef052c019f9
+    proposed_target: archive/legacy-prototype/configs
+    action: plan_only
+    blocker: not equivalent to project/configs; preserve schema history
+  - source: results/experiment_summary.csv
+    classification: legacy_generated_result
+    files: 1
+    bytes: 211
+    manifest_sha256: 15359589910b708b3d6c27564d2de9b86bd2faa7bb0446a30139da20f1836b14
+    proposed_target: archive/legacy-prototype/results/experiment_summary.csv
+    action: plan_only
+    blocker: preserve with the code that generated it
+  - source: Record
+    classification: reproduction_evidence_and_orchestration
+    files: 46
+    bytes: 40991
+    manifest_sha256: 51c9e76a78b1a46dae03d07f4ddabf7a31e3dc7df98aa9c6bddea4dbab66837c
+    proposed_target: saga_reproduction/recorded_experiments
+    action: hold
+    blocker: scripts contain absolute workspace and Record paths
+  - source: results/compare
+    classification: unknown_user_material
+    files: 3
+    bytes: 248719
+    manifest_sha256: c987a549e09d723c5fea71e6656d3365d4005d87421a76c2fcf47c2e0665764b
+    proposed_target: null
+    action: hold
+    blocker: source and provenance are not recorded
+  - source: saga_reproduction
+    classification: external_and_reproduction
+    proposed_target: null
+    action: keep
+    blocker: many code and evidence references use the current path
+  - source: tools
+    classification: ignored_external_tool_cache
+    proposed_target: null
+    action: keep
+    blocker: ProVerif binaries and historical outputs contain local paths
+  - source: runtime
+    classification: ignored_local_runtime_state
+    proposed_target: null
+    action: keep
+    blocker: local MongoDB state; never commit or archive as paper evidence
+  - source: tmp
+    classification: ignored_temporary_generated
+    proposed_target: null
+    action: keep_existing_ignore_future
+    blocker: deletion was not authorized

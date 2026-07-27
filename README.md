@@ -1,37 +1,59 @@
 # PRE-SAGA
 
-本项目是一个面向一个月科研产出的最小研究包，主题为：
+PRE-SAGA is a research prototype that separates two decisions in multi-agent systems:
 
-**在 SAGA 的 Agent Contact Policy 基础上，引入 Data Sharing Policy 与代理重加密（Proxy Re-Encryption, PRE），实现多智能体系统中的加密数据共享。**
+1. **Contact authorization** — whether one agent may contact another.
+2. **Data authorization** — whether that contact may obtain a narrowly scoped decryption result.
 
-研究基调：
+The project extends a reproduced SAGA contact layer with Data Sharing Policy, encrypted storage,
+policy-bound data tokens, and proxy re-encryption orchestration. The current cryptographic backends
+remain toy/stub implementations and do not establish production cryptographic security.
 
-SAGA 已经解决“哪个 agent 可以联系哪个 agent”的问题，但它没有把本地数据、记忆、文档、邮件、日历等数据对象的解密权限作为独立层次处理。PRE-SAGA 的目标是在 SAGA 的通信管控之后，增加一层“可联系不等于可解密”的数据共享管控。
+## Authoritative repository entry points
 
-交付内容包括：
+- `project/` — the only authoritative PRE-SAGA engineering tree.
+- `project/presaga/` — protocol, Provider, policy, token, cryptography, storage, and agent runtime.
+- `project/experiments/` — baselines, attacks, end-to-end scenarios, evaluation, and performance.
+- `project/proofs/` — formal models and verifier runners.
+- `project/tests/` — verification for changed behavior.
+- `project/results/` — checked-in experiment evidence; do not overwrite without an authorized
+  experiment work package.
+- `paper/` — paper drafts, figures, plans, and limitations.
+- `docs/` — repository workflow, ADRs, verification ledger, claims matrix, and repository maps.
+- `saga_reproduction/` — SAGA baseline reproduction evidence and local compatibility notes.
 
-- `paper/pre_saga_draft.md`：PRE-SAGA 中文论文初稿。
-- `paper/publication_plan.md`：对标 SAGA 的长期论文产出计划、代码框架和实验路线。
-- `EXPERIMENT_TRACKING.md`：实验跟踪日志，后续实验进展追加到该文件末尾。
-- `paper/system_architecture.mmd`：PRE-SAGA 系统架构 Mermaid 图。
-- `prototype/pre_saga.py`：PRE-SAGA 协议行为模拟原型。
-- `prototype/run_experiments.py`：四类数据共享安全场景实验脚本。
-- `results/experiment_summary.csv`：实验结果。
-- `paper/submission_checklist.md`：投稿前检查清单。
+Root-level `prototype/`, `runtime/`, `tools/`, `results/`, `Record/`, `comparison_reports/`, and
+`project/result/` are not authoritative implementation entry points. They are classified in
+`docs/repository/archive-manifest.yaml` and must not be deleted or moved without a reference audit
+and an explicitly approved archive operation.
 
-快速运行：
+## Codex workflow
+
+- Durable rules: `AGENTS.md`
+- Human prompt manual: `agens.txt`
+- Paper-grade workflow: `.agents/skills/presaga-paper-grade/SKILL.md`
+- Current work package: `docs/workflow/current-milestone.md`
+- Test/experiment history: `docs/verification/test-ledger.yaml`
+- Claim-to-evidence status: `docs/claims-evidence-matrix.md`
+
+Use one authorized work package at a time. Core implementation precedes tests; tests provide
+evidence for changed behavior.
+
+## Local validation
+
+From the repository root:
 
 ```powershell
-python .\prototype\run_experiments.py
+python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root .
 ```
 
-预期结果：
+This validates repository control files only. Functional tests and experiments are selected from
+change impact and the test ledger.
 
-- 正常数据共享应通过。
-- Contact Policy 允许但 Data Sharing Policy 不允许的数据请求应被拒绝。
-- Provider 能完成密文密钥转换，但不能恢复数据明文。
-- token 超额复用应被拦截。
+On Windows PowerShell 5.1, read UTF-8 documents explicitly:
 
-说明：
+```powershell
+Get-Content -Encoding UTF8 .\agens.txt
+```
 
-原型中的 PRE 是行为模拟，用于验证论文机制，不是生产级密码实现。真实系统应替换为经过审计的 PRE/KEM/混合加密库。
+The repository encoding rules are recorded in `.editorconfig` and `.gitattributes`.

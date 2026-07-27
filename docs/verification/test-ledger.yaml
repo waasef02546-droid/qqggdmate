@@ -1,0 +1,306 @@
+schema_version: 1
+policy:
+  equivalent_run_key:
+    - work_package
+    - target
+    - relevant_code_state
+    - configuration
+    - environment
+  rerun_requires_reason: true
+entries:
+  - id: CFG-001-CONTROL-CHECK
+    work_package: CFG-001
+    target: repository_control_plane
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "control files created; validated skill remains in .skill-staging"
+    configuration: "repository guidance files"
+    environment: "Windows, repository root"
+    result: "blocked"
+    evidence:
+      - docs/workflow/current-milestone.md
+      - .skill-staging/presaga-paper-grade
+    rerun_reason: "Initial validation after creating the repository-level control plane."
+    notes: "Checker failed only on the protected .agents skill installation and its unfinished template markers. TOML parsing passed for four project config files. The user explicitly authorized the exact copy, but the automatic approval reviewer again failed internally before execution. This setup-only check does not justify rerunning PRE-SAGA functional tests."
+  - id: CFG-001-AGENTS-SMOKE
+    work_package: CFG-001
+    target: agents_instruction_discovery
+    command: "codex.cmd exec --ephemeral --strict-config -s read-only <bounded 8-line prompt>"
+    relevant_code_state: "AGENTS.md and project config created; project skill not yet installed"
+    configuration: "read-only, ephemeral, no subagents, no tests"
+    environment: "Windows sandbox"
+    result: "blocked"
+    evidence:
+      - AGENTS.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Initial smoke test of instruction discovery and bounded response behavior."
+    notes: "The sandboxed CLI reached repeated certificate/credential network timeouts. The required elevated read-only retry was rejected by an internal automatic approval-reviewer parameter error. No model answer was produced and no repository files were changed."
+  - id: CFG-001-SKILL-VALIDATE
+    work_package: CFG-001
+    target: installed_project_skill
+    command: "python C:/Users/asus/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/presaga-paper-grade"
+    relevant_code_state: "validated staged skill copied into the project skill directory"
+    configuration: "SKILL.md with agents metadata, scripts, and references"
+    environment: "Windows, repository root, system Python with PyYAML"
+    result: "pass"
+    evidence:
+      - .agents/skills/presaga-paper-grade/SKILL.md
+      - .agents/skills/presaga-paper-grade/agents/openai.yaml
+    rerun_reason: "First validation of the formally installed project skill."
+    notes: "Official skill-creator validator reported: Skill is valid!"
+  - id: CFG-001-CONTROL-CHECK-2
+    work_package: CFG-001
+    target: repository_control_plane
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "formal project skill installed; guidance and workflow documents present"
+    configuration: "repository guidance files"
+    environment: "Windows, repository root"
+    result: "pass"
+    evidence:
+      - AGENTS.md
+      - .codex/config.toml
+      - .agents/skills/presaga-paper-grade
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Causal fix for the earlier blocked check: the user completed the approved skill installation."
+    notes: "Checker reported PASS for 14 required files. PRE-SAGA core tests were intentionally not run."
+  - id: CFG-001-AGENTS-SMOKE-2
+    work_package: CFG-001
+    target: agents_instruction_discovery
+    command: "codex.cmd exec --ephemeral --strict-config -s read-only <bounded 8-line skill prompt>"
+    relevant_code_state: "valid project skill installed; local control checks pass"
+    configuration: "read-only, ephemeral, no subagents, no tests"
+    environment: "requested system network context"
+    result: "blocked"
+    evidence:
+      - .agents/skills/presaga-paper-grade/SKILL.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Authorized retry after installing and locally validating the project skill."
+    notes: "The automatic approval reviewer again returned its internal Unknown parameter: namespace error before command execution. No model answer was produced and no repository files were changed."
+  - id: CFG-001-AGENTS-SMOKE-3
+    work_package: CFG-001
+    target: agents_instruction_discovery
+    command: "codex.cmd exec --ephemeral --strict-config -s read-only <bounded 8-line skill prompt>"
+    relevant_code_state: "valid project skill installed; local control checks pass"
+    configuration: "read-only, ephemeral, no subagents, no tests"
+    environment: "user normal PowerShell"
+    result: "pass"
+    duration_ms: 1744
+    tokens_reported: 20402
+    evidence:
+      - docs/verification/smoke/CFG-001-agents-smoke.md
+      - AGENTS.md
+      - .agents/skills/presaga-paper-grade/SKILL.md
+    rerun_reason: "Causal resolution of the earlier environment-blocked smoke attempts."
+    notes: "Six output lines correctly reported milestone, core-code priority, bounded parallelism, retest policy, and stop condition. Behavioral efficiency passed. Token reduction remains unquantified because no equivalent baseline exists."
+  - id: CORE-001-COMPILE
+    work_package: CORE-001
+    target: protocol_provider_and_callsite_syntax
+    command: "python -m compileall -q presaga experiments tests"
+    relevant_code_state: "Contact binding fields and mandatory Provider authorization path implemented; affected runtime and experiment call sites migrated"
+    configuration: "project source tree; no external service"
+    environment: "Windows, repository project directory, system Python"
+    result: "pass"
+    evidence:
+      - project/presaga/protocol/schemas.py
+      - project/presaga/provider/token_service.py
+      - project/presaga/provider/pre_proxy.py
+    rerun_reason: "First syntax/import check after the cross-cutting protocol schema and Provider API change."
+    notes: "Compile validation completed without output or repository result artifacts."
+  - id: CORE-001-FOCUSED
+    work_package: CORE-001
+    target: contact_data_token_reencryption_binding
+    command: "python -m unittest tests.unit.test_token_service tests.integration.test_contact_data_binding tests.integration.test_normal_sharing tests.integration.test_agent_runtime tests.integration.test_provider_http_service tests.security.test_attack_scripts.AttackScriptTest.test_stage3_attacks_are_blocked_after_contact_is_allowed tests.integration.test_saga_bridge tests.security.test_performance_runner tests.security.test_p3_evaluation tests.integration.test_p1_saga_adapter -v"
+    relevant_code_state: "final CORE-001 core implementation, migrated callers, and focused binding tests"
+    configuration: "ToyPRE and HPKE stub fixtures; temporary directories used by artifact-producing runner tests"
+    environment: "Windows, repository project directory, system Python; no MongoDB required"
+    result: "pass"
+    evidence:
+      - project/tests/unit/test_token_service.py
+      - project/tests/integration/test_contact_data_binding.py
+      - project/tests/integration/test_provider_http_service.py
+      - project/tests/security/test_attack_scripts.py
+    rerun_reason: "Final focused acceptance run after adding forged-Contact coverage and correcting the requester-mismatch fixture to use the intruder's valid Contact session."
+    notes: "27 tests passed. Covered missing, forged, expired, different-session, concurrent replay, normal lifecycle, HTTP persistence, attack, bridge, and representative experiment-runner paths."
+  - id: CORE-001-FULL-REGRESSION
+    work_package: CORE-001
+    target: cross_cutting_schema_and_provider_api_regression
+    command: "python -m unittest discover -s tests -v"
+    relevant_code_state: "final CORE-001 source and tests copied from the dirty workspace"
+    configuration: "complete project test discovery; existing repository result artifacts isolated from test writes"
+    environment: "Windows system Python; temporary copy at C:/Users/asus/AppData/Local/Temp/presaga-core001-4b6d6b2d-1217-486e-9b39-72ae449c29ec/project"
+    result: "pass_with_skip"
+    evidence:
+      - project/tests
+      - docs/workflow/current-milestone.md
+    rerun_reason: "The protocol schema and Provider API change is cross-cutting, so the retest policy requires full regression; an isolated copy prevented overwriting unrelated dirty experiment artifacts."
+    notes: "57 tests total: 56 passed and one MongoDB E2E test was skipped because no local MongoDB was running at 127.0.0.1:27017. Temporary-copy cleanup was attempted but blocked by the automatic approval reviewer's internal Unknown parameter: namespace error; the copy remains at the recorded path."
+  - id: CORE-001-CONTROL-CLOSURE
+    work_package: CORE-001
+    target: repository_workflow_and_evidence_closure
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "CORE-001 marked accepted; ADR, claims matrix, and verification ledger updated"
+    configuration: "repository guidance and evidence-control files"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - docs/adr/0002-contact-data-token-reencryption-binding.md
+      - docs/claims-evidence-matrix.md
+      - docs/verification/test-ledger.yaml
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Closure gate after updating CORE-001 design, acceptance, claims, and verification evidence."
+    notes: "Checker reported CONTROL_PLANE_CHECK: PASS for 14 required files. Its static scope note describes the checker itself; core-test evidence is recorded separately above."
+  - id: CORE-001-FOCUSED-2
+    work_package: CORE-001
+    target: audit_remediation_and_binding_acceptance
+    command: "python -m unittest tests.unit.test_token_service tests.integration.test_contact_data_binding tests.integration.test_normal_sharing tests.integration.test_agent_runtime tests.integration.test_provider_http_service tests.security.test_attack_scripts.AttackScriptTest.test_stage3_attacks_are_blocked_after_contact_is_allowed tests.integration.test_saga_bridge tests.security.test_performance_runner tests.security.test_p3_evaluation tests.integration.test_p1_saga_adapter -v"
+    relevant_code_state: "independent-audit P2 remediations: experiments use authoritative App path; legacy, missing Contact, unknown Contact, and persisted replay checks added"
+    configuration: "ToyPRE and HPKE stub fixtures; temporary directories used by artifact-producing runner tests"
+    environment: "Windows, repository project directory, system Python; no MongoDB required"
+    result: "pass"
+    evidence:
+      - project/tests/unit/test_token_service.py
+      - project/tests/integration/test_contact_data_binding.py
+      - project/tests/integration/test_provider_http_service.py
+      - docs/verification/reviews/CORE-001-security-audit.md
+    rerun_reason: "Relevant implementation and verification code changed to resolve the independent audit's two P2 findings."
+    notes: "29 tests passed. The two additional tests cover legacy-unbound and missing bound-Contact failure; the HTTP test now covers unknown Contact and replay rejection after restart."
+  - id: CORE-001-FULL-REGRESSION-2
+    work_package: CORE-001
+    target: post_audit_cross_cutting_regression
+    command: "python -m unittest discover -s tests -v"
+    relevant_code_state: "final audit-remediated CORE-001 source and tests synchronized into the existing isolated copy"
+    configuration: "complete project test discovery; repository result artifacts isolated from test writes"
+    environment: "Windows system Python; temporary copy at C:/Users/asus/AppData/Local/Temp/presaga-core001-4b6d6b2d-1217-486e-9b39-72ae449c29ec/project"
+    result: "pass_with_skip"
+    evidence:
+      - project/tests
+      - docs/verification/reviews/CORE-001-security-audit.md
+    rerun_reason: "The audit remediation changed shared experiment fixtures and the cross-cutting issuance path, invalidating the prior full-regression code state."
+    notes: "59 tests total: 58 passed and one MongoDB E2E test was skipped because no local MongoDB was running at 127.0.0.1:27017. The temporary copy remains because cleanup is blocked by the automatic approval reviewer's internal error."
+  - id: CORE-001-CONTROL-CLOSURE-2
+    work_package: CORE-001
+    target: post_audit_workflow_evidence_closure
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "audit findings resolved or bounded; review report, ADR, milestone, claims matrix, and ledger updated"
+    configuration: "repository guidance and evidence-control files"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - docs/adr/0002-contact-data-token-reencryption-binding.md
+      - docs/claims-evidence-matrix.md
+      - docs/verification/reviews/CORE-001-security-audit.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "The independent audit changed claim assumptions, design limitations, tests, and evidence documents after the prior closure check."
+    notes: "CONTROL_PLANE_CHECK passed for 14 required files; the ledger also parsed successfully as YAML with 12 entries before this append."
+  - id: CORE-001-FOCUSED-3
+    work_package: CORE-001
+    target: final_authoritative_path_and_persistence_acceptance
+    command: "python -m unittest tests.unit.test_token_service tests.integration.test_contact_data_binding tests.integration.test_normal_sharing tests.integration.test_agent_runtime tests.integration.test_provider_http_service tests.security.test_attack_scripts.AttackScriptTest.test_stage3_attacks_are_blocked_after_contact_is_allowed tests.integration.test_saga_bridge tests.security.test_performance_runner tests.security.test_p3_evaluation tests.integration.test_p1_saga_adapter -v"
+    relevant_code_state: "all experiment issuance and re-encryption paths use PREProviderApp; legacy test crosses JSON save and ProviderService restore"
+    configuration: "ToyPRE and HPKE stub fixtures; temporary directories used by artifact-producing runner tests"
+    environment: "Windows, repository project directory, system Python; no MongoDB required"
+    result: "pass"
+    evidence:
+      - project/tests/integration/test_contact_data_binding.py
+      - project/experiments/attacks
+      - project/experiments/baselines/presaga.py
+      - docs/verification/reviews/CORE-001-security-audit.md
+    rerun_reason: "Second independent review found two evidence-path inconsistencies; both implementations changed, invalidating focused-2."
+    notes: "29 tests passed. A preceding 17-test affected-path check also passed; this final 29-test run supersedes it for acceptance."
+  - id: CORE-001-FULL-REGRESSION-3
+    work_package: CORE-001
+    target: final_authoritative_path_full_regression
+    command: "python -m unittest discover -s tests -v"
+    relevant_code_state: "final CORE-001 implementation after all independent-review remediations"
+    configuration: "complete project test discovery; repository result artifacts isolated from test writes"
+    environment: "Windows system Python; temporary copy at C:/Users/asus/AppData/Local/Temp/presaga-core001-4b6d6b2d-1217-486e-9b39-72ae449c29ec/project"
+    result: "pass_with_skip"
+    evidence:
+      - project/tests
+      - docs/verification/reviews/CORE-001-security-audit.md
+    rerun_reason: "Experiment consumption and legacy persistence paths changed after full-regression-2."
+    notes: "59 tests total: 58 passed and one MongoDB E2E test was skipped because no local MongoDB was running at 127.0.0.1:27017. Final independent recheck reported no remaining P0-P2."
+  - id: CORE-001-CONTROL-CLOSURE-3
+    work_package: CORE-001
+    target: final_post_review_evidence_closure
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "final independent recheck found no remaining P0-P2; all design, claim, review, milestone, and ledger documents updated"
+    configuration: "repository guidance and evidence-control files"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - docs/adr/0002-contact-data-token-reencryption-binding.md
+      - docs/claims-evidence-matrix.md
+      - docs/verification/reviews/CORE-001-security-audit.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Final evidence documents changed after the second and third independent-review passes."
+    notes: "CONTROL_PLANE_CHECK passed for 14 required files; ledger YAML parsed successfully with 15 entries before this append."
+  - id: CFG-002-MCP-HOME
+    work_package: CFG-002
+    target: user_codex_home_alignment
+    command: "setx CODEX_HOME \"C:\\Users\\asus\\.codex\""
+    relevant_code_state: "global config already contains node_repl and openaideveloperdocs; managed shell resolved a different profile"
+    configuration: "Windows user environment"
+    environment: "actual Windows user context via approved elevated command"
+    result: "pass"
+    evidence:
+      - docs/repository/tooling-inventory.md
+      - C:/Users/asus/.codex/config.toml
+    rerun_reason: "Initial causal fix for the active CLI/config-root mismatch."
+    notes: "setx reported success and elevated HKCU verification returned CODEX_HOME=C:\\Users\\asus\\.codex. Existing terminals must restart."
+  - id: CFG-002-MCP-VISIBILITY
+    work_package: CFG-002
+    target: configured_mcp_runtime_visibility
+    command: "$env:CODEX_HOME='C:\\Users\\asus\\.codex'; codex.cmd mcp list"
+    relevant_code_state: "user Codex config unchanged; explicit corrected config root"
+    configuration: "node_repl stdio MCP and official OpenAI Docs HTTP MCP"
+    environment: "Windows managed shell, codex-cli 0.145.0"
+    result: "pass"
+    evidence:
+      - docs/repository/tooling-inventory.md
+      - C:/Users/asus/.codex/config.toml
+    rerun_reason: "First verification after identifying the managed-shell profile mismatch."
+    notes: "Both node_repl and openaideveloperdocs were listed enabled. Docs MCP has no bearer-token requirement."
+  - id: CFG-002-REPOSITORY-HYGIENE
+    work_package: CFG-002
+    target: utf8_layout_ignore_and_archive_integrity
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repository_hygiene.py --root ."
+    relevant_code_state: "encoding policy, canonical layout, archive manifest, tmp ignore rule, and hygiene checker added"
+    configuration: "304 governed text files and hash-bearing archive-manifest entries"
+    environment: "Windows, repository root, system Python with PyYAML"
+    result: "pass"
+    evidence:
+      - .editorconfig
+      - .gitattributes
+      - docs/repository/encoding.md
+      - docs/repository/layout.md
+      - docs/repository/archive-manifest.yaml
+    rerun_reason: "First deterministic validation of the CFG-002 repository normalization artifacts."
+    notes: "REPOSITORY_HYGIENE_CHECK passed: all governed text decoded as UTF-8 and all recorded legacy hashes remained stable."
+  - id: CFG-002-CONTROL-CHECK
+    work_package: CFG-002
+    target: normalized_repository_control_plane
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "README canonicalized; tooling, layout, archive, Git, and encoding documents added; checker expanded"
+    configuration: "repository guidance and control files"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - README.md
+      - docs/repository
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Repository control files changed under CFG-002."
+    notes: "CONTROL_PLANE_CHECK passed for 24 required files. The checker is configuration-only; CORE-001 functional tests were intentionally reused, not rerun."
+  - id: CFG-002-GIT-CORE-BASELINE
+    work_package: CFG-002
+    target: accepted_core_implementation_commit_boundary
+    command: "git commit -m \"feat(auth): bind contact sessions to data-token consumption\""
+    relevant_code_state: "only accepted CORE-001 source, experiment call sites, and matching tests staged explicitly"
+    configuration: "branch project; pre-commit HEAD 76d4213"
+    environment: "Windows repository with pre-existing paper/result/user changes left unstaged"
+    result: "pass"
+    evidence:
+      - docs/repository/git-baseline.md
+      - project/presaga
+      - project/tests/integration/test_contact_data_binding.py
+    rerun_reason: "First provenance-preserving Git baseline for known accepted core work."
+    notes: "Created commit 9966baba2d37356771d06ae3bee07d50e40f11ae. No paper, result, reproduction, or unknown user material was included."

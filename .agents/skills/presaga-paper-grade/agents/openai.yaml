@@ -1,0 +1,4 @@
+interface:
+  display_name: "PRE-SAGA Paper Grade"
+  short_description: "Paper-grade PRE-SAGA core implementation and evidence"
+  default_prompt: "Use $presaga-paper-grade to advance the current work package with core implementation, targeted verification, and evidence updates."
