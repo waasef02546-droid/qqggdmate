@@ -82,11 +82,17 @@ class ProviderService:
 
     def issue_data_token(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         request = _request_from_payload(payload)
-        decision = self.app.evaluate_data_request(request)
-        response: dict[str, Any] = {"decision": to_jsonable(decision)}
-        if decision.effect != "allow":
+        contact_token_id = payload.get("contact_token_id")
+        if not isinstance(contact_token_id, str) or not contact_token_id:
+            return HTTPStatus.FORBIDDEN, {"decision": {"effect": "deny", "reason": "contact_session_required"}}
+        contact_token = self.contact_tokens.get(contact_token_id)
+        if contact_token is None:
+            return HTTPStatus.FORBIDDEN, {"decision": {"effect": "deny", "reason": "contact_session_not_found"}}
+        issuance = self.app.request_data_token(contact_token=contact_token, request=request)
+        response: dict[str, Any] = {"decision": to_jsonable(issuance.decision)}
+        if issuance.token is None:
             return HTTPStatus.FORBIDDEN, response
-        token = self.app.issue_data_token(decision, request)
+        token = issuance.token
         self.data_tokens[token.token_id] = token
         self._persist()
         response["data_token"] = to_jsonable(token)
@@ -98,7 +104,9 @@ class ProviderService:
         if token is None:
             return HTTPStatus.NOT_FOUND, {"error": "data_token_not_found"}
         request = _request_from_payload(_required_dict(payload, "request"))
+        contact_token = self.contact_tokens.get(token.contact_token_id)
         result = self.app.request_re_encryption(
+            contact_token=contact_token,
             token=token,
             request=request,
             encrypted_dek_owner=from_b64(_required_str(payload, "encrypted_dek_owner_b64")),
@@ -308,6 +316,7 @@ def _contact_token_from_payload(payload: dict[str, Any]) -> ContactToken:
 def _data_token_from_payload(payload: dict[str, Any]) -> DataToken:
     return DataToken(
         token_id=payload["token_id"], owner_aid=payload["owner_aid"], requester_aid=payload["requester_aid"], policy_id=payload["policy_id"],
+        contact_token_id=payload.get("contact_token_id", ""), contact_session_ref=payload.get("contact_session_ref", ""),
         allowed_record_ids=list(payload["allowed_record_ids"]), allowed_data_classes=list(payload["allowed_data_classes"]),
         allowed_data_subclasses=list(payload["allowed_data_subclasses"]), purpose=payload["purpose"],
         not_before=_parse_datetime(payload["not_before"]), expires_at=_parse_datetime(payload["expires_at"]), max_uses=int(payload["max_uses"]),

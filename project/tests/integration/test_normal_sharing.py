@@ -17,6 +17,7 @@ from presaga.protocol.schemas import (
 from presaga.provider.audit import AuditLogger
 from presaga.provider.data_policy import DataPolicyEvaluator
 from presaga.provider.pre_proxy import PREProxy
+from presaga.provider.saga_adapter import SagaCompatibleAdapter
 from presaga.provider.token_service import TokenService
 from presaga.storage.encrypted_store import EncryptedStore
 
@@ -65,12 +66,23 @@ class NormalSharingIntegrationTest(unittest.TestCase):
         self.assertEqual(decision.effect, "allow")
 
         token_service = TokenService(b"issuer-secret")
-        token = token_service.issue_data_token(decision, request)
+        contact_authorizer = SagaCompatibleAdapter(b"issuer-secret")
+        contact_authorizer.set_rulebook(
+            record.owner_aid,
+            [{"pattern": "bob@mail.com:*", "budget": 1}],
+        )
+        contact_token = contact_authorizer.issue_contact_token(
+            owner_aid=record.owner_aid,
+            requester_aid=request.requester_aid,
+        )
+        self.assertIsNotNone(contact_token)
+        token = token_service._issue_data_token(decision, request, contact_token)
         audit = AuditLogger()
-        proxy = PREProxy(backend, token_service, audit)
+        proxy = PREProxy(backend, token_service, contact_authorizer, audit)
         rekey = backend.generate_rekey(owner.private_key, requester.public_key, store.context(record))
 
         result = proxy.transform(
+            contact_token=contact_token,
             token=token,
             request=request,
             encrypted_dek_owner=stored.encrypted_dek_owner,
@@ -87,6 +99,7 @@ class NormalSharingIntegrationTest(unittest.TestCase):
         self.assertFalse(audit.events[-1].provider_saw_plaintext_data)
 
         denied = proxy.transform(
+            contact_token=contact_token,
             token=token,
             request=request,
             encrypted_dek_owner=stored.encrypted_dek_owner,

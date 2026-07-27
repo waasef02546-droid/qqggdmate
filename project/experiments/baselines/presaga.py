@@ -20,7 +20,8 @@ def run_baseline() -> PRESAGABaselineResult:
     env = make_environment(max_uses=1)
     request = allowed_request(env)
     token = issue_allowed_token(env)
-    result = env.proxy.transform(
+    result = env.app.request_re_encryption(
+        contact_token=env.contact_token,
         token=token,
         request=request,
         encrypted_dek_owner=env.stored.encrypted_dek_owner,

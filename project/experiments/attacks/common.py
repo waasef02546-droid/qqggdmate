@@ -11,6 +11,7 @@ from pathlib import Path
 
 from presaga.crypto.toy_pre import ToyPRE
 from presaga.protocol.schemas import (
+    ContactToken,
     DataAccessRequest,
     DataRecord,
     DataScope,
@@ -21,9 +22,11 @@ from presaga.protocol.schemas import (
     VersionConstraints,
 )
 from presaga.provider.audit import AuditLogger
+from presaga.provider.app import PREProviderApp
 from presaga.provider.contact_policy import SAGAStyleContactPolicy
 from presaga.provider.data_policy import DataPolicyEvaluator
 from presaga.provider.pre_proxy import PREProxy
+from presaga.provider.saga_adapter import SagaCompatibleAdapter
 from presaga.provider.token_service import TokenService
 from presaga.storage.encrypted_store import EncryptedStore, StoredObject
 
@@ -54,6 +57,7 @@ class AttackResult:
 
 @dataclass
 class AttackEnvironment:
+    app: PREProviderApp
     backend: ToyPRE
     owner_keypair: object
     requester_keypair: object
@@ -62,6 +66,9 @@ class AttackEnvironment:
     stored: StoredObject
     policy: DataSharingPolicy
     token_service: TokenService
+    contact_authorizer: SagaCompatibleAdapter
+    contact_token: ContactToken
+    intruder_contact_token: ContactToken
     audit: AuditLogger
     proxy: PREProxy
     contact_policy: SAGAStyleContactPolicy
@@ -92,9 +99,24 @@ def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
         limits=Limits(max_uses=max_uses, max_records=1),
         version_constraints=VersionConstraints(min_version=1, max_version=1),
     )
-    token_service = TokenService(b"issuer-secret")
-    audit = AuditLogger()
+    app = PREProviderApp(backend)
+    app.register_agent(OWNER_AID, owner.public_key)
+    app.register_agent(REQUESTER_AID, requester.public_key)
+    app.register_agent(INTRUDER_AID, intruder.public_key)
+    app.add_data_policy(policy)
+    app.set_contact_rulebook(
+        OWNER_AID,
+        [
+            {"pattern": REQUESTER_AID, "budget": 100},
+            {"pattern": INTRUDER_AID, "budget": 100},
+        ],
+    )
+    contact_token = app.issue_contact_session(OWNER_AID, REQUESTER_AID)
+    intruder_contact_token = app.issue_contact_session(OWNER_AID, INTRUDER_AID)
+    if contact_token is None or intruder_contact_token is None:
+        raise RuntimeError("fixture contact policy should issue requester and intruder Contact tokens")
     return AttackEnvironment(
+        app=app,
         backend=backend,
         owner_keypair=owner,
         requester_keypair=requester,
@@ -102,9 +124,12 @@ def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
         store=store,
         stored=stored,
         policy=policy,
-        token_service=token_service,
-        audit=audit,
-        proxy=PREProxy(backend, token_service, audit),
+        token_service=app.token_service,
+        contact_authorizer=app.saga_adapter,
+        contact_token=contact_token,
+        intruder_contact_token=intruder_contact_token,
+        audit=app.audit,
+        proxy=app.proxy,
         contact_policy=SAGAStyleContactPolicy([{"pattern": "*@mail.com:*_agent", "budget": 100}]),
     )
 
@@ -128,7 +153,10 @@ def issue_allowed_token(env: AttackEnvironment):
     decision = DataPolicyEvaluator([env.policy]).evaluate(request)
     if decision.effect != "allow":
         raise RuntimeError(f"fixture policy should allow the base request, got {decision.reason}")
-    return env.token_service.issue_data_token(decision, request)
+    issuance = env.app.request_data_token(contact_token=env.contact_token, request=request)
+    if issuance.token is None:
+        raise RuntimeError(f"authoritative Provider path denied fixture request: {issuance.decision.reason}")
+    return issuance.token
 
 
 def rekey_for_requester(env: AttackEnvironment) -> bytes:

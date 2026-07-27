@@ -134,12 +134,25 @@ def run_authorized_task(
         )
 
     token_started = time.perf_counter()
-    token = app.issue_data_token(decision, request)
+    issuance = app.request_data_token(contact_token=contact, request=request)
+    if issuance.token is None:
+        return TaskResult(
+            task_name,
+            False,
+            issuance.decision.reason,
+            0.0,
+            "",
+            len(app.audit_query()),
+            contact_ms=contact_ms,
+            policy_ms=policy_ms,
+        )
+    token = issuance.token
     token_issue_ms = round((time.perf_counter() - token_started) * 1000, 3)
     rekey = backend.generate_rekey(owner.private_key, requester.public_key, store.context(record))
 
     transform_started = time.perf_counter()
     result = app.request_re_encryption(
+        contact_token=contact,
         token=token,
         request=request,
         encrypted_dek_owner=stored.encrypted_dek_owner,

@@ -12,13 +12,15 @@ def run_attack():
         request = allowed_request(env)
         token = issue_allowed_token(env)
         rekey = rekey_for_requester(env)
-        first = env.proxy.transform(
+        first = env.app.request_re_encryption(
+            contact_token=env.contact_token,
             token=token,
             request=request,
             encrypted_dek_owner=env.stored.encrypted_dek_owner,
             rekey=rekey,
         )
-        second = env.proxy.transform(
+        second = env.app.request_re_encryption(
+            contact_token=env.contact_token,
             token=token,
             request=request,
             encrypted_dek_owner=env.stored.encrypted_dek_owner,

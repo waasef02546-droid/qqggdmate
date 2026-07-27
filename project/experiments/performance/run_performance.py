@@ -97,6 +97,7 @@ def run_performance(output_root: Path = Path("results")) -> list[PerformanceRow]
         env = make_environment(max_uses=1000)
         request = _request(env)
         policies = _make_policy_set(rule_count, request.owner_aid, request.requester_aid)
+        env.app._data_policies[:] = policies
 
         contact_policy = SAGAStyleContactPolicy([{"pattern": "*@mail.com:*_agent", "budget": 100000}])
         avg, p95 = _measure(iterations, lambda: contact_policy.evaluate(request.requester_aid, consume=False))
@@ -179,9 +180,12 @@ def _presaga_flow(env, evaluator: DataPolicyEvaluator, request: DataAccessReques
     decision = evaluator.evaluate(request)
     if decision.effect != "allow":
         raise RuntimeError(decision.reason)
-    token = env.token_service.issue_data_token(decision, request)
-    return env.proxy.transform(
-        token=token,
+    issuance = env.app.request_data_token(contact_token=env.contact_token, request=request)
+    if issuance.token is None:
+        raise RuntimeError(issuance.decision.reason)
+    return env.app.request_re_encryption(
+        contact_token=env.contact_token,
+        token=issuance.token,
         request=request,
         encrypted_dek_owner=env.stored.encrypted_dek_owner,
         rekey=rekey_for_requester(env),

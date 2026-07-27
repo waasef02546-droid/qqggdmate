@@ -115,7 +115,9 @@ def _measure_scalability(
     env = make_environment(max_uses=iterations + 5)
     request = _scalability_request(env)
     contact_policy = SAGAStyleContactPolicy(_synthetic_contact_rulebook(agent_count, request.requester_aid))
-    evaluator = DataPolicyEvaluator(_synthetic_policies(agent_count, policy_count, record_count, request))
+    policies = _synthetic_policies(agent_count, policy_count, record_count, request)
+    evaluator = DataPolicyEvaluator(policies)
+    env.app._data_policies[:] = policies
     samples: list[float] = []
     success = 0
     denials: Counter[str] = Counter()
@@ -132,9 +134,14 @@ def _measure_scalability(
             denials[decision.reason] += 1
             samples.append((time.perf_counter() - started) * 1000)
             continue
-        token = env.token_service.issue_data_token(decision, request)
-        result = env.proxy.transform(
-            token=token,
+        issuance = env.app.request_data_token(contact_token=env.contact_token, request=request)
+        if issuance.token is None:
+            denials[issuance.decision.reason] += 1
+            samples.append((time.perf_counter() - started) * 1000)
+            continue
+        result = env.app.request_re_encryption(
+            contact_token=env.contact_token,
+            token=issuance.token,
             request=request,
             encrypted_dek_owner=env.stored.encrypted_dek_owner,
             rekey=rekey_for_requester(env),

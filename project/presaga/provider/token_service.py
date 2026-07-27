@@ -8,28 +8,47 @@ import json
 import secrets
 from dataclasses import asdict
 from datetime import datetime, timezone
+from threading import RLock
 
-from presaga.protocol.schemas import DataAccessRequest, DataToken, PolicyDecision, TokenDecision
+from presaga.protocol.schemas import ContactToken, DataAccessRequest, DataToken, PolicyDecision, TokenDecision
 
 
 class TokenService:
     def __init__(self, issuer_secret: bytes):
         self.issuer_secret = issuer_secret
+        self._lock = RLock()
 
-    def issue_data_token(self, decision: PolicyDecision, request: DataAccessRequest) -> DataToken:
+    def _issue_data_token(
+        self,
+        decision: PolicyDecision,
+        request: DataAccessRequest,
+        contact_token: ContactToken,
+        *,
+        now: datetime | None = None,
+    ) -> DataToken:
+        """Create a token after PREProviderApp has verified Contact and data policy."""
         if decision.effect != "allow" or not decision.policy_id or not decision.expires_at:
             raise ValueError("cannot issue token for denied decision")
+        issued_at = now or datetime.now(timezone.utc)
+        if contact_token.owner_aid != request.owner_aid:
+            raise ValueError("contact_owner_mismatch")
+        if contact_token.requester_aid != request.requester_aid:
+            raise ValueError("contact_requester_mismatch")
+        if not (contact_token.not_before <= issued_at <= contact_token.expires_at):
+            raise ValueError("contact_token_expired")
         token = DataToken(
             token_id=f"dtok-{secrets.token_hex(8)}",
             owner_aid=request.owner_aid,
             requester_aid=request.requester_aid,
             policy_id=decision.policy_id,
+            contact_token_id=contact_token.token_id,
+            contact_session_ref=contact_token.contact_session_ref,
             allowed_record_ids=[request.record_id],
             allowed_data_classes=[request.data_class],
             allowed_data_subclasses=[request.data_subclass],
             purpose=request.purpose,
-            not_before=request.timestamp,
-            expires_at=decision.expires_at,
+            not_before=max(issued_at, contact_token.not_before),
+            expires_at=min(decision.expires_at, contact_token.expires_at),
             max_uses=decision.max_uses,
             remaining_uses=decision.max_uses,
             min_version=request.version,
@@ -40,8 +59,40 @@ class TokenService:
         token.issuer_signature = self._sign(token)
         return token
 
-    def validate(self, token: DataToken, request: DataAccessRequest, now: datetime | None = None) -> TokenDecision:
+    def validate(
+        self,
+        token: DataToken,
+        request: DataAccessRequest,
+        contact_token: ContactToken | None,
+        now: datetime | None = None,
+    ) -> TokenDecision:
         now = now or datetime.now(timezone.utc)
+        with self._lock:
+            return self._validate_unlocked(token, request, contact_token, now)
+
+    def validate_and_consume(
+        self,
+        token: DataToken,
+        request: DataAccessRequest,
+        contact_token: ContactToken | None,
+        now: datetime | None = None,
+    ) -> TokenDecision:
+        now = now or datetime.now(timezone.utc)
+        with self._lock:
+            decision = self._validate_unlocked(token, request, contact_token, now)
+            if decision.effect != "allow":
+                return decision
+            token.remaining_uses -= 1
+            token.issuer_signature = self._sign(token)
+            return decision
+
+    def _validate_unlocked(
+        self,
+        token: DataToken,
+        request: DataAccessRequest,
+        contact_token: ContactToken | None,
+        now: datetime,
+    ) -> TokenDecision:
         if not hmac.compare_digest(token.issuer_signature, self._sign(token)):
             return TokenDecision(effect="deny", reason="token_signature_invalid")
         if not (token.not_before <= now <= token.expires_at):
@@ -64,13 +115,23 @@ class TokenService:
             return TokenDecision(effect="deny", reason="version_out_of_bounds")
         if token.requester_public_key_hash != self.key_hash(request.requester_public_key):
             return TokenDecision(effect="deny", reason="requester_key_mismatch")
+        if contact_token is None:
+            return TokenDecision(effect="deny", reason="contact_session_not_found")
+        if (
+            token.contact_token_id != contact_token.token_id
+            or token.contact_session_ref != contact_token.contact_session_ref
+        ):
+            return TokenDecision(effect="deny", reason="contact_session_mismatch")
         return TokenDecision(effect="allow", reason="token_valid")
 
     def consume(self, token: DataToken) -> None:
-        if token.remaining_uses <= 0:
-            raise ValueError("token exhausted")
-        token.remaining_uses -= 1
-        token.issuer_signature = self._sign(token)
+        with self._lock:
+            if not hmac.compare_digest(token.issuer_signature, self._sign(token)):
+                raise ValueError("token signature invalid")
+            if token.remaining_uses <= 0:
+                raise ValueError("token exhausted")
+            token.remaining_uses -= 1
+            token.issuer_signature = self._sign(token)
 
     def key_hash(self, public_key: bytes) -> str:
         return hashlib.sha256(public_key).hexdigest()

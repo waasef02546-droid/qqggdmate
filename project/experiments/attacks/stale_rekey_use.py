@@ -18,7 +18,8 @@ def run_attack():
             request_id="attack-stale-rekey-use",
             version=2,
         )
-        result = env.proxy.transform(
+        result = env.app.request_re_encryption(
+            contact_token=env.contact_token,
             token=stale_token,
             request=rotated_request,
             encrypted_dek_owner=env.stored.encrypted_dek_owner,

@@ -18,7 +18,8 @@ def run_attack():
             requester_aid=INTRUDER_AID,
             requester_public_key=env.intruder_keypair.public_key,  # type: ignore[attr-defined]
         )
-        result = env.proxy.transform(
+        result = env.app.request_re_encryption(
+            contact_token=env.intruder_contact_token,
             token=token,
             request=attack_request,
             encrypted_dek_owner=env.stored.encrypted_dek_owner,

@@ -97,6 +97,8 @@ class DataToken:
     owner_aid: str
     requester_aid: str
     policy_id: str
+    contact_token_id: str
+    contact_session_ref: str
     allowed_record_ids: list[str]
     allowed_data_classes: list[str]
     allowed_data_subclasses: list[str]

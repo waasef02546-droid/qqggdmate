@@ -17,7 +17,8 @@ def run_attack():
             request_id="attack-metadata-linkage-probe",
             record_id="cal-secret",
         )
-        result = env.proxy.transform(
+        result = env.app.request_re_encryption(
+            contact_token=env.contact_token,
             token=token,
             request=probe_request,
             encrypted_dek_owner=env.stored.encrypted_dek_owner,

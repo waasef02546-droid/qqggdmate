@@ -19,7 +19,8 @@ def run_attack():
             data_subclass="body",
             purpose="bulk_exfiltration",
         )
-        result = env.proxy.transform(
+        result = env.app.request_re_encryption(
+            contact_token=env.contact_token,
             token=token,
             request=exfiltration_request,
             encrypted_dek_owner=env.stored.encrypted_dek_owner,

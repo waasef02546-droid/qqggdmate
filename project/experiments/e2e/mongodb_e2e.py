@@ -129,13 +129,14 @@ def run_mongodb_e2e(
         version=1,
         requester_public_key=bob.public_key,
     )
-    decision = app.evaluate_data_request(request)
-    if decision.effect != "allow":
-        raise RuntimeError(decision.reason)
-    data_token = app.issue_data_token(decision, request)
+    issuance = app.request_data_token(contact_token=contact_token, request=request)
+    if issuance.token is None:
+        raise RuntimeError(issuance.decision.reason)
+    data_token = issuance.token
     repo.save_data_token(data_token)
     rekey = backend.generate_rekey(alice.private_key, bob.public_key, store.context(stored_from_mongo.record))
     transform = app.request_re_encryption(
+        contact_token=contact_token,
         token=data_token,
         request=request,
         encrypted_dek_owner=stored_from_mongo.encrypted_dek_owner,

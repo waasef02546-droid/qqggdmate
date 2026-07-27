@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime
+
 from presaga.crypto.pre_interface import PREBackend
 from presaga.protocol.schemas import ContactToken, DataAccessRequest, DataSharingPolicy, DataToken, PolicyDecision, TokenDecision
 from presaga.provider.audit import AuditLogger
@@ -12,6 +15,12 @@ from presaga.provider.saga_adapter import SagaCompatibleAdapter
 from presaga.provider.token_service import TokenService
 
 
+@dataclass(frozen=True)
+class DataTokenRequestResult:
+    decision: PolicyDecision
+    token: DataToken | None
+
+
 class PREProviderApp:
     """Provider facade that separates contact and data authorization."""
 
@@ -19,9 +28,9 @@ class PREProviderApp:
         self.backend = backend
         self.registry = AgentRegistry()
         self.audit = AuditLogger()
-        self.token_service = TokenService(issuer_secret)
-        self.proxy = PREProxy(backend, self.token_service, self.audit)
         self.saga_adapter = SagaCompatibleAdapter(issuer_secret)
+        self.token_service = TokenService(issuer_secret)
+        self.proxy = PREProxy(backend, self.token_service, self.saga_adapter, self.audit)
         self._data_policies: list[DataSharingPolicy] = []
 
     def register_agent(self, aid: str, public_key: bytes) -> None:
@@ -42,28 +51,65 @@ class PREProviderApp:
         *,
         owner_aid: str,
         requester_aid: str,
+        now: datetime | None = None,
     ) -> TokenDecision:
         return self.saga_adapter.validate_contact_token(
             contact_token,
             owner_aid=owner_aid,
             requester_aid=requester_aid,
+            now=now,
         )
 
-    def evaluate_data_request(self, request: DataAccessRequest) -> PolicyDecision:
-        return DataPolicyEvaluator(self._data_policies).evaluate(request)
+    def evaluate_data_request(self, request: DataAccessRequest, now: datetime | None = None) -> PolicyDecision:
+        return DataPolicyEvaluator(self._data_policies).evaluate(request, now=now)
 
-    def issue_data_token(self, decision: PolicyDecision, request: DataAccessRequest) -> DataToken:
-        return self.token_service.issue_data_token(decision, request)
+    def request_data_token(
+        self,
+        *,
+        contact_token: ContactToken | None,
+        request: DataAccessRequest,
+        now: datetime | None = None,
+    ) -> DataTokenRequestResult:
+        if contact_token is None:
+            return DataTokenRequestResult(
+                decision=PolicyDecision(effect="deny", reason="contact_session_required"),
+                token=None,
+            )
+        contact_decision = self.validate_contact_session(
+            contact_token,
+            owner_aid=request.owner_aid,
+            requester_aid=request.requester_aid,
+            now=now,
+        )
+        if contact_decision.effect != "allow":
+            return DataTokenRequestResult(
+                decision=PolicyDecision(effect="deny", reason=contact_decision.reason),
+                token=None,
+            )
+        decision = self.evaluate_data_request(request, now=now)
+        if decision.effect != "allow":
+            return DataTokenRequestResult(decision=decision, token=None)
+        token = self.token_service._issue_data_token(decision, request, contact_token, now=now)
+        return DataTokenRequestResult(decision=decision, token=token)
 
     def request_re_encryption(
         self,
         *,
+        contact_token: ContactToken | None,
         token: DataToken,
         request: DataAccessRequest,
         encrypted_dek_owner: bytes,
         rekey: bytes,
+        now: datetime | None = None,
     ) -> TransformResult:
-        return self.proxy.transform(token=token, request=request, encrypted_dek_owner=encrypted_dek_owner, rekey=rekey)
+        return self.proxy.transform(
+            contact_token=contact_token,
+            token=token,
+            request=request,
+            encrypted_dek_owner=encrypted_dek_owner,
+            rekey=rekey,
+            now=now,
+        )
 
     def audit_query(self):
         return list(self.audit.events)

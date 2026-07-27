@@ -123,7 +123,18 @@ class PREAgent:
         if decision.effect != "allow":
             self._audit("data_token", "deny", decision.reason, peer_aid=record.owner_aid, record_id=record.record_id)
             return None
-        token = self.provider.issue_data_token(decision, request)
+        contact_token = self.contact_token_cache[record.owner_aid]
+        issuance = self.provider.request_data_token(contact_token=contact_token, request=request)
+        if issuance.token is None:
+            self._audit(
+                "data_token",
+                "deny",
+                issuance.decision.reason,
+                peer_aid=record.owner_aid,
+                record_id=record.record_id,
+            )
+            return None
+        token = issuance.token
         self.data_token_cache[token.token_id] = token
         self._request_cache[token.token_id] = request
         self._audit("data_token", "allow", "token_issued", peer_aid=record.owner_aid, token_id=token.token_id, record_id=record.record_id)
@@ -148,6 +159,7 @@ class PREAgent:
         _assert_request_matches_record(request, stored.record)
         rekey = store.backend.generate_rekey(owner.material.private_key, self.material.public_key, store.context(stored.record))
         result = self.provider.request_re_encryption(
+            contact_token=self.contact_token_cache.get(token.owner_aid),
             token=token,
             request=request,
             encrypted_dek_owner=stored.encrypted_dek_owner,

@@ -165,11 +165,18 @@ def _run_case(*, app: PREProviderApp, backend: ToyPRE, store: EncryptedStore, st
     )
     decision = app.evaluate_data_request(request)
     plaintext_released = False
-    if decision.effect == "allow":
-        token = app.issue_data_token(decision, request)
+    if decision.effect == "allow" and contact is not None:
+        issuance = app.request_data_token(contact_token=contact, request=request)
+        token = issuance.token
+        if token is None:
+            raise RuntimeError(issuance.decision.reason)
         rekey = backend.generate_rekey(owner_private_key, requester_public_key, store.context(record))
         transform = app.request_re_encryption(
-            token=token, request=request, encrypted_dek_owner=stored.encrypted_dek_owner, rekey=rekey
+            contact_token=contact,
+            token=token,
+            request=request,
+            encrypted_dek_owner=stored.encrypted_dek_owner,
+            rekey=rekey,
         )
         if transform.decision == "allow" and transform.transformed_encrypted_dek:
             dek = backend.unwrap_dek(transform.transformed_encrypted_dek, requester_private_key, store.context(record))

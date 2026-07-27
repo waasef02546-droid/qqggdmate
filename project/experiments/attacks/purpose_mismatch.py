@@ -13,7 +13,8 @@ def run_attack():
         contact = env.contact_policy.evaluate(REQUESTER_AID)
         token = issue_allowed_token(env)
         attack_request = replace(allowed_request(env), request_id="attack-purpose-mismatch", purpose="expense_report")
-        result = env.proxy.transform(
+        result = env.app.request_re_encryption(
+            contact_token=env.contact_token,
             token=token,
             request=attack_request,
             encrypted_dek_owner=env.stored.encrypted_dek_owner,

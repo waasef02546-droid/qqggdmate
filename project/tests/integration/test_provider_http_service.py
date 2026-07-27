@@ -75,8 +75,18 @@ class ProviderHttpServiceTest(unittest.TestCase):
             "data_class": "calendar", "data_subclass": "meeting", "purpose": "schedule_meeting", "version": 1,
             "requester_public_key_b64": _b64(requester.public_key), "timestamp": now.isoformat(),
         }
+        status, denied = self.request("POST", "/v1/data-tokens", request)
+        self.assertEqual(403, status)
+        self.assertEqual("contact_session_required", denied["decision"]["reason"])
+        request["contact_token_id"] = "ctok-unknown"
+        status, denied = self.request("POST", "/v1/data-tokens", request)
+        self.assertEqual(403, status)
+        self.assertEqual("contact_session_not_found", denied["decision"]["reason"])
+        request["contact_token_id"] = contact["contact_token"]["token_id"]
         status, issued = self.request("POST", "/v1/data-tokens", request)
         self.assertEqual(201, status)
+        self.assertEqual(contact["contact_token"]["token_id"], issued["data_token"]["contact_token_id"])
+        self.assertEqual(contact["contact_token"]["contact_session_ref"], issued["data_token"]["contact_session_ref"])
         token_id = issued["data_token"]["token_id"]
         dek = b"d" * 32
         encrypted = backend.wrap_dek(dek, owner.public_key, b"cal-1")
@@ -102,6 +112,11 @@ class ProviderHttpServiceTest(unittest.TestCase):
         status, audit = self.request("GET", "/v1/audit")
         self.assertEqual(200, status)
         self.assertEqual(1, audit["count"])
+        status, replay = self.request("POST", "/v1/re-encryptions", {
+            "token_id": token_id, "request": request, "encrypted_dek_owner_b64": _b64(encrypted), "rekey_b64": _b64(rekey),
+        })
+        self.assertEqual(403, status)
+        self.assertEqual("token_exhausted", replay["reason"])
 
 
 def _b64(value: bytes) -> str:
