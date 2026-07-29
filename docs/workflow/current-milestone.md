@@ -87,6 +87,8 @@
 - Accepted release: `20260729T123951Z-23c9fbf1`.
 - Clean release-input commit:
   `6109b3eb6318a9714ee29b65da2340be5a6abcdf`.
+- Accepted evidence commit:
+  `b91e501`.
 - Source fingerprint:
   `fc8c5a40159d622cca1830dc0f25582d2f76a32a4e146e7f19fbefc80e8af195`.
 - Release gates: 7/7 blocking attacks, 1/1 active ToyPRE limitation probe, 4/4

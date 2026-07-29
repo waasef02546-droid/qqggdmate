@@ -896,3 +896,18 @@ entries:
       - docs/verification/reviews/REL-001-release-acceptance.md
     rerun_reason: "Required regeneration after strengthening release semantics and creating a clean input commit; the prior manifest no longer matched the expanded source fingerprint."
     notes: "Run 20260729T123951Z-23c9fbf1 passed all eight gates, including release_inputs_clean, and the independent verifier accepted all 23 authoritative artifacts and 132 source inputs."
+  - id: REL-001-CONTROL-CLOSURE
+    work_package: REL-001
+    target: final_repository_workflow_and_evidence_closure
+    command: "parse test-ledger YAML; run 24-file workflow check; run independent release verifier; git diff --check; scan canonical human-readable files for encoding corruption"
+    relevant_code_state: "release inputs committed at 6109b3e; accepted evidence committed at b91e501"
+    configuration: "REL-001 accepted milestone, ADR 0007, claim matrix, authoritative paper, manifest, and 62-entry pre-closure ledger"
+    environment: "Windows repository root, Python 3.12 with PyYAML"
+    result: "pass"
+    evidence:
+      - docs/workflow/current-milestone.md
+      - docs/verification/reviews/REL-001-release-acceptance.md
+      - project/results/release-manifest.json
+      - paper/pre_saga_paper.md
+    rerun_reason: "Final control-only closure after committing the clean input baseline and final evidence set."
+    notes: "Ledger parsed, the 24-file control-plane check passed, RELEASE_VERIFY passed, whitespace check had no errors, and the canonical encoding scan passed. Functional tests were not repeated because no release input or core behavior changed after the accepted run."
