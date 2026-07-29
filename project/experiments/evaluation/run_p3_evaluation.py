@@ -20,8 +20,6 @@ from experiments.attacks.run_all import run_all as run_attacks
 from experiments.tasks.common import TaskResult
 from experiments.tasks.run_all import run_all as run_tasks
 from presaga.protocol.schemas import DataAccessRequest, DataScope, DataSharingPolicy, Limits, RequesterSelector, Validity, VersionConstraints
-from presaga.provider.contact_policy import SAGAStyleContactPolicy
-from presaga.provider.data_policy import DataPolicyEvaluator
 
 
 @dataclass(frozen=True)
@@ -54,6 +52,7 @@ def run_p3_evaluation(
     *,
     task_results: list[TaskResult] | None = None,
     attack_results: list[AttackResult] | None = None,
+    scalability_iterations: int = 20,
 ) -> P3EvaluationOutputs:
     tables = output_root / "tables"
     figures = output_root / "figures"
@@ -77,7 +76,9 @@ def run_p3_evaluation(
     _write_task_latency_breakdown(task_results, task_latency_path)
     _write_task_latency_svg(task_results, latency_figure_path)
 
-    scalability_rows = run_task_scalability()
+    scalability_rows = run_task_scalability(
+        iterations=scalability_iterations,
+    )
     _write_scalability(scalability_rows, scalability_path)
     _write_scalability_svg(scalability_rows, scalability_figure_path)
 
@@ -114,37 +115,35 @@ def _measure_scalability(
 ) -> ScalabilityRow:
     env = make_environment(max_uses=iterations + 5)
     request = _scalability_request(env)
-    contact_policy = SAGAStyleContactPolicy(_synthetic_contact_rulebook(agent_count, request.requester_aid))
     policies = _synthetic_policies(agent_count, policy_count, record_count, request)
-    evaluator = DataPolicyEvaluator(policies)
-    env.app._data_policies[:] = policies
+    env.provider.set_contact_rulebook(
+        request.owner_aid,
+        _synthetic_contact_rulebook(agent_count, request.requester_aid),
+    )
+    env.provider.replace_fixture_data_policies(policies)
     samples: list[float] = []
     success = 0
     denials: Counter[str] = Counter()
 
     for _ in range(iterations):
         started = time.perf_counter()
-        contact = contact_policy.evaluate(request.requester_aid, consume=False)
-        if contact.effect != "allow":
-            denials[contact.reason] += 1
+        contact = env.provider.issue_contact_session(
+            request.owner_aid,
+            request.requester_aid,
+        )
+        if contact is None:
+            denials["contact_denied"] += 1
             samples.append((time.perf_counter() - started) * 1000)
             continue
-        decision = evaluator.evaluate(request)
-        if decision.effect != "allow":
-            denials[decision.reason] += 1
-            samples.append((time.perf_counter() - started) * 1000)
-            continue
-        issuance = env.app.request_data_token(contact_token=env.contact_token, request=request)
+        issuance = env.provider.issue_data_token(contact, request)
         if issuance.token is None:
-            denials[issuance.decision.reason] += 1
+            denials[issuance.reason] += 1
             samples.append((time.perf_counter() - started) * 1000)
             continue
-        result = env.app.request_re_encryption(
-            contact_token=env.contact_token,
-            token=issuance.token,
-            request=request,
-            stored=env.stored,
-            rekey=rekey_for_requester(env),
+        result = env.provider.request_re_encryption(
+            issuance.token,
+            request,
+            rekey_for_requester(env),
         )
         if result.decision == "allow":
             success += 1
@@ -280,8 +279,7 @@ def _write_task_latency_breakdown(results: list[TaskResult], path: Path) -> None
         {
             "task": result.task,
             "contact_ms": result.contact_ms,
-            "policy_ms": result.policy_ms,
-            "token_issue_ms": result.token_issue_ms,
+            "authorization_ms": result.authorization_ms,
             "pre_transform_ms": result.pre_transform_ms,
             "decrypt_ms": result.decrypt_ms,
             "total_latency_ms": result.latency_ms,
@@ -291,7 +289,7 @@ def _write_task_latency_breakdown(results: list[TaskResult], path: Path) -> None
     _write_dict_rows(
         rows,
         path,
-        ["task", "contact_ms", "policy_ms", "token_issue_ms", "pre_transform_ms", "decrypt_ms", "total_latency_ms"],
+        ["task", "contact_ms", "authorization_ms", "pre_transform_ms", "decrypt_ms", "total_latency_ms"],
     )
 
 

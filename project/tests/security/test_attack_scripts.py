@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 from experiments.attacks.compromised_requester_exfiltration import run_attack as run_compromised_requester_exfiltration
 from experiments.attacks.metadata_linkage_probe import run_attack as run_metadata_linkage_probe
@@ -29,15 +31,30 @@ class AttackScriptTest(unittest.TestCase):
         for result in results:
             with self.subTest(result.attack):
                 self.assertTrue(result.baseline_contact_allowed)
-                self.assertTrue(result.expected_blocked)
-                self.assertTrue(result.blocked)
                 self.assertTrue(result.success)
                 self.assertTrue(result.audit_id.startswith("audit-"))
+        blocking_attacks = [
+            result for result in results if result.expected_blocked
+        ]
+        limitation_probes = [
+            result for result in results if not result.expected_blocked
+        ]
+        self.assertEqual(7, len(blocking_attacks))
+        self.assertTrue(all(result.blocked for result in blocking_attacks))
+        self.assertEqual(1, len(limitation_probes))
+        self.assertEqual(
+            "toy_backend_public_material_recovers_dek",
+            limitation_probes[0].reason,
+        )
+        self.assertFalse(limitation_probes[0].blocked)
 
     def test_security_matrix_contains_stage_p2_attacks(self):
-        results, output_path = run_all()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            results, output_path = run_all(
+                Path(temp_dir) / "security_matrix.csv"
+            )
+            self.assertTrue(output_path.exists())
         attack_names = {result.attack for result in results}
-        self.assertTrue(output_path.exists())
         self.assertEqual(
             {
                 "unauthorized_data_class",

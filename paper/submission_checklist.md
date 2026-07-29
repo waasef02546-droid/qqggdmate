@@ -1,24 +1,45 @@
-# 投稿前检查清单
+# PRE-SAGA submission checklist
 
-## 内容完整性
+## Evidence-consistent now
 
-- [ ] 摘要明确说明：SAGA 解决 agent 接触管控，但未独立处理本地数据解密权限。
-- [ ] 引言中区分 Agent Contact Policy 和 Data Sharing Policy。
-- [ ] 相关工作覆盖 SAGA、代理重加密 PRE、信封加密、OAuth/DPoP 类 token 访问控制、agent 数据隐私。
-- [ ] 方法部分给出实体、威胁模型、数据对象模型、策略结构、PRE 转换流程和审计机制。
-- [ ] 实验部分包含正常共享、数据策略拒绝、Provider 明文不可见、token 滥用拦截四类场景。
-- [ ] 局限性明确说明：原型是 toy PRE 行为模拟，不是生产级密码实现；请求 agent 解密后的二次泄露不在当前机制内解决。
+- [x] Contact authorization and data authorization are separated.
+- [x] Published experiments use the authoritative Provider service path.
+- [x] Attack, task, performance, formal, SAGA bridge, and Mongo artifacts share
+  one manifest and source fingerprint.
+- [x] ProVerif output is checked by query result, not only exit code.
+- [x] The ToyPRE public-material DEK recovery limitation is stated in the
+  abstract, threat boundary, results, and conclusion.
+- [x] Live-Mongo full regression passes (89/89).
+- [x] The authoritative manuscript and historical planning drafts are clearly
+  separated.
 
-## 实验完整性
+## Required before submission
 
-- [ ] 能在无外部依赖的 Python 环境中运行 `prototype/run_experiments.py`。
-- [ ] 输出包含通过率和基本耗时。
-- [ ] 至少报告 20 次重复运行结果。
-- [ ] 补充系统架构图，并说明 PRE-SAGA 位于 SAGA token 获取之后的数据共享阶段。
+- [ ] Replace ToyPRE/HPKE stubs with a reviewed concrete backend and make the
+  active recovery probe fail for a cryptographic reason.
+- [ ] Run clean-checkout reproduction on another host and record setup time,
+  failures, dependency lock, and artifact comparison.
+- [ ] Add fair external baselines; current contact-only/plaintext paths are
+  modeled local baselines.
+- [ ] Expand repetitions, report distributions/confidence intervals, and
+  justify workload sizes.
+- [ ] Decide whether to implement live SAGA integration or retain the recorded
+  evidence bridge as an explicit limitation.
+- [ ] Extend formal coverage or explicitly exclude registration rotation,
+  recovery journal, Mongo CAS, and Provider fencing from theorem statements.
+- [ ] Complete a primary-source literature review for PRE, HPKE, capability
+  security, OAuth/DPoP, multi-agent authorization, and reproducible systems
+  evaluation.
+- [ ] Produce final architecture/protocol/attack figures from the current
+  implementation and verify their labels against the claim matrix.
+- [ ] Create a clean Git tag/commit, dependency lock, artifact archive, and
+  anonymous reproduction package.
+- [ ] Apply the selected venue template, page limit, artifact policy, ethics
+  statement, and citation format.
 
-## 投稿定位
+## Submission stop condition
 
-- [ ] 如果投工作坊短文，突出“可联系不等于可解密”的问题定义。
-- [ ] 如果投中文本科科研论文，扩写 SAGA 基线、PRE 原理和场景实验。
-- [ ] 避免宣称“提出新的代理重加密算法”，改为“提出面向 SAGA 的策略驱动加密数据共享扩展”。
+Do not submit while concrete Provider confidentiality is unsupported or while
+the only authoritative run records a dirty source tree. Passing prototype
+tests and ProVerif abstract models is not a substitute for those conditions.
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -38,7 +39,10 @@ class P0FrameworkTest(unittest.TestCase):
         self.assertEqual(keypair.public_key, app.registry.get("alice@mail.com:test_agent").public_key)
 
     def test_task_scripts_run(self):
-        results, _ = run_tasks()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            results, _ = run_tasks(
+                Path(temp_dir) / "task_results.csv"
+            )
         self.assertEqual(4, len(results))
         for result in results:
             with self.subTest(result.task):
@@ -49,7 +53,11 @@ class P0FrameworkTest(unittest.TestCase):
     def test_baselines_run(self):
         self.assertTrue(run_saga_contact_only().contact_allowed)
         self.assertTrue(run_token_plaintext_server().provider_plaintext_data_visible)
-        self.assertTrue(run_presaga().success)
+        presaga = run_presaga()
+        self.assertTrue(presaga.success)
+        self.assertFalse(
+            presaga.cryptographic_provider_confidentiality_established
+        )
 
 
 if __name__ == "__main__":

@@ -2,32 +2,19 @@
 
 from __future__ import annotations
 
-from experiments.attacks.common import REQUESTER_AID, allowed_request, issue_allowed_token, make_environment, rekey_for_requester, run_with_timer
+from experiments.attacks.common import allowed_request, contact_authorized, issue_allowed_token, make_environment, rekey_for_requester, run_with_timer
 
 
 def run_attack():
     def scenario():
         env = make_environment(max_uses=1)
-        contact = env.contact_policy.evaluate(REQUESTER_AID)
         request = allowed_request(env)
         token = issue_allowed_token(env)
         rekey = rekey_for_requester(env)
-        first = env.app.request_re_encryption(
-            contact_token=env.contact_token,
-            token=token,
-            request=request,
-            stored=env.stored,
-            rekey=rekey,
-        )
-        second = env.app.request_re_encryption(
-            contact_token=env.contact_token,
-            token=token,
-            request=request,
-            stored=env.stored,
-            rekey=rekey,
-        )
+        first = env.provider.request_re_encryption(token, request, rekey)
+        second = env.provider.request_re_encryption(token, request, rekey)
         return {
-            "baseline_contact_allowed": contact.effect == "allow",
+            "baseline_contact_allowed": contact_authorized(env, env.contact_token),
             "blocked": first.decision == "allow" and second.decision == "deny" and second.reason == "token_exhausted",
             "reason": second.reason,
             "audit_id": second.audit_id,

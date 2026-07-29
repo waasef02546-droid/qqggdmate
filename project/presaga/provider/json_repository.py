@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 from threading import RLock
 
+from presaga.provider.repository import RepositoryConflict
+
 
 class JsonProviderRepository:
     """Persist Provider state atomically in one JSON document."""
@@ -35,22 +37,57 @@ class JsonProviderRepository:
         schema_version = int(state.get("schema_version", 1))
         if schema_version > 3:
             raise ValueError("provider state schema is newer than this implementation")
-        return {**self.empty_state(), **state, "schema_version": schema_version}
+        state_revision = int(state.get("state_revision", 0))
+        if state_revision < 0:
+            raise ValueError("provider state revision must be non-negative")
+        return {
+            **self.empty_state(),
+            **state,
+            "schema_version": schema_version,
+            "state_revision": state_revision,
+        }
 
-    def save(self, state: dict[str, Any]) -> None:
+    def save(
+        self,
+        state: dict[str, Any],
+        *,
+        expected_revision: int | None = None,
+    ) -> int:
         with self._lock:
+            current_revision = (
+                int(self.load().get("state_revision", 0))
+                if self.path.exists()
+                else 0
+            )
+            expected = (
+                int(state.get("state_revision", current_revision))
+                if expected_revision is None
+                else expected_revision
+            )
+            if expected != current_revision:
+                raise RepositoryConflict()
+            next_revision = current_revision + 1
+            persisted = {**state, "state_revision": next_revision}
             self.path.parent.mkdir(parents=True, exist_ok=True)
             temporary = self.path.with_suffix(self.path.suffix + f".{secrets.token_hex(6)}.tmp")
             with temporary.open("w", encoding="utf-8") as handle:
-                json.dump(to_jsonable(state), handle, ensure_ascii=False, indent=2, sort_keys=True)
+                json.dump(
+                    to_jsonable(persisted),
+                    handle,
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, self.path)
+            return next_revision
 
     @staticmethod
     def empty_state() -> dict[str, Any]:
         return {
             "schema_version": 3,
+            "state_revision": 0,
             "agents": [],
             "contact_rulebooks": {},
             "data_policies": [],

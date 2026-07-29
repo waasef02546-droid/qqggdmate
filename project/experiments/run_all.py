@@ -1,54 +1,40 @@
-"""Run all currently implemented PRE-SAGA experiments."""
+"""CLI entry point for the authoritative PRE-SAGA release runner."""
 
 from __future__ import annotations
 
+import argparse
+import os
 import sys
 from pathlib import Path
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from experiments.attacks.run_all import run_all as run_attacks
-from experiments.e2e.mongodb_e2e import run_mongodb_e2e
-from experiments.e2e.saga_bridge import run_saga_bridge
-from experiments.evaluation.run_p3_evaluation import run_p3_evaluation
-from experiments.tasks.run_all import run_all as run_tasks
-from experiments.performance.run_performance import run_performance
-from proofs.run_proverif import run_proofs
+from experiments.release import DEFAULT_CONFIG, DEFAULT_OUTPUT, run_release
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--mongo-uri",
+        default=os.environ.get("PRESAGA_MONGODB_URI"),
+    )
+    parser.add_argument("--mongo-db")
+    args = parser.parse_args()
+    output_root, manifest = run_release(
+        config_path=args.config,
+        output_root=args.output_root,
+        mongo_uri=args.mongo_uri,
+        mongo_db=args.mongo_db,
+    )
+    print(f"release_status={manifest['status']}")
+    print(f"release_run_id={manifest['run_id']}")
+    print(f"release_root={output_root}")
+    print(f"release_manifest={output_root / 'release-manifest.json'}")
+    return 0
 
 
 if __name__ == "__main__":
-    results, output_path = run_attacks()
-    task_results, task_output_path = run_tasks()
-    performance_rows = run_performance()
-    p3_outputs = run_p3_evaluation(task_results=task_results, attack_results=results)
-    proof_results = run_proofs()
-    saga_bridge_results = run_saga_bridge()
-    try:
-        mongodb_e2e = run_mongodb_e2e()
-        mongodb_e2e_status = (
-            "passed"
-            if mongodb_e2e.normal_success
-            and mongodb_e2e.attack_blocked
-            and not mongodb_e2e.provider_plaintext_data_visible
-            and not mongodb_e2e.provider_plaintext_dek_visible
-            else "failed"
-        )
-    except RuntimeError as exc:
-        mongodb_e2e_status = f"skipped:{exc}"
-    blocked = sum(1 for result in results if result.blocked)
-    total = len(results)
-    task_success = sum(1 for result in task_results if result.success)
-    proof_statuses = ",".join(f"{result.proof}:{result.status}" for result in proof_results)
-    print(f"attack_blocking_rate={blocked}/{total}")
-    print(f"security_matrix={output_path}")
-    print(f"task_success_rate={task_success}/{len(task_results)}")
-    print(f"task_results={task_output_path}")
-    print(f"performance_rows={len(performance_rows)}")
-    print("performance=results\\tables\\performance.csv")
-    print(f"p3_task_summary={p3_outputs.task_summary_path}")
-    print(f"p3_task_scalability_rows={p3_outputs.scalability_rows}")
-    print(f"proof_statuses={proof_statuses}")
-    print(f"saga_bridge_cases={len(saga_bridge_results)}")
-    print("saga_bridge_summary=results\\tables\\saga_bridge_summary.csv")
-    print(f"mongodb_e2e_status={mongodb_e2e_status}")
+    raise SystemExit(main())

@@ -21,14 +21,9 @@ from presaga.protocol.schemas import (
     Validity,
     VersionConstraints,
 )
-from presaga.provider.audit import AuditLogger
-from presaga.provider.app import PREProviderApp
-from presaga.provider.contact_policy import SAGAStyleContactPolicy
-from presaga.provider.data_policy import DataPolicyEvaluator
-from presaga.provider.pre_proxy import PREProxy
-from presaga.provider.saga_adapter import SagaCompatibleAdapter
-from presaga.provider.token_service import TokenService
 from presaga.storage.encrypted_store import EncryptedStore, StoredObject
+
+from experiments.provider_harness import AuthoritativeProviderHarness
 
 
 OWNER_AID = "alice@mail.com:calendar_agent"
@@ -39,6 +34,8 @@ INTRUDER_AID = "carol@mail.com:research_agent"
 @dataclass(frozen=True)
 class AttackResult:
     attack: str
+    path_kind: str
+    observation_source: str
     baseline_contact_allowed: bool
     expected_blocked: bool
     blocked: bool
@@ -57,7 +54,7 @@ class AttackResult:
 
 @dataclass
 class AttackEnvironment:
-    app: PREProviderApp
+    provider: AuthoritativeProviderHarness
     backend: ToyPRE
     owner_keypair: object
     requester_keypair: object
@@ -65,13 +62,8 @@ class AttackEnvironment:
     store: EncryptedStore
     stored: StoredObject
     policy: DataSharingPolicy
-    token_service: TokenService
-    contact_authorizer: SagaCompatibleAdapter
     contact_token: ContactToken
     intruder_contact_token: ContactToken
-    audit: AuditLogger
-    proxy: PREProxy
-    contact_policy: SAGAStyleContactPolicy
 
 
 def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
@@ -97,26 +89,26 @@ def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
         limits=Limits(max_uses=max_uses, max_records=1),
         version_constraints=VersionConstraints(min_version=1, max_version=1),
     )
-    app = PREProviderApp(backend)
-    app.management.register_agent(OWNER_AID, owner.public_key)
-    app.management.register_agent(REQUESTER_AID, requester.public_key)
-    app.management.register_agent(INTRUDER_AID, intruder.public_key)
-    store = EncryptedStore(backend, app.registry)
+    provider = AuthoritativeProviderHarness(backend)
+    provider.register_agent(OWNER_AID, owner.public_key)
+    provider.register_agent(REQUESTER_AID, requester.public_key)
+    provider.register_agent(INTRUDER_AID, intruder.public_key)
+    store = provider.store
     stored = store.put(record, b"Alice is free from 10:00 to 11:00.")
-    app.management.add_data_policy(policy)
-    app.management.set_contact_rulebook(
+    provider.add_data_policy(policy)
+    provider.set_contact_rulebook(
         OWNER_AID,
         [
             {"pattern": REQUESTER_AID, "budget": 100},
             {"pattern": INTRUDER_AID, "budget": 100},
         ],
     )
-    contact_token = app.issue_contact_session(OWNER_AID, REQUESTER_AID)
-    intruder_contact_token = app.issue_contact_session(OWNER_AID, INTRUDER_AID)
+    contact_token = provider.issue_contact_session(OWNER_AID, REQUESTER_AID)
+    intruder_contact_token = provider.issue_contact_session(OWNER_AID, INTRUDER_AID)
     if contact_token is None or intruder_contact_token is None:
         raise RuntimeError("fixture contact policy should issue requester and intruder Contact tokens")
     return AttackEnvironment(
-        app=app,
+        provider=provider,
         backend=backend,
         owner_keypair=owner,
         requester_keypair=requester,
@@ -124,13 +116,8 @@ def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
         store=store,
         stored=stored,
         policy=policy,
-        token_service=app.token_service,
-        contact_authorizer=app.saga_adapter,
         contact_token=contact_token,
         intruder_contact_token=intruder_contact_token,
-        audit=app.audit,
-        proxy=app.proxy,
-        contact_policy=SAGAStyleContactPolicy([{"pattern": "*@mail.com:*_agent", "budget": 100}]),
     )
 
 
@@ -150,12 +137,11 @@ def allowed_request(env: AttackEnvironment) -> DataAccessRequest:
 
 def issue_allowed_token(env: AttackEnvironment):
     request = allowed_request(env)
-    decision = DataPolicyEvaluator([env.policy]).evaluate(request)
-    if decision.effect != "allow":
-        raise RuntimeError(f"fixture policy should allow the base request, got {decision.reason}")
-    issuance = env.app.request_data_token(contact_token=env.contact_token, request=request)
+    issuance = env.provider.issue_data_token(env.contact_token, request)
     if issuance.token is None:
-        raise RuntimeError(f"authoritative Provider path denied fixture request: {issuance.decision.reason}")
+        raise RuntimeError(
+            f"authoritative Provider path denied fixture request: {issuance.reason}"
+        )
     return issuance.token
 
 
@@ -168,20 +154,13 @@ def rekey_for_requester(env: AttackEnvironment) -> bytes:
     )
 
 
-def record_policy_denial(env: AttackEnvironment, request: DataAccessRequest, reason: str, policy_id: str | None) -> str:
-    event = env.audit.record(
-        event_type="data_policy_evaluation",
-        decision="deny",
-        reason=reason,
-        owner_aid=request.owner_aid,
-        requester_aid=request.requester_aid,
-        record_id=request.record_id,
-        data_class=request.data_class,
-        purpose=request.purpose,
-        policy_id=policy_id,
-        token_id=None,
+def contact_authorized(env: AttackEnvironment, contact_token: ContactToken) -> bool:
+    decision = env.provider.app.validate_contact_session(
+        contact_token,
+        owner_aid=contact_token.owner_aid,
+        requester_aid=contact_token.requester_aid,
     )
-    return event.audit_id
+    return decision.effect == "allow"
 
 
 def run_with_timer(attack_name: str, fn) -> AttackResult:
@@ -190,10 +169,19 @@ def run_with_timer(attack_name: str, fn) -> AttackResult:
     latency_ms = (time.perf_counter() - started) * 1000
     return AttackResult(
         attack=attack_name,
+        path_kind=result.get("path_kind", "provider_service"),
+        observation_source=result.get(
+            "observation_source",
+            "provider_decision_and_audit",
+        ),
         baseline_contact_allowed=result["baseline_contact_allowed"],
-        expected_blocked=True,
+        expected_blocked=result.get("expected_blocked", True),
         blocked=result["blocked"],
-        success=result["blocked"],
+        success=(
+            result["blocked"]
+            if result.get("expected_blocked", True)
+            else not result["blocked"]
+        ),
         reason=result["reason"],
         latency_ms=round(latency_ms, 3),
         audit_id=result["audit_id"],

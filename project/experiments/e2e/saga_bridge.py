@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from experiments.provider_harness import AuthoritativeProviderHarness
 from presaga.crypto.toy_pre import ToyPRE
 from presaga.protocol.schemas import (
     DataAccessRequest,
@@ -25,8 +26,6 @@ from presaga.protocol.schemas import (
     Validity,
     VersionConstraints,
 )
-from presaga.provider.app import PREProviderApp
-from presaga.storage.encrypted_store import EncryptedStore
 
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
@@ -84,7 +83,7 @@ def load_saga_baseline_evidence(workspace_root: Path = WORKSPACE_ROOT) -> list[S
         evidence.append(
             SagaBaselineEvidence(
                 case=case,
-                evidence_path=str(path),
+                evidence_path=path.relative_to(workspace_root).as_posix(),
                 conclusion=conclusion,
                 contact_authorized=True,
                 token_lifecycle_observed="Token invalidated from the initiating side." in text,
@@ -99,15 +98,18 @@ def run_saga_bridge(*, output_root: Path = Path("results"), workspace_root: Path
     evidence = {item.case: item for item in load_saga_baseline_evidence(workspace_root)}
     backend = ToyPRE()
     alice, bob, mallory = (backend.generate_keypair() for _ in range(3))
-    app = PREProviderApp(backend)
+    provider = AuthoritativeProviderHarness(backend)
     owner_aid = "alice@mail.com:calendar_agent"
     bob_aid = "bob@mail.com:scheduler_agent"
     mallory_aid = "mallory@mail.com:research_agent"
     for aid, keypair in ((owner_aid, alice), (bob_aid, bob), (mallory_aid, mallory)):
-        app.management.register_agent(aid, keypair.public_key)
+        provider.register_agent(aid, keypair.public_key)
     # Both Bob and Mallory may pass the SAGA-style contact gate, matching the
     # multi-agent baseline.  PRE-SAGA must still distinguish their data rights.
-    app.management.set_contact_rulebook(owner_aid, [{"pattern": "*@mail.com:*_agent", "budget": 3}])
+    provider.set_contact_rulebook(
+        owner_aid,
+        [{"pattern": "*@mail.com:*_agent", "budget": 3}],
+    )
 
     record = DataRecord(
         record_id="calendar-availability-001",
@@ -116,10 +118,10 @@ def run_saga_bridge(*, output_root: Path = Path("results"), workspace_root: Path
         data_subclass="availability",
         version=1,
     )
-    store = EncryptedStore(backend, app.registry)
+    store = provider.store
     stored = store.put(record, b"Alice is free from 10:00 to 11:00.")
     now = datetime.now(timezone.utc)
-    app.management.add_data_policy(
+    provider.add_data_policy(
         DataSharingPolicy(
             policy_id="bridge-calendar-bob-only",
             owner_aid=owner_aid,
@@ -135,13 +137,13 @@ def run_saga_bridge(*, output_root: Path = Path("results"), workspace_root: Path
 
     results = [
         _run_case(
-            app=app, backend=backend, store=store, stored=stored, record=record,
+            provider=provider, backend=backend, stored=stored, record=record,
             owner_aid=owner_aid, requester_aid=bob_aid, requester_private_key=bob.private_key,
             requester_public_key=bob.public_key, owner_private_key=alice.private_key,
             case="alice_bob_authorized_calendar", evidence=evidence["saga_e2e_alice_bob"],
         ),
         _run_case(
-            app=app, backend=backend, store=store, stored=stored, record=record,
+            provider=provider, backend=backend, stored=stored, record=record,
             owner_aid=owner_aid, requester_aid=mallory_aid, requester_private_key=mallory.private_key,
             requester_public_key=mallory.public_key, owner_private_key=alice.private_key,
             case="alice_mallory_contact_allowed_data_denied", evidence=evidence["saga_multi_agent_alice_bob_mallory"],
@@ -151,11 +153,11 @@ def run_saga_bridge(*, output_root: Path = Path("results"), workspace_root: Path
     return results
 
 
-def _run_case(*, app: PREProviderApp, backend: ToyPRE, store: EncryptedStore, stored, record: DataRecord,
+def _run_case(*, provider: AuthoritativeProviderHarness, backend: ToyPRE, stored, record: DataRecord,
               owner_aid: str, requester_aid: str, requester_private_key: bytes, requester_public_key: bytes,
               owner_private_key: bytes, case: str, evidence: SagaBaselineEvidence) -> SagaBridgeResult:
-    contact = app.issue_contact_session(owner_aid, requester_aid)
-    contact_allowed = contact is not None and app.validate_contact_session(
+    contact = provider.issue_contact_session(owner_aid, requester_aid)
+    contact_allowed = contact is not None and provider.app.validate_contact_session(
         contact, owner_aid=owner_aid, requester_aid=requester_aid
     ).effect == "allow"
     request = DataAccessRequest(
@@ -163,35 +165,48 @@ def _run_case(*, app: PREProviderApp, backend: ToyPRE, store: EncryptedStore, st
         record_id=record.record_id, data_class=record.data_class, data_subclass=record.data_subclass,
         purpose="schedule_meeting", version=record.version, requester_public_key=requester_public_key,
     )
-    decision = app.evaluate_data_request(request)
     plaintext_released = False
-    if decision.effect == "allow" and contact is not None:
-        issuance = app.request_data_token(contact_token=contact, request=request)
+    if contact is None:
+        data_layer_decision = "deny"
+        reason = "contact_denied"
+    else:
+        issuance = provider.issue_data_token(contact, request)
+        data_layer_decision = issuance.decision
+        reason = issuance.reason
         token = issuance.token
+    if contact is not None and data_layer_decision == "allow":
         if token is None:
-            raise RuntimeError(issuance.decision.reason)
-        owner_wrap = store.resolve_active_owner_wrap(stored)
-        wrap_context = store.wrap_context(stored.record, owner_wrap.provenance)
-        rekey = backend.generate_rekey(owner_private_key, requester_public_key, wrap_context)
-        transform = app.request_re_encryption(
-            contact_token=contact,
-            token=token,
-            request=request,
-            stored=stored,
-            rekey=rekey,
+            raise RuntimeError(reason)
+        owner_wrap = provider.store.resolve_active_owner_wrap(stored)
+        wrap_context = provider.store.wrap_context(
+            stored.record,
+            owner_wrap.provenance,
         )
-        if transform.decision == "allow" and transform.transformed_encrypted_dek:
+        rekey = backend.generate_rekey(owner_private_key, requester_public_key, wrap_context)
+        transform = provider.request_re_encryption(
+            token,
+            request,
+            rekey,
+        )
+        if (
+            transform.decision == "allow"
+            and transform.transformed_encrypted_dek
+        ):
             dek = backend.unwrap_dek(
                 transform.transformed_encrypted_dek,
                 requester_private_key,
                 wrap_context,
             )
-            plaintext_released = store.decrypt_with_dek(stored, dek) == b"Alice is free from 10:00 to 11:00."
-    audit_events = app.audit_query()
+            plaintext_released = (
+                provider.store.decrypt_with_dek(stored, dek)
+                == b"Alice is free from 10:00 to 11:00."
+            )
+    audit_events = provider.app.audit_query()
     return SagaBridgeResult(
         case=case, baseline_evidence_path=evidence.evidence_path, baseline_conclusion=evidence.conclusion,
-        saga_contact_allowed=contact_allowed, presaga_data_allowed=decision.effect == "allow",
-        data_layer_decision=decision.effect, reason=decision.reason, plaintext_released=plaintext_released,
+        saga_contact_allowed=contact_allowed,
+        presaga_data_allowed=data_layer_decision == "allow",
+        data_layer_decision=data_layer_decision, reason=reason, plaintext_released=plaintext_released,
         provider_plaintext_data_visible=any(event.provider_saw_plaintext_data for event in audit_events),
         provider_plaintext_dek_visible=any(event.provider_saw_plaintext_dek for event in audit_events),
     )

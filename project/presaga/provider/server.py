@@ -21,6 +21,8 @@ from threading import RLock
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from pymongo import MongoClient
+
 from presaga.crypto import envelope
 from presaga.crypto.hpke_kem_stub import HPKEKEMStub
 from presaga.crypto.pre_interface import PREBackend
@@ -39,6 +41,13 @@ from presaga.protocol.schemas import (
 )
 from presaga.provider.app import PREProviderApp
 from presaga.provider.json_repository import JsonProviderRepository, from_b64, to_jsonable
+from presaga.provider.mongo_repository import MongoProviderRepository
+from presaga.provider.repository import (
+    ProviderRepository,
+    RepositoryConflict,
+    RepositoryError,
+    RepositoryUnavailable,
+)
 from presaga.provider.registry import AgentRecord, PreparedReplacement, RegistrationError
 from presaga.storage.encrypted_store import (
     EncryptedStore,
@@ -46,6 +55,7 @@ from presaga.storage.encrypted_store import (
     OwnerWrappedDEK,
     StoredObject,
 )
+from presaga.storage.mongo_encrypted_store import MongoEncryptedStore
 
 
 class ProviderService:
@@ -54,7 +64,7 @@ class ProviderService:
     def __init__(
         self,
         app: PREProviderApp,
-        repository: JsonProviderRepository | None = None,
+        repository: ProviderRepository | None = None,
         *,
         object_store=None,
     ):
@@ -65,12 +75,23 @@ class ProviderService:
         self.data_tokens: dict[str, DataToken] = {}
         self.contact_rulebooks: dict[str, list[dict[str, int | str]]] = {}
         self._lock = RLock()
+        self._repository_revision = 0
+        self._persistence_fenced = False
         if object_store is not None:
             self.app.management.attach_store(object_store)
         if repository:
-            self._restore(repository.load())
+            state = repository.load()
+            self._repository_revision = int(state.get("state_revision", 0))
+            if (
+                self._repository_revision == 0
+                and object_store is not None
+                and object_store.snapshot()
+            ):
+                raise RepositoryUnavailable()
+            self._restore(state)
 
     def register_agent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         aid = _required_str(payload, "aid")
         public_key = from_b64(_required_str(payload, "public_key_b64"))
         with self._lock:
@@ -79,6 +100,7 @@ class ProviderService:
         return _registration_to_payload(record)
 
     def replace_agent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         aid = _required_str(payload, "aid")
         public_key = from_b64(_required_str(payload, "public_key_b64"))
         expected_version = int(payload["expected_version"])
@@ -92,6 +114,7 @@ class ProviderService:
         return _registration_to_payload(record)
 
     def prepare_agent_replacement(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         aid = _required_str(payload, "aid")
         public_key = from_b64(_required_str(payload, "public_key_b64"))
         expected_version = int(payload["expected_version"])
@@ -108,6 +131,7 @@ class ProviderService:
         }
 
     def stage_agent_rewrap(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         if self.object_store is None:
             raise RegistrationError("trusted_store_required")
         aid = _required_str(payload, "aid")
@@ -132,6 +156,7 @@ class ProviderService:
         }
 
     def commit_agent_replacement(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         aid = _required_str(payload, "aid")
         with self._lock:
             record = self.app.management.commit_agent_replacement(
@@ -143,6 +168,7 @@ class ProviderService:
         return _registration_to_payload(record)
 
     def abort_agent_replacement(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         aid = _required_str(payload, "aid")
         rotation_id = _required_str(payload, "rotation_id")
         with self._lock:
@@ -159,6 +185,7 @@ class ProviderService:
         }
 
     def cleanup_agent_rotation(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         aid = _required_str(payload, "aid")
         rotation_id = _required_str(payload, "rotation_id")
         with self._lock:
@@ -175,6 +202,7 @@ class ProviderService:
         }
 
     def revoke_agent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         aid = _required_str(payload, "aid")
         expected_version = int(payload["expected_version"])
         with self._lock:
@@ -183,12 +211,14 @@ class ProviderService:
         return _registration_to_payload(record)
 
     def add_data_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         policy = _policy_from_payload(payload)
         self.app.management.add_data_policy(policy)
         self._persist()
         return to_jsonable(policy)
 
     def set_contact_rulebook(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
         owner_aid = _required_str(payload, "owner_aid")
         rulebook = payload["rulebook"]
         if not isinstance(rulebook, list) or not all(isinstance(item, dict) for item in rulebook):
@@ -199,6 +229,7 @@ class ProviderService:
         return {"owner_aid": owner_aid, "rulebook": rulebook}
 
     def issue_contact_session(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        self._require_consistent_state()
         token = self.app.issue_contact_session(_required_str(payload, "owner_aid"), _required_str(payload, "requester_aid"))
         if token is None:
             return HTTPStatus.FORBIDDEN, {"error": "contact_not_authorized"}
@@ -207,6 +238,7 @@ class ProviderService:
         return HTTPStatus.CREATED, {"contact_token": to_jsonable(token)}
 
     def issue_data_token(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        self._require_consistent_state()
         request = _request_from_payload(payload)
         contact_token_id = payload.get("contact_token_id")
         if not isinstance(contact_token_id, str) or not contact_token_id:
@@ -215,8 +247,12 @@ class ProviderService:
         if contact_token is None:
             return HTTPStatus.FORBIDDEN, {"decision": {"effect": "deny", "reason": "contact_session_not_found"}}
         issuance = self.app.request_data_token(contact_token=contact_token, request=request)
-        response: dict[str, Any] = {"decision": to_jsonable(issuance.decision)}
+        response: dict[str, Any] = {
+            "decision": to_jsonable(issuance.decision),
+            "audit_id": issuance.audit_id,
+        }
         if issuance.token is None:
+            self._persist()
             return HTTPStatus.FORBIDDEN, response
         token = issuance.token
         self.data_tokens[token.token_id] = token
@@ -225,6 +261,7 @@ class ProviderService:
         return HTTPStatus.CREATED, response
 
     def request_re_encryption(self, payload: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        self._require_consistent_state()
         token_id = _required_str(payload, "token_id")
         token = self.data_tokens.get(token_id)
         if token is None:
@@ -258,6 +295,7 @@ class ProviderService:
         return (HTTPStatus.OK if result.decision == "allow" else HTTPStatus.FORBIDDEN), response
 
     def audit_query(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        self._require_consistent_state()
         events = self.app.audit_query()
         for field in ("owner_aid", "requester_aid", "decision", "event_type"):
             value = query.get(field, [None])[0]
@@ -306,6 +344,7 @@ class ProviderService:
         }
         state = {
             "schema_version": 3,
+            "state_revision": self._repository_revision,
             "agents": [
                 _registration_to_payload(record)
                 for record in self.app.management.registrations()
@@ -328,7 +367,46 @@ class ProviderService:
                 else []
             ),
         }
-        self.repository.save(state)
+        try:
+            self._repository_revision = self.repository.save(
+                state,
+                expected_revision=self._repository_revision,
+            )
+        except RepositoryConflict:
+            self._persistence_fenced = True
+            raise
+        except Exception as error:
+            self._persistence_fenced = True
+            raise RepositoryUnavailable() from error
+
+    def _require_consistent_state(self) -> None:
+        if self._persistence_fenced:
+            raise RepositoryUnavailable()
+
+    @property
+    def persistence_fenced(self) -> bool:
+        return self._persistence_fenced
+
+
+class ProviderHTTPServer(ThreadingHTTPServer):
+    """HTTP server that owns and closes its optional Mongo client."""
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        handler: type[BaseHTTPRequestHandler],
+        *,
+        mongo_client=None,
+    ):
+        self.mongo_client = mongo_client
+        super().__init__(server_address, handler)
+
+    def server_close(self) -> None:
+        try:
+            super().server_close()
+        finally:
+            if self.mongo_client is not None:
+                self.mongo_client.close()
 
 
 def make_handler(service: ProviderService, management_token: str) -> type[BaseHTTPRequestHandler]:
@@ -338,7 +416,21 @@ def make_handler(service: ProviderService, management_token: str) -> type[BaseHT
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
             if parsed.path == "/healthz":
-                self._write_json(HTTPStatus.OK, {"status": "ok"})
+                status = (
+                    HTTPStatus.SERVICE_UNAVAILABLE
+                    if service.persistence_fenced
+                    else HTTPStatus.OK
+                )
+                self._write_json(
+                    status,
+                    {
+                        "status": (
+                            "repository_recovery_required"
+                            if service.persistence_fenced
+                            else "ok"
+                        )
+                    },
+                )
                 return
             if parsed.path == "/v1/audit":
                 self._write_json(HTTPStatus.OK, service.audit_query(parse_qs(parsed.query)))
@@ -398,6 +490,13 @@ def make_handler(service: ProviderService, management_token: str) -> type[BaseHT
                     self._write_json(status, response)
                 else:
                     self._write_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+            except RepositoryError as error:
+                status = (
+                    HTTPStatus.CONFLICT
+                    if isinstance(error, RepositoryConflict)
+                    else HTTPStatus.SERVICE_UNAVAILABLE
+                )
+                self._write_json(status, {"error": error.reason})
             except RegistrationError as error:
                 status = HTTPStatus.CONFLICT if error.reason in {
                     "registration_exists",
@@ -453,18 +552,46 @@ def create_server(
     backend: PREBackend | None = None,
     management_token: str | None = None,
     object_store=None,
-) -> ThreadingHTTPServer:
+    mongo_uri: str | None = None,
+    mongo_db: str = "presaga_provider",
+) -> ProviderHTTPServer:
     if not management_token:
         raise ValueError("management_token is required")
     selected_backend = backend or HPKEKEMStub()
     app = PREProviderApp(selected_backend)
-    selected_store = object_store or EncryptedStore(selected_backend, app.registry)
-    service = ProviderService(
-        app,
-        JsonProviderRepository(state_file),
-        object_store=selected_store,
+    mongo_client = None
+    if mongo_uri:
+        if object_store is not None:
+            raise ValueError("object_store cannot be supplied with mongo_uri")
+        mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
+        mongo_client.admin.command("ping")
+        database = mongo_client[mongo_db]
+        repository: ProviderRepository = MongoProviderRepository(database)
+        selected_store = MongoEncryptedStore(
+            selected_backend,
+            database,
+            app.registry,
+        )
+    else:
+        repository = JsonProviderRepository(state_file)
+        selected_store = object_store or EncryptedStore(selected_backend, app.registry)
+    try:
+        service = ProviderService(
+            app,
+            repository,
+            object_store=selected_store,
+        )
+    except Exception:
+        if mongo_client is not None:
+            mongo_client.close()
+        raise
+    server = ProviderHTTPServer(
+        (host, port),
+        make_handler(service, management_token),
+        mongo_client=mongo_client,
     )
-    return ThreadingHTTPServer((host, port), make_handler(service, management_token))
+    server.provider_service = service  # type: ignore[attr-defined]
+    return server
 
 
 def main() -> None:
@@ -472,6 +599,8 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--state-file", default="provider-state.json")
+    parser.add_argument("--mongo-uri")
+    parser.add_argument("--mongo-db", default="presaga_provider")
     parser.add_argument("--management-token-env", default="PRESAGA_MANAGEMENT_TOKEN")
     args = parser.parse_args()
     management_token = os.environ.get(args.management_token_env)
@@ -482,6 +611,8 @@ def main() -> None:
         args.port,
         state_file=args.state_file,
         management_token=management_token,
+        mongo_uri=args.mongo_uri,
+        mongo_db=args.mongo_db,
     )
     print(f"PRE-SAGA Provider listening on http://{args.host}:{args.port}")
     try:

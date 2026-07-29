@@ -4,14 +4,20 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from experiments.e2e.saga_bridge import load_saga_baseline_evidence, run_saga_bridge
+from experiments.e2e.saga_bridge import (
+    WORKSPACE_ROOT,
+    load_saga_baseline_evidence,
+    run_saga_bridge,
+)
 
 
 class SagaBridgeIntegrationTest(unittest.TestCase):
     def test_importer_reads_recorded_saga_evidence(self):
         evidence = load_saga_baseline_evidence()
         self.assertEqual({"saga_e2e_alice_bob", "saga_multi_agent_alice_bob_mallory"}, {item.case for item in evidence})
-        self.assertTrue(all(Path(item.evidence_path).is_file() for item in evidence))
+        self.assertTrue(
+            all((WORKSPACE_ROOT / item.evidence_path).is_file() for item in evidence)
+        )
         self.assertTrue(all(item.contact_authorized and item.token_lifecycle_observed for item in evidence))
 
     def test_bridge_outputs_normal_allow_and_contact_allowed_data_denial(self):

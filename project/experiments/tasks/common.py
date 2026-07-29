@@ -19,8 +19,9 @@ from presaga.protocol.schemas import (
     Validity,
     VersionConstraints,
 )
-from presaga.provider.app import PREProviderApp
 from presaga.storage import CalendarStore, DocumentStore, MailStore, MemoryStore, PolicyAwareStore
+
+from experiments.provider_harness import AuthoritativeProviderHarness
 
 
 @dataclass(frozen=True)
@@ -32,8 +33,7 @@ class TaskResult:
     plaintext: str
     audit_events: int
     contact_ms: float = 0.0
-    policy_ms: float = 0.0
-    token_issue_ms: float = 0.0
+    authorization_ms: float = 0.0
     pre_transform_ms: float = 0.0
     decrypt_ms: float = 0.0
 
@@ -56,22 +56,29 @@ def run_authorized_task(
     backend = ToyPRE()
     owner = backend.generate_keypair()
     requester = backend.generate_keypair()
-    app = PREProviderApp(backend)
 
     owner_aid = seed["owner_aid"]
-    app.management.register_agent(owner_aid, owner.public_key)
-    app.management.register_agent(requester_aid, requester.public_key)
-    app.management.set_contact_rulebook(owner_aid, [{"pattern": requester_aid, "budget": 10}])
-    store = _store_for_data_class(backend, app.registry, seed["data_class"])
+    provider = AuthoritativeProviderHarness(
+        backend,
+        store_factory=lambda selected_backend, registry: _store_for_data_class(
+            selected_backend,
+            registry,
+            seed["data_class"],
+        ),
+    )
+    provider.register_agent(owner_aid, owner.public_key)
+    provider.register_agent(requester_aid, requester.public_key)
+    provider.set_contact_rulebook(
+        owner_aid,
+        [{"pattern": requester_aid, "budget": 10}],
+    )
+    store = provider.store
 
     contact_started = time.perf_counter()
-    contact = app.issue_contact_session(owner_aid, requester_aid)
+    contact = provider.issue_contact_session(owner_aid, requester_aid)
     if contact is None:
         return TaskResult(task_name, False, "contact_denied", 0.0, "", 0)
-    contact_decision = app.validate_contact_session(contact, owner_aid=owner_aid, requester_aid=requester_aid)
     contact_ms = round((time.perf_counter() - contact_started) * 1000, 3)
-    if contact_decision.effect != "allow":
-        return TaskResult(task_name, False, contact_decision.reason, 0.0, "", 0, contact_ms=contact_ms)
 
     record = DataRecord(
         record_id=seed["record_id"],
@@ -90,7 +97,7 @@ def run_authorized_task(
         purposes=[seed["purpose"]],
     )
     now = datetime.now(timezone.utc)
-    app.management.add_data_policy(
+    provider.add_data_policy(
         DataSharingPolicy(
             policy_id=f"policy-{task_name}",
             owner_aid=owner_aid,
@@ -117,48 +124,30 @@ def run_authorized_task(
         version=record.version,
         requester_public_key=requester.public_key,
     )
-    policy_started = time.perf_counter()
-    decision = app.evaluate_data_request(request)
-    policy_ms = round((time.perf_counter() - policy_started) * 1000, 3)
-    if decision.effect != "allow":
-        return TaskResult(
-            task_name,
-            False,
-            decision.reason,
-            0.0,
-            "",
-            len(app.audit_query()),
-            contact_ms=contact_ms,
-            policy_ms=policy_ms,
-        )
-
-    token_started = time.perf_counter()
-    issuance = app.request_data_token(contact_token=contact, request=request)
+    authorization_started = time.perf_counter()
+    issuance = provider.issue_data_token(contact, request)
+    authorization_ms = round(
+        (time.perf_counter() - authorization_started) * 1000,
+        3,
+    )
     if issuance.token is None:
         return TaskResult(
             task_name,
             False,
-            issuance.decision.reason,
+            issuance.reason,
             0.0,
             "",
-            len(app.audit_query()),
+            len(provider.app.audit_query()),
             contact_ms=contact_ms,
-            policy_ms=policy_ms,
+            authorization_ms=authorization_ms,
         )
     token = issuance.token
-    token_issue_ms = round((time.perf_counter() - token_started) * 1000, 3)
     owner_wrap = store.resolve_active_owner_wrap(stored)
     wrap_context = store.wrap_context(stored.record, owner_wrap.provenance)
     rekey = backend.generate_rekey(owner.private_key, requester.public_key, wrap_context)
 
     transform_started = time.perf_counter()
-    result = app.request_re_encryption(
-        contact_token=contact,
-        token=token,
-        request=request,
-        stored=stored,
-        rekey=rekey,
-    )
+    result = provider.request_re_encryption(token, request, rekey)
     pre_transform_ms = round((time.perf_counter() - transform_started) * 1000, 3)
     if result.decision != "allow" or result.transformed_encrypted_dek is None:
         return TaskResult(
@@ -167,10 +156,9 @@ def run_authorized_task(
             result.reason,
             0.0,
             "",
-            len(app.audit_query()),
+            len(provider.app.audit_query()),
             contact_ms=contact_ms,
-            policy_ms=policy_ms,
-            token_issue_ms=token_issue_ms,
+            authorization_ms=authorization_ms,
             pre_transform_ms=pre_transform_ms,
         )
 
@@ -200,10 +188,9 @@ def run_authorized_task(
         "task_completed",
         latency_ms,
         plaintext,
-        len(app.audit_query()),
+        len(provider.app.audit_query()),
         contact_ms=contact_ms,
-        policy_ms=policy_ms,
-        token_issue_ms=token_issue_ms,
+        authorization_ms=authorization_ms,
         pre_transform_ms=pre_transform_ms,
         decrypt_ms=decrypt_ms,
     )

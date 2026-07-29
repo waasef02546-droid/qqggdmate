@@ -4,28 +4,33 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from experiments.attacks.common import REQUESTER_AID, allowed_request, issue_allowed_token, make_environment, rekey_for_requester, run_with_timer
+from presaga.protocol.schemas import DataRecord
+
+from experiments.attacks.common import allowed_request, contact_authorized, issue_allowed_token, make_environment, rekey_for_requester, run_with_timer
 
 
 def run_attack():
     def scenario():
         env = make_environment()
-        contact = env.contact_policy.evaluate(REQUESTER_AID)
         token = issue_allowed_token(env)
+        env.store.put(
+            DataRecord(
+                record_id="cal-secret",
+                owner_aid=env.stored.record.owner_aid,
+                data_class=env.stored.record.data_class,
+                data_subclass=env.stored.record.data_subclass,
+                version=env.stored.record.version,
+            ),
+            b"Secret calendar entry outside the delegated record scope.",
+        )
         probe_request = replace(
             allowed_request(env),
             request_id="attack-metadata-linkage-probe",
             record_id="cal-secret",
         )
-        result = env.app.request_re_encryption(
-            contact_token=env.contact_token,
-            token=token,
-            request=probe_request,
-            stored=env.stored,
-            rekey=rekey_for_requester(env),
-        )
+        result = env.provider.request_re_encryption(token, probe_request, rekey_for_requester(env))
         return {
-            "baseline_contact_allowed": contact.effect == "allow",
+            "baseline_contact_allowed": contact_authorized(env, env.contact_token),
             "blocked": result.decision == "deny" and result.reason == "record_scope_denied",
             "reason": result.reason,
             "audit_id": result.audit_id,

@@ -118,8 +118,23 @@ class ProviderHttpServiceTest(unittest.TestCase):
         self.assertEqual(403, status)
         self.assertEqual("contact_session_not_found", denied["decision"]["reason"])
         request["contact_token_id"] = contact["contact_token"]["token_id"]
+        denied_request = {
+            **request,
+            "request_id": "req-data-class-denied",
+            "data_class": "mail",
+            "data_subclass": "body",
+        }
+        status, denied = self.request(
+            "POST",
+            "/v1/data-tokens",
+            denied_request,
+        )
+        self.assertEqual(403, status)
+        self.assertEqual("data_class_denied", denied["decision"]["reason"])
+        self.assertTrue(denied["audit_id"].startswith("audit-"))
         status, issued = self.request("POST", "/v1/data-tokens", request)
         self.assertEqual(201, status)
+        self.assertTrue(issued["audit_id"].startswith("audit-"))
         self.assertEqual(contact["contact_token"]["token_id"], issued["data_token"]["contact_token_id"])
         self.assertEqual(contact["contact_token"]["contact_session_ref"], issued["data_token"]["contact_session_ref"])
         self.assertEqual(1, issued["data_token"]["owner_registration_version"])
@@ -150,7 +165,7 @@ class ProviderHttpServiceTest(unittest.TestCase):
         self.assertEqual(b"calendar payload", self.store.decrypt_with_dek(stored, requester_dek))
         status, audit = self.request("GET", "/v1/audit?decision=allow")
         self.assertEqual(200, status)
-        self.assertEqual(1, audit["count"])
+        self.assertEqual(2, audit["count"])
         self.assertTrue(self.state_file.exists())
 
         self.server.shutdown()
@@ -165,7 +180,7 @@ class ProviderHttpServiceTest(unittest.TestCase):
         self.port = self.server.server_address[1]
         status, audit = self.request("GET", "/v1/audit")
         self.assertEqual(200, status)
-        self.assertEqual(1, audit["count"])
+        self.assertEqual(3, audit["count"])
 
     def test_management_routes_require_bearer_auth_and_legacy_route_is_absent(self):
         backend = HPKEKEMStub()

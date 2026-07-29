@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from experiments.attacks.common import REQUESTER_AID, allowed_request, issue_allowed_token, make_environment, rekey_for_requester, run_with_timer
+from experiments.attacks.common import allowed_request, contact_authorized, issue_allowed_token, make_environment, rekey_for_requester, run_with_timer
 
 
 def run_attack():
     def scenario():
         env = make_environment()
-        contact = env.contact_policy.evaluate(REQUESTER_AID)
         stale_token = issue_allowed_token(env)
         stale_rekey = rekey_for_requester(env)
         rotated_request = replace(
@@ -18,15 +17,13 @@ def run_attack():
             request_id="attack-stale-rekey-use",
             version=2,
         )
-        result = env.app.request_re_encryption(
-            contact_token=env.contact_token,
-            token=stale_token,
-            request=rotated_request,
-            stored=env.stored,
-            rekey=stale_rekey,
+        result = env.provider.request_re_encryption(
+            stale_token,
+            rotated_request,
+            stale_rekey,
         )
         return {
-            "baseline_contact_allowed": contact.effect == "allow",
+            "baseline_contact_allowed": contact_authorized(env, env.contact_token),
             "blocked": result.decision == "deny" and result.reason == "version_out_of_bounds",
             "reason": result.reason,
             "audit_id": result.audit_id,

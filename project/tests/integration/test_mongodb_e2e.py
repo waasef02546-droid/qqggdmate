@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 from pymongo import MongoClient
@@ -19,10 +22,21 @@ def _mongodb_available(uri: str = "mongodb://127.0.0.1:27017") -> bool:
         return False
 
 
-@unittest.skipUnless(_mongodb_available(), "local MongoDB is not running on 127.0.0.1:27017")
+MONGODB_URI = os.environ.get(
+    "PRESAGA_MONGODB_URI",
+    "mongodb://127.0.0.1:27017",
+)
+
+
+@unittest.skipUnless(_mongodb_available(MONGODB_URI), f"local MongoDB is not running at {MONGODB_URI}")
 class MongoDBE2ETest(unittest.TestCase):
     def test_mongodb_backed_e2e_normal_and_attack_paths(self):
-        result = run_mongodb_e2e(db_name="presaga_e2e_test", output_root=Path("results"))
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = run_mongodb_e2e(
+                uri=MONGODB_URI,
+                db_name=f"presaga_e2e_test_{uuid.uuid4().hex}",
+                output_root=Path(temp_dir),
+            )
         self.assertTrue(result.mongo_connected)
         self.assertTrue(result.normal_success)
         self.assertTrue(result.attack_blocked)

@@ -596,3 +596,260 @@ entries:
       - docs/workflow/current-milestone.md
     rerun_reason: "Final closure after implementation, live-service verification, full regression, claim bounding, and milestone acceptance."
     notes: "Ledger YAML parsed with 40 entries before this closure entry; workflow check passed 24 required files; affected modules compiled; diff check reported no whitespace errors. Line-ending advisories concerned pre-existing dirty files and were not failures."
+  - id: CORE-005-MCP-DESIGN-AUDIT
+    work_package: CORE-005
+    target: mongo_repository_to_provider_service_authoritative_path
+    command: "Serena initial instructions, symbol overview, and referencing-symbol queries for MongoProviderRepository and ProviderService"
+    relevant_code_state: "pre-CORE-005 Mongo helper and JSON-only ProviderService"
+    configuration: "repository-local Serena project"
+    environment: "Windows Codex workspace"
+    result: "pass"
+    evidence:
+      - project/presaga/provider/mongo_repository.py
+      - project/presaga/provider/server.py
+      - docs/adr/0006-mongo-backed-recoverable-provider-service.md
+    rerun_reason: "First authoritative-path audit for the newly authorized CORE-005 scope."
+    notes: "MongoProviderRepository had one runtime instantiation in the Mongo experiment and no ProviderService reference. ProviderService accepted only JsonProviderRepository, confirming the engineering gap."
+  - id: CORE-005-FOCUSED-INITIAL
+    work_package: CORE-005
+    target: initial_mongo_http_restart_fencing_and_json_compatibility
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest <Mongo Provider service, JSON Provider, rotation recovery, and legacy Mongo E2E modules> -v"
+    relevant_code_state: "initial repository protocol, aggregate CAS, service backend selection, and Mongo HTTP recovery"
+    configuration: "HPKE stub; temporary JSON state; isolated MongoDB 8.3.4"
+    environment: "Windows, repository root, MongoDB on 127.0.0.1:27018"
+    result: "pass_with_skip"
+    evidence:
+      - project/tests/integration/test_mongodb_provider_service.py
+      - project/tests/integration/test_provider_http_service.py
+      - project/tests/integration/test_rotation_recovery.py
+    rerun_reason: "First impact-scoped verification of the new service persistence path."
+    notes: "7 tests passed and the legacy Mongo E2E skipped because its test wrapper still hardcoded port 27017. The wrapper was then migrated to PRESAGA_MONGODB_URI."
+  - id: CORE-005-MONGO-E2E-MIGRATION-INITIAL
+    work_package: CORE-005
+    target: migrated_service_driven_mongo_normal_and_denial_flow
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest project.tests.integration.test_mongodb_e2e -v"
+    relevant_code_state: "first removal of experiment-side granular Mongo save calls"
+    configuration: "ToyPRE, isolated MongoDB 8.3.4, repository-root output path"
+    environment: "Windows, repository root"
+    result: "fail"
+    evidence:
+      - project/experiments/e2e/mongodb_e2e.py
+      - project/tests/integration/test_mongodb_e2e.py
+    rerun_reason: "First execution after routing the existing experiment through ProviderService."
+    notes: "The service correctly returned contact_requester_mismatch because the first migrated attack reused Bob's Contact-bound token for Mallory; the experiment expected the original requester_mismatch data-policy denial. The attack was corrected to issue a valid Mallory Contact session and request a DataToken through the service, which also motivated persistent denial audit recording."
+  - id: CORE-005-FOCUSED-FINAL
+    work_package: CORE-005
+    target: final_repository_contract_mongo_http_restart_denial_and_fencing
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest <provider repository, Mongo Provider service, migrated Mongo E2E, JSON Provider, rotation recovery, and Contact binding modules> -v"
+    relevant_code_state: "final CORE-005 implementation before full regression"
+    configuration: "JSON temporary files; HPKE/ToyPRE fixtures; isolated live MongoDB 8.3.4"
+    environment: "Windows, repository root"
+    result: "pass"
+    evidence:
+      - project/tests/unit/test_provider_repository.py
+      - project/tests/integration/test_mongodb_provider_service.py
+      - project/tests/integration/test_mongodb_e2e.py
+      - project/tests/integration/test_contact_data_binding.py
+    rerun_reason: "Expanded causal verification after correcting the migrated denial path and adding orphan-state rejection and server-owned Mongo lifecycle."
+    notes: "15 tests passed in the broad focused run; a later seven-test repository/service subset also passed after the server-owned client and JSON CAS unit test were added."
+  - id: CORE-005-FULL-REGRESSION
+    work_package: CORE-005
+    target: cross_cutting_repository_provider_http_mongo_and_experiment_regression
+    command: "copy project and required SAGA evidence to a validated isolated root; PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest discover -s tests -v"
+    relevant_code_state: "final repository protocol, JSON/Mongo revisions, service fencing, backend selection, and service-driven Mongo E2E"
+    configuration: "complete discovery in isolated copy; all Mongo tests use the available isolated service"
+    environment: "Windows system Python; MongoDB 8.3.4 on port 27018; isolated workspace tmp directory"
+    result: "pass"
+    evidence:
+      - project/tests
+      - project/tests/integration/test_mongodb_provider_service.py
+      - project/tests/integration/test_mongodb_e2e.py
+      - docs/verification/reviews/CORE-005-security-audit.md
+    rerun_reason: "One full regression is required because the repository contract, Provider API construction, denial audit persistence, and Mongo experiment path are cross-cutting."
+    notes: "All 87 discovered tests passed. Mongo HTTP restart, Mongo rotation CAS, migrated Mongo E2E, and stale-writer tests all executed; there were no skips. The isolated directory could not be removed because the automatic approval reviewer returned Unknown parameter: namespace, so it remains under ignored tmp/core005-regression-isolated."
+  - id: FE-001-BUILD-LINT
+    work_package: FE-001
+    target: frontend_production_build_and_static_quality
+    command: "cd project/frontend; npm.cmd exec tsc -- --noEmit; npm.cmd run build; npm.cmd run lint"
+    relevant_code_state: "final integrated console, visual system, Provider proxy, effect-lifecycle correction, and unused starter database/auth removal"
+    configuration: "vinext/Vite local site; no hosted deployment; no external Provider required for build"
+    environment: "Windows, Node 24.14.1, locked npm dependencies"
+    result: "pass"
+    evidence:
+      - project/frontend/app
+      - project/frontend/app/api/provider/[...path]/route.ts
+      - project/frontend/dist
+      - docs/verification/reviews/FE-001-frontend-acceptance.md
+    rerun_reason: "First final build/lint gate for the newly implemented FE-001 frontend. The final build causally supersedes the pre-lint build after the console effect lifecycle changed."
+    notes: "TypeScript, vinext build, and ESLint passed. Vinext built the root page and /api/provider/:path+ route. The causal final verification followed removal of unused Drizzle/D1/auth starter files and dependencies. PRE-SAGA core tests were not run because no core path changed."
+  - id: FE-001-AUTOMATED
+    work_package: FE-001
+    target: frontend_render_and_provider_proxy_contract
+    command: "cd project/frontend; npm.cmd test"
+    relevant_code_state: "final FE-001 client, proxy, page shell, and test contracts"
+    configuration: "Node built-in test runner against the final vinext build"
+    environment: "Windows, Node 24.14.1"
+    result: "pass"
+    evidence:
+      - project/frontend/tests/provider-contract.test.mjs
+      - project/frontend/tests/rendered-html.test.mjs
+      - docs/verification/reviews/FE-001-frontend-acceptance.md
+    rerun_reason: "First focused automated verification of the newly added client/proxy contract and rendered product identity; causally rerun after the lint-driven shell correction."
+    notes: "Four tests passed: unified GET/POST result contract, loopback-only bounded proxy, server-rendered PRE-SAGA identity, and removal of the starter skeleton."
+  - id: FE-001-LOCAL-PROVIDER
+    work_package: FE-001
+    target: real_local_provider_same_origin_proxy_feasibility
+    command: "start isolated Provider on 127.0.0.1:8080 and frontend on localhost:3099; fetch /api/provider/healthz and /api/provider/v1/audit?decision=deny; stop exact task-owned processes"
+    relevant_code_state: "final Provider client/proxy; integrated console before later CSS-only polish and effect-lint refactor"
+    configuration: "temporary JSON Provider state; local management token; loopback-only HTTP"
+    environment: "Windows, Python Provider service, Node/vinext development server"
+    result: "pass"
+    evidence:
+      - project/frontend/app/lib/provider-client.ts
+      - project/frontend/app/api/provider/[...path]/route.ts
+      - docs/verification/reviews/FE-001-frontend-acceptance.md
+    rerun_reason: "First real-service feasibility check for the new frontend proxy; static or mocked evidence was insufficient for the user's local-connection requirement."
+    notes: "Proxy health returned HTTP 200 with status=ok. Filtered audit returned HTTP 200 with count=0. All exact test-service listeners were stopped after verification."
+  - id: FE-001-BROWSER-SMOKE
+    work_package: FE-001
+    target: integrated_frontend_navigation_incomplete_notice_audit_and_denial
+    command: "local browser interaction against http://localhost:3099 with the isolated Provider"
+    relevant_code_state: "integrated FE-001 console before later CSS-only polish and lint-driven initial-health effect refactor; affected manual health and incomplete handlers were unchanged"
+    configuration: "loopback Provider; empty temporary JSON state; default demo form values"
+    environment: "Codex in-app browser, Windows local development servers"
+    result: "pass_with_limitation"
+    evidence:
+      - project/frontend/app/components/research-console.tsx
+      - project/frontend/app/components/data-plane-console.tsx
+      - project/frontend/app/components/management-observability-console.tsx
+      - docs/verification/reviews/FE-001-frontend-acceptance.md
+    rerun_reason: "First browser-level feasibility check for the newly integrated page and the user's exact incomplete-feature prompt."
+    notes: "Observed Provider健康, the exact 该功能还未完成，等等再摸喵 toast, real audit count=0, complete data-request fields, disabled downstream stages, and contact_not_authorized rendered as a server denial. Further management-page clicking was rejected by browser local-page policy; build, lint, and rendered-source evidence cover that component, but full management interaction remains a residual limitation."
+  - id: FE-001-CONTROL-CLOSURE
+    work_package: FE-001
+    target: frontend_evidence_and_repository_control_closure
+    command: "parse test-ledger YAML; run 24-file workflow check; git diff --check; scan frontend for sensitive persistence, ordinary secret logging, forbidden raw owner wrap, and starter residue"
+    relevant_code_state: "FE-001 accepted as a local prototype; implementation, acceptance review, milestone, and ledger synchronized"
+    configuration: "repository guidance and frontend evidence controls"
+    environment: "Windows, repository root, system Python with PyYAML"
+    result: "pass"
+    evidence:
+      - project/frontend
+      - docs/design/frontend-page-spec.md
+      - docs/verification/reviews/FE-001-frontend-acceptance.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Final control closure after FE-001 implementation, local/browser verification, limitation recording, and milestone acceptance."
+    notes: "Ledger parsed with 50 entries before this append; workflow check passed 24 required files; whitespace check was clean; sensitive-persistence and starter-residue scans passed. PRE-SAGA core tests were intentionally not rerun."
+  - id: CORE-004-POST-CORE005-RECHECK
+    work_package: CORE-004
+    target: post_CORE005_rotation_recovery_cleanup_and_mongo_cas_acceptance
+    command: "review CORE-005-FULL-REGRESSION inventory and audit Provider restore, rotation persistence, cleanup, and Mongo object-CAS interfaces; no functional rerun"
+    relevant_code_state: "final combined CORE-004 and CORE-005 core state; FE-001 changed no Provider, repository, storage, protocol, or core tests"
+    configuration: "evidence reuse from isolated MongoDB 8.3.4 regression on 127.0.0.1:27018"
+    environment: "Windows repository workspace; Mongo service no longer required for this evidence audit"
+    result: "pass_reused_evidence"
+    evidence:
+      - docs/verification/reviews/CORE-004-post-CORE005-recheck.md
+      - docs/verification/reviews/CORE-004-security-audit.md
+      - project/tests/integration/test_rotation_recovery.py
+      - project/tests/integration/test_owner_key_rotation.py
+      - project/tests/integration/test_mongodb_rotation_cas.py
+    rerun_reason: "No rerun: CORE-005-FULL-REGRESSION is newer cross-cutting evidence for the same current core state and passed all 87 tests with live Mongo and no skips."
+    notes: "CORE-004 claim C-007 remains prototype-bounded. Restore order, trusted cleanup, and per-document Mongo CAS remain intact; CORE-005 aggregate CAS adds a separate fail-closed repository boundary without distributed atomicity."
+  - id: CORE-005-CONTROL-CLOSURE
+    work_package: CORE-005
+    target: recoverable_provider_evidence_and_repository_control_closure
+    command: "python -m py_compile <CORE-005 source and focused tests>; parse test-ledger YAML; python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root .; git diff --check"
+    relevant_code_state: "CORE-005 accepted as a bounded single-active-Provider prototype after FE-001 closure and CORE-004 evidence recheck"
+    configuration: "repository guidance, ADR 0006, C-008, security audit, milestone, and verification ledger synchronized"
+    environment: "Windows, repository root, system Python with PyYAML"
+    result: "pass"
+    evidence:
+      - docs/adr/0006-mongo-backed-recoverable-provider-service.md
+      - docs/claims-evidence-matrix.md
+      - docs/verification/reviews/CORE-005-security-audit.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Final control closure after resuming CORE-005; equivalent functional regression was intentionally reused rather than repeated."
+    notes: "Affected Python files compiled; ledger parsed with 51 entries before these two append operations; the 24-file workflow check and whitespace check passed. Two malformed shell-quoting attempts and one wrong YAML root-key lookup preceded the successful parser command; none executed a functional test or changed evidence."
+  - id: REL-001-FOCUSED-FAIL-1
+    work_package: REL-001
+    target: authoritative_provider_experiment_migration
+    command: "python -m py_compile <affected files>; python -m unittest <18 focused tests> -v"
+    relevant_code_state: "initial ProviderService experiment migration"
+    configuration: "temporary result outputs; no MongoDB"
+    environment: "Windows, project directory, Python 3.12"
+    result: "fail"
+    evidence:
+      - project/experiments/attacks/requester_mismatch.py
+      - project/tests/security/test_attack_scripts.py
+    rerun_reason: "First impact-selected run after migrating attacks, tasks, and performance to the service harness."
+    notes: "15 tests passed and three attack tests errored because the requester-mismatch module lost the INTRUDER_AID import. No canonical result artifacts were used for acceptance."
+  - id: REL-001-FOCUSED-FAIL-2
+    work_package: REL-001
+    target: authoritative_provider_experiment_migration
+    command: "python -m unittest <same 18 focused tests> -v"
+    relevant_code_state: "missing import corrected"
+    configuration: "temporary result outputs; no MongoDB"
+    environment: "Windows, project directory, Python 3.12"
+    result: "fail"
+    evidence:
+      - project/experiments/attacks/requester_mismatch.py
+      - project/presaga/provider/server.py
+    rerun_reason: "Causal rerun after fixing the import error."
+    notes: "16 tests passed and two failed because the service correctly rejected the substituted requester at the bound Contact session with contact_requester_mismatch, while the migrated script still expected the lower-level requester_mismatch reason."
+  - id: REL-001-FOCUSED-PASS
+    work_package: REL-001
+    target: provider_audit_experiments_proofs_bridge_and_release_verifier
+    command: "python -m py_compile <REL-001 source>; python -m unittest tests.security.test_release_evidence tests.integration.test_saga_bridge tests.security.test_proverif_runner tests.integration.test_contact_data_binding tests.integration.test_provider_http_service tests.security.test_attack_scripts tests.integration.test_p0_framework tests.security.test_p3_evaluation tests.security.test_performance_runner -v"
+    relevant_code_state: "final authoritative Provider paths, active ToyPRE limitation probe, staged release and verifier"
+    configuration: "temporary test outputs; real local ProVerif; no Mongo required"
+    environment: "Windows, project directory, Python 3.12, ProVerif 2.05"
+    result: "pass"
+    evidence:
+      - project/tests/security/test_release_evidence.py
+      - project/tests/security/test_attack_scripts.py
+      - project/tests/integration/test_contact_data_binding.py
+      - project/tests/integration/test_saga_bridge.py
+    rerun_reason: "Final focused acceptance after correcting service-layer requester-mismatch semantics and adding the release integrity path."
+    notes: "22/22 tests passed. The release verifier accepted consistent evidence and rejected a modified task table."
+  - id: REL-001-RELEASE-FAIL-1
+    work_package: REL-001
+    target: full_staged_release
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018"
+    relevant_code_state: "final release implementation before accepted run"
+    configuration: "full profile; unique release database; staging publication"
+    environment: "Windows, ProVerif 2.05; MongoDB process failed to start because its path with spaces was not quoted correctly"
+    result: "fail"
+    evidence:
+      - project/tmp/release-staging/20260729T121620Z-22cd2b7d
+    rerun_reason: "First full dependency-backed release attempt."
+    notes: "Attack, task, performance, evaluation, proof, and bridge stages ran in staging, then Mongo reachability failed. The runner did not publish or overwrite the canonical accepted result set."
+  - id: REL-001-RELEASE-PASS
+    work_package: REL-001
+    target: authoritative_full_release
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018"
+    relevant_code_state: "final REL-001 source fingerprint 1b5a64e3c8abaf27e3d5156309ba638c3f5312bcc08a25adde361a4d8f3c5fc1"
+    configuration: "release.yaml full profile; performance iterations 50; scalability iterations 20; unique empty Mongo release database"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/results/release-manifest.json
+      - project/results/reproducibility/release_report.md
+      - project/results/tables/security_matrix.csv
+      - project/results/proofs/proverif_summary.csv
+    rerun_reason: "Causal rerun after starting the same isolated MongoDB instance with correctly quoted paths."
+    notes: "All seven release gates passed. Run 20260729T121720Z-e77ba61e was verified in staging and published by per-file temporary replacement with the manifest last; whole-directory atomicity is not claimed."
+  - id: REL-001-FULL-REGRESSION
+    work_package: REL-001
+    target: cross_cutting_provider_audit_and_experiment_release_regression
+    command: "python scripts/verify_release.py; python -m unittest discover -s tests -v"
+    relevant_code_state: "accepted REL-001 source and result manifest"
+    configuration: "complete test discovery; PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/results/release-manifest.json
+      - project/tests
+      - docs/verification/reviews/REL-001-release-acceptance.md
+    rerun_reason: "One full regression is required because domain audit ownership and the unified experiment entry point are cross-cutting."
+    notes: "Independent release verification passed and all 89 discovered tests passed with live Mongo; no skips. This is the only full-suite run for the final REL-001 code state."

@@ -13,10 +13,12 @@ The scenario follows the SAGA comparison gap analysis:
 
 from __future__ import annotations
 
+import base64
 import csv
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
+from http import HTTPStatus
 from pathlib import Path
 
 from pymongo import MongoClient
@@ -25,7 +27,9 @@ from pymongo.errors import ServerSelectionTimeoutError
 from presaga.crypto.toy_pre import ToyPRE
 from presaga.protocol.schemas import DataAccessRequest, DataRecord, DataScope, DataSharingPolicy, Limits, RequesterSelector, Validity, VersionConstraints
 from presaga.provider.app import PREProviderApp
+from presaga.provider.json_repository import to_jsonable
 from presaga.provider.mongo_repository import MongoProviderRepository
+from presaga.provider.server import ProviderService
 from presaga.storage.mongo_encrypted_store import MongoEncryptedStore
 
 
@@ -62,8 +66,18 @@ def run_mongodb_e2e(
         raise RuntimeError(f"MongoDB is not reachable at {uri}") from exc
 
     db = client[db_name]
+    existing_collections = [
+        name
+        for name in db.list_collection_names()
+        if not name.startswith("system.")
+    ]
+    if existing_collections:
+        client.close()
+        raise RuntimeError(
+            "mongo_database_not_empty:"
+            + ",".join(sorted(existing_collections))
+        )
     repo = MongoProviderRepository(db)
-    repo.reset()
 
     backend = ToyPRE()
     alice = backend.generate_keypair()
@@ -71,17 +85,18 @@ def run_mongodb_e2e(
     mallory = backend.generate_keypair()
     app = PREProviderApp(backend)
     store = MongoEncryptedStore(backend, db, app.registry)
+    service = ProviderService(app, repo, object_store=store)
 
     owner_aid = "alice@mail.com:calendar_agent"
     bob_aid = "bob@mail.com:scheduler_agent"
     mallory_aid = "mallory@mail.com:research_agent"
     for aid, keypair in ((owner_aid, alice), (bob_aid, bob), (mallory_aid, mallory)):
-        registration = app.management.register_agent(aid, keypair.public_key)
-        repo.save_agent(registration)
+        service.register_agent(
+            {"aid": aid, "public_key_b64": _b64(keypair.public_key)}
+        )
 
     rulebook = [{"pattern": "*@mail.com:*_agent", "budget": 10}]
-    app.management.set_contact_rulebook(owner_aid, rulebook)
-    repo.save_contact_rulebook(owner_aid, rulebook)
+    service.set_contact_rulebook({"owner_aid": owner_aid, "rulebook": rulebook})
 
     record = DataRecord(
         record_id="cal-e2e-001",
@@ -106,13 +121,16 @@ def run_mongodb_e2e(
         version_constraints=VersionConstraints(min_version=1, max_version=1),
         obligations={"projection": ["availability"], "audit": True},
     )
-    app.management.add_data_policy(policy)
-    repo.save_data_policy(policy)
+    service.add_data_policy(to_jsonable(policy))
 
-    contact_token = app.issue_contact_session(owner_aid, bob_aid)
-    if contact_token is None:
+    contact_status, contact_response = service.issue_contact_session(
+        {"owner_aid": owner_aid, "requester_aid": bob_aid}
+    )
+    if contact_status != HTTPStatus.CREATED:
         raise RuntimeError("expected Bob contact token to be issued")
-    repo.save_contact_token(contact_token)
+    contact_token = service.contact_tokens[
+        contact_response["contact_token"]["token_id"]
+    ]
     contact_decision = app.validate_contact_session(contact_token, owner_aid=owner_aid, requester_aid=bob_aid)
     if contact_decision.effect != "allow":
         raise RuntimeError(contact_decision.reason)
@@ -128,26 +146,31 @@ def run_mongodb_e2e(
         version=1,
         requester_public_key=bob.public_key,
     )
-    issuance = app.request_data_token(contact_token=contact_token, request=request)
-    if issuance.token is None:
-        raise RuntimeError(issuance.decision.reason)
-    data_token = issuance.token
-    repo.save_data_token(data_token)
+    request_payload = _request_payload(request)
+    request_payload["contact_token_id"] = contact_token.token_id
+    issuance_status, issuance = service.issue_data_token(request_payload)
+    if issuance_status != HTTPStatus.CREATED:
+        raise RuntimeError(issuance["decision"]["reason"])
+    data_token = service.data_tokens[issuance["data_token"]["token_id"]]
     owner_wrap = store.resolve_active_owner_wrap(stored_from_mongo)
     wrap_context = store.wrap_context(stored_from_mongo.record, owner_wrap.provenance)
     rekey = backend.generate_rekey(alice.private_key, bob.public_key, wrap_context)
-    transform = app.request_re_encryption(
-        contact_token=contact_token,
-        token=data_token,
-        request=request,
-        stored=stored_from_mongo,
-        rekey=rekey,
+    transform_status, transform = service.request_re_encryption(
+        {
+            "token_id": data_token.token_id,
+            "request": request_payload,
+            "rekey_b64": _b64(rekey),
+        }
     )
-    normal_success = transform.decision == "allow" and transform.transformed_encrypted_dek is not None
+    normal_success = (
+        transform_status == HTTPStatus.OK
+        and transform["decision"] == "allow"
+        and "transformed_encrypted_dek_b64" in transform
+    )
     if not normal_success:
-        raise RuntimeError(transform.reason)
+        raise RuntimeError(transform["reason"])
     bob_dek = backend.unwrap_dek(
-        transform.transformed_encrypted_dek,
+        base64.b64decode(transform["transformed_encrypted_dek_b64"]),
         bob.private_key,
         wrap_context,
     )
@@ -164,22 +187,18 @@ def run_mongodb_e2e(
         version=1,
         requester_public_key=mallory.public_key,
     )
-    attack_decision = app.evaluate_data_request(attack_request)
-    attack_blocked = attack_decision.effect == "deny"
-    if attack_blocked:
-        app.audit.record(
-            event_type="mongodb_e2e_data_policy",
-            decision="deny",
-            reason=attack_decision.reason,
-            owner_aid=attack_request.owner_aid,
-            requester_aid=attack_request.requester_aid,
-            record_id=attack_request.record_id,
-            data_class=attack_request.data_class,
-            purpose=attack_request.purpose,
-            policy_id=attack_decision.policy_id,
-            token_id=None,
-        )
-    repo.save_audit_events(app.audit_query())
+    mallory_contact_status, mallory_contact_response = service.issue_contact_session(
+        {"owner_aid": owner_aid, "requester_aid": mallory_aid}
+    )
+    if mallory_contact_status != HTTPStatus.CREATED:
+        raise RuntimeError("expected Mallory contact token to be issued")
+    attack_payload = _request_payload(attack_request)
+    attack_payload["contact_token_id"] = mallory_contact_response[
+        "contact_token"
+    ]["token_id"]
+    attack_status, attack_result = service.issue_data_token(attack_payload)
+    attack_blocked = attack_status == HTTPStatus.FORBIDDEN
+    denial_reason = attack_result["decision"]["reason"]
     counts = repo.collection_counts()
     provider_plaintext_data_visible = any(event.provider_saw_plaintext_data for event in app.audit_query())
     provider_plaintext_dek_visible = any(event.provider_saw_plaintext_dek for event in app.audit_query())
@@ -190,7 +209,7 @@ def run_mongodb_e2e(
         normal_success=normal_success and plaintext == "Alice is free from 10:00 to 11:00.",
         attack_blocked=attack_blocked,
         decrypted_plaintext=plaintext,
-        denial_reason=attack_decision.reason,
+        denial_reason=denial_reason,
         provider_plaintext_data_visible=provider_plaintext_data_visible,
         provider_plaintext_dek_visible=provider_plaintext_dek_visible,
         persisted_agents=counts["agents"],
@@ -204,6 +223,18 @@ def run_mongodb_e2e(
     _write_outputs(result, output_root)
     client.close()
     return result
+
+
+def _b64(value: bytes) -> str:
+    return base64.b64encode(value).decode("ascii")
+
+
+def _request_payload(request: DataAccessRequest) -> dict[str, object]:
+    payload = to_jsonable(request)
+    requester_public_key = payload.pop("requester_public_key", None)
+    if isinstance(requester_public_key, dict):
+        payload["requester_public_key_b64"] = requester_public_key["__bytes_b64__"]
+    return payload
 
 
 def _write_outputs(result: MongoE2EResult, output_root: Path) -> None:
@@ -242,7 +273,7 @@ def _write_outputs(result: MongoE2EResult, output_root: Path) -> None:
                 "",
                 "## Architecture impact",
                 "",
-                "This E2E supplements the in-memory prototype with persistent Provider and encrypted-object state. It does not yet reproduce the full SAGA mTLS/OTK/ACT runtime, but it closes part of the engineering gap by exercising registry, policy, token, encrypted storage, PRE transform, decryption, attack denial, and audit persistence in one MongoDB-backed flow.",
+                "This E2E drives registry, policy, token, encrypted storage, PRE transform, decryption, attack denial, and audit persistence through the recoverable ProviderService with MongoDB as its authoritative backend. It no longer relies on experiment-side manual save calls. Aggregate metadata CAS and per-object CAS remain separate atomicity domains, and the flow does not reproduce SAGA mTLS/OTK/ACT or claim distributed transactions.",
                 "",
             ]
         ),

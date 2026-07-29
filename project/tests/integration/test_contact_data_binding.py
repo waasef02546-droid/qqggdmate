@@ -88,6 +88,41 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
             self.store.context(self.record),
         )
 
+    def test_data_token_issuance_records_authoritative_allow_and_deny_audits(
+        self,
+    ) -> None:
+        allowed = self.app.request_data_token(
+            contact_token=self.contact,
+            request=self.request,
+            now=self.now,
+        )
+        self.assertIsNotNone(allowed.token)
+        self.assertTrue(allowed.audit_id.startswith("audit-"))
+        allowed_event = self.app.audit.events[-1]
+        self.assertEqual(allowed.audit_id, allowed_event.audit_id)
+        self.assertEqual("data_token_issuance", allowed_event.event_type)
+        self.assertEqual("allow", allowed_event.decision)
+        self.assertEqual(allowed.token.token_id, allowed_event.token_id)
+
+        denied_request = replace(
+            self.request,
+            request_id="binding-data-class-denial",
+            data_class="mail",
+            data_subclass="body",
+        )
+        denied = self.app.request_data_token(
+            contact_token=self.contact,
+            request=denied_request,
+            now=self.now,
+        )
+        self.assertIsNone(denied.token)
+        self.assertEqual("data_class_denied", denied.decision.reason)
+        denied_event = self.app.audit.events[-1]
+        self.assertEqual(denied.audit_id, denied_event.audit_id)
+        self.assertEqual("data_token_issuance", denied_event.event_type)
+        self.assertEqual("deny", denied_event.decision)
+        self.assertIsNone(denied_event.token_id)
+
     def test_issuance_requires_contact_and_signs_exact_session_binding(self) -> None:
         missing = self.app.request_data_token(
             contact_token=None,

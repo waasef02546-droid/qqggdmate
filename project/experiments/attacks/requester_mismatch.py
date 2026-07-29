@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from experiments.attacks.common import INTRUDER_AID, allowed_request, issue_allowed_token, make_environment, rekey_for_requester, run_with_timer
+from experiments.attacks.common import INTRUDER_AID, allowed_request, contact_authorized, issue_allowed_token, make_environment, rekey_for_requester, run_with_timer
 
 
 def run_attack():
     def scenario():
         env = make_environment()
-        contact = env.contact_policy.evaluate(INTRUDER_AID)
         token = issue_allowed_token(env)
         attack_request = replace(
             allowed_request(env),
@@ -18,19 +17,19 @@ def run_attack():
             requester_aid=INTRUDER_AID,
             requester_public_key=env.intruder_keypair.public_key,  # type: ignore[attr-defined]
         )
-        result = env.app.request_re_encryption(
-            contact_token=env.intruder_contact_token,
-            token=token,
-            request=attack_request,
-            stored=env.stored,
-            rekey=rekey_for_requester(env),
-        )
+        result = env.provider.request_re_encryption(token, attack_request, rekey_for_requester(env))
         return {
-            "baseline_contact_allowed": contact.effect == "allow",
-            "blocked": result.decision == "deny" and result.reason == "requester_mismatch",
+            "baseline_contact_allowed": contact_authorized(
+                env,
+                env.intruder_contact_token,
+            ),
+            "blocked": (
+                result.decision == "deny"
+                and result.reason == "contact_requester_mismatch"
+            ),
             "reason": result.reason,
             "audit_id": result.audit_id,
-            "strength_note": "Carol also passes contact policy, but cannot use Bob's data token.",
+            "strength_note": "Carol can obtain her own Contact session, but the service resolves Bob's token-bound Contact session and rejects the requester substitution before PRE transform.",
         }
 
     return run_with_timer("requester_mismatch", scenario)

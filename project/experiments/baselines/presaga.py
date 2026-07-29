@@ -13,6 +13,7 @@ class PRESAGABaselineResult:
     success: bool
     provider_plaintext_data_visible: bool
     provider_plaintext_dek_visible: bool
+    cryptographic_provider_confidentiality_established: bool
     reason: str
 
 
@@ -20,18 +21,17 @@ def run_baseline() -> PRESAGABaselineResult:
     env = make_environment(max_uses=1)
     request = allowed_request(env)
     token = issue_allowed_token(env)
-    result = env.app.request_re_encryption(
-        contact_token=env.contact_token,
-        token=token,
-        request=request,
-        stored=env.stored,
-        rekey=rekey_for_requester(env),
+    result = env.provider.request_re_encryption(
+        token,
+        request,
+        rekey_for_requester(env),
     )
     return PRESAGABaselineResult(
         baseline="presaga",
         success=result.decision == "allow",
-        provider_plaintext_data_visible=False,
-        provider_plaintext_dek_visible=False,
+        provider_plaintext_data_visible=result.provider_saw_plaintext_data,
+        provider_plaintext_dek_visible=result.provider_saw_plaintext_dek,
+        cryptographic_provider_confidentiality_established=False,
         reason=result.reason,
     )
 

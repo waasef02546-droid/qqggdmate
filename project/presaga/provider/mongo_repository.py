@@ -8,9 +8,12 @@ from datetime import datetime
 from typing import Any
 
 from pymongo.database import Database
+from pymongo.errors import DuplicateKeyError
 
 from presaga.protocol.schemas import AuditEvent, ContactToken, DataSharingPolicy, DataToken
+from presaga.provider.json_repository import JsonProviderRepository
 from presaga.provider.registry import AgentRecord, PreparedReplacement
+from presaga.provider.repository import RepositoryConflict, RepositoryUnavailable
 
 
 class MongoProviderRepository:
@@ -24,6 +27,7 @@ class MongoProviderRepository:
         "data_tokens",
         "audit_events",
         "rotation_journal",
+        "provider_state",
     )
 
     def __init__(self, db: Database):
@@ -35,6 +39,7 @@ class MongoProviderRepository:
         self.data_tokens = db["data_tokens"]
         self.audit_events = db["audit_events"]
         self.rotation_journal = db["rotation_journal"]
+        self.provider_state = db["provider_state"]
         self.agents.create_index("aid", unique=True)
         self.contact_tokens.create_index("token_id", unique=True)
         self.data_policies.create_index("policy_id", unique=True)
@@ -47,6 +52,71 @@ class MongoProviderRepository:
             partialFilterExpression={"status": "prepared"},
             name="one_prepared_rotation_per_aid",
         )
+
+    def load(self) -> dict[str, Any]:
+        """Load the authoritative aggregate; encrypted objects remain in their collection."""
+        document = self.provider_state.find_one({"_id": "provider-state"})
+        if document is None:
+            legacy_collections = tuple(
+                name for name in self.COLLECTIONS if name != "provider_state"
+            )
+            if any(
+                self.db[name].find_one({}, {"_id": 1}) is not None
+                for name in (*legacy_collections, "encrypted_objects")
+            ):
+                raise RepositoryUnavailable()
+            return JsonProviderRepository.empty_state()
+        raw_state = document.get("state")
+        if not isinstance(raw_state, dict):
+            raise ValueError("Mongo provider state must be an object")
+        schema_version = int(raw_state.get("schema_version", 1))
+        if schema_version > 3:
+            raise ValueError("provider state schema is newer than this implementation")
+        state_revision = int(document.get("state_revision", -1))
+        if state_revision < 0:
+            raise ValueError("provider state revision must be non-negative")
+        return {
+            **JsonProviderRepository.empty_state(),
+            **raw_state,
+            "schema_version": schema_version,
+            "state_revision": state_revision,
+            "encrypted_objects": [],
+        }
+
+    def save(
+        self,
+        state: dict[str, Any],
+        *,
+        expected_revision: int,
+    ) -> int:
+        """Replace one authoritative aggregate using a server-side revision CAS."""
+        if not isinstance(expected_revision, int) or expected_revision < 0:
+            raise RepositoryConflict()
+        next_revision = expected_revision + 1
+        aggregate = {
+            key: value
+            for key, value in state.items()
+            if key not in {"encrypted_objects", "state_revision"}
+        }
+        replacement = {
+            "_id": "provider-state",
+            "state_revision": next_revision,
+            "state": _jsonish({**aggregate, "state_revision": next_revision}),
+        }
+        try:
+            result = self.provider_state.replace_one(
+                {
+                    "_id": "provider-state",
+                    "state_revision": expected_revision,
+                },
+                replacement,
+                upsert=expected_revision == 0,
+            )
+        except DuplicateKeyError as error:
+            raise RepositoryConflict() from error
+        if result.matched_count != 1 and result.upserted_id is None:
+            raise RepositoryConflict()
+        return next_revision
 
     def reset(self) -> None:
         for collection in self.COLLECTIONS:
@@ -112,7 +182,24 @@ class MongoProviderRepository:
             raise ValueError("rotation_state_conflict")
 
     def collection_counts(self) -> dict[str, int]:
-        return {name: self.db[name].count_documents({}) for name in (*self.COLLECTIONS, "encrypted_objects")}
+        aggregate = self.provider_state.find_one({"_id": "provider-state"})
+        if aggregate is None:
+            return {
+                name: self.db[name].count_documents({})
+                for name in (*self.COLLECTIONS, "encrypted_objects")
+            }
+        state = aggregate["state"]
+        return {
+            "agents": len(state.get("agents", [])),
+            "contact_rulebooks": len(state.get("contact_rulebooks", {})),
+            "contact_tokens": len(state.get("contact_tokens", [])),
+            "data_policies": len(state.get("data_policies", [])),
+            "data_tokens": len(state.get("data_tokens", [])),
+            "audit_events": len(state.get("audit_events", [])),
+            "rotation_journal": len(state.get("rotation_journal", [])),
+            "provider_state": 1,
+            "encrypted_objects": self.db["encrypted_objects"].count_documents({}),
+        }
 
 
 def _jsonish(value: Any) -> Any:
@@ -120,7 +207,7 @@ def _jsonish(value: Any) -> Any:
         return _jsonish(asdict(value))
     if isinstance(value, dict):
         return {key: _jsonish(item) for key, item in value.items()}
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         return [_jsonish(item) for item in value]
     if isinstance(value, bytes):
         return _b64(value)

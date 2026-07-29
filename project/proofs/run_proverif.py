@@ -8,6 +8,7 @@ pretending that verification succeeded.
 from __future__ import annotations
 
 import csv
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -20,6 +21,12 @@ PROOF_FILES = [
     "presaga_rekey_authentication.pv",
 ]
 
+EXPECTED_TRUE_RESULTS = {
+    "presaga_token_secrecy.pv": 1,
+    "presaga_dek_secrecy.pv": 2,
+    "presaga_rekey_authentication.pv": 1,
+}
+
 
 @dataclass(frozen=True)
 class ProofRunResult:
@@ -28,6 +35,7 @@ class ProofRunResult:
     return_code: int | None
     output_path: Path
     contribution: str
+    verified_queries: int
 
 
 def run_proofs(
@@ -36,7 +44,7 @@ def run_proofs(
     output_root: Path = Path("results") / "proofs",
 ) -> list[ProofRunResult]:
     output_root.mkdir(parents=True, exist_ok=True)
-    executable = _find_proverif(proofs_dir)
+    executable = find_proverif(proofs_dir)
     results: list[ProofRunResult] = []
 
     for proof_name in PROOF_FILES:
@@ -56,7 +64,16 @@ def run_proofs(
                 ),
                 encoding="utf-8",
             )
-            results.append(ProofRunResult(proof_name, "tool_unavailable", None, output_path, contribution))
+            results.append(
+                ProofRunResult(
+                    proof_name,
+                    "tool_unavailable",
+                    None,
+                    output_path,
+                    contribution,
+                    0,
+                )
+            )
             continue
 
         completed = subprocess.run(
@@ -67,12 +84,27 @@ def run_proofs(
             timeout=60,
             check=False,
         )
+        true_results = re.findall(r"(?m)^RESULT .+ is true\.$", completed.stdout)
+        unsafe_results = re.findall(
+            r"(?mi)^RESULT .+ (?:is false|cannot be proved)\.?$",
+            completed.stdout,
+        )
+        expected_results = EXPECTED_TRUE_RESULTS[proof_name]
+        status = (
+            "passed"
+            if completed.returncode == 0
+            and len(true_results) == expected_results
+            and not unsafe_results
+            else "failed"
+        )
         combined = "\n".join(
             [
-                f"status={'passed' if completed.returncode == 0 else 'failed'}",
+                f"status={status}",
                 f"tool={executable}",
                 f"proof={proof_name}",
                 f"return_code={completed.returncode}",
+                f"verified_queries={len(true_results)}",
+                f"expected_queries={expected_results}",
                 f"architecture_contribution={contribution}",
                 "",
                 "[stdout]",
@@ -86,10 +118,11 @@ def run_proofs(
         results.append(
             ProofRunResult(
                 proof_name,
-                "passed" if completed.returncode == 0 else "failed",
+                status,
                 completed.returncode,
                 output_path,
                 contribution,
+                len(true_results),
             )
         )
 
@@ -98,7 +131,7 @@ def run_proofs(
     return results
 
 
-def _find_proverif(proofs_dir: Path) -> str | None:
+def find_proverif(proofs_dir: Path) -> str | None:
     from_path = shutil.which("proverif")
     if from_path:
         return from_path
@@ -129,7 +162,14 @@ def _write_summary(results: list[ProofRunResult], path: Path) -> None:
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["proof", "status", "return_code", "output_path", "contribution"],
+            fieldnames=[
+                "proof",
+                "status",
+                "return_code",
+                "verified_queries",
+                "output_path",
+                "contribution",
+            ],
         )
         writer.writeheader()
         for result in results:
@@ -138,8 +178,9 @@ def _write_summary(results: list[ProofRunResult], path: Path) -> None:
                     "proof": result.proof,
                     "status": result.status,
                     "return_code": "" if result.return_code is None else result.return_code,
-                    "output_path": result.output_path.as_posix(),
+                    "output_path": result.output_path.name,
                     "contribution": result.contribution,
+                    "verified_queries": result.verified_queries,
                 }
             )
 
@@ -165,7 +206,7 @@ def _write_report(results: list[ProofRunResult], path: Path) -> None:
     ]
     for result in results:
         lines.append(
-            f"| `{result.proof}` | `{result.status}` | `{result.output_path.as_posix()}` | {result.contribution} |"
+            f"| `{result.proof}` | `{result.status}` | `{result.output_path.name}` | {result.contribution} |"
         )
     lines.extend(
         [

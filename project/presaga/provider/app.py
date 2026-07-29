@@ -27,6 +27,7 @@ from presaga.storage.encrypted_store import StoredObject
 class DataTokenRequestResult:
     decision: PolicyDecision
     token: DataToken | None
+    audit_id: str
 
 
 class TrustedManagementPlane:
@@ -234,15 +235,15 @@ class PREProviderApp:
         now: datetime | None = None,
     ) -> DataTokenRequestResult:
         if contact_token is None:
-            return DataTokenRequestResult(
-                decision=PolicyDecision(effect="deny", reason="contact_session_required"),
-                token=None,
+            return self._record_data_token_issuance(
+                request,
+                PolicyDecision(effect="deny", reason="contact_session_required"),
             )
         binding_error = self._request_binding_error(request)
         if binding_error:
-            return DataTokenRequestResult(
-                decision=PolicyDecision(effect="deny", reason=binding_error),
-                token=None,
+            return self._record_data_token_issuance(
+                request,
+                PolicyDecision(effect="deny", reason=binding_error),
             )
         contact_decision = self.validate_contact_session(
             contact_token,
@@ -251,15 +252,39 @@ class PREProviderApp:
             now=now,
         )
         if contact_decision.effect != "allow":
-            return DataTokenRequestResult(
-                decision=PolicyDecision(effect="deny", reason=contact_decision.reason),
-                token=None,
+            return self._record_data_token_issuance(
+                request,
+                PolicyDecision(effect="deny", reason=contact_decision.reason),
             )
         decision = DataPolicyEvaluator(self._data_policies).evaluate(request, now=now)
         if decision.effect != "allow":
-            return DataTokenRequestResult(decision=decision, token=None)
+            return self._record_data_token_issuance(request, decision)
         token = self.token_service._issue_data_token(decision, request, contact_token, now=now)
-        return DataTokenRequestResult(decision=decision, token=token)
+        return self._record_data_token_issuance(request, decision, token)
+
+    def _record_data_token_issuance(
+        self,
+        request: DataAccessRequest,
+        decision: PolicyDecision,
+        token: DataToken | None = None,
+    ) -> DataTokenRequestResult:
+        event = self.audit.record(
+            event_type="data_token_issuance",
+            decision=decision.effect,
+            reason=decision.reason,
+            owner_aid=request.owner_aid,
+            requester_aid=request.requester_aid,
+            record_id=request.record_id,
+            data_class=request.data_class,
+            purpose=request.purpose,
+            policy_id=decision.policy_id,
+            token_id=token.token_id if token is not None else None,
+        )
+        return DataTokenRequestResult(
+            decision=decision,
+            token=token,
+            audit_id=event.audit_id,
+        )
 
     def request_re_encryption(
         self,

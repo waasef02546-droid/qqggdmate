@@ -32,24 +32,30 @@ from presaga.provider.data_policy import DataPolicyEvaluator
 class PerformanceRow:
     experiment: str
     baseline: str
+    path_kind: str
+    observation_source: str
     policy_rules: int
     iterations: int
     avg_latency_ms: float
     p95_latency_ms: float
     provider_plaintext_data_visible: bool
     provider_plaintext_dek_visible: bool
+    cryptographic_provider_confidentiality_established: bool | None
     data_layer_control: bool
 
 
-def _measure(iterations: int, fn) -> tuple[float, float]:
+def _measure(iterations: int, fn, *, validate=None) -> tuple[float, float, object]:
     samples: list[float] = []
+    last_result: object = None
     for _ in range(iterations):
         started = time.perf_counter()
-        fn()
+        last_result = fn()
         samples.append((time.perf_counter() - started) * 1000)
+        if validate is not None and not validate(last_result):
+            raise RuntimeError("measured operation failed its correctness predicate")
     avg = statistics.fmean(samples)
     p95 = sorted(samples)[max(0, int(len(samples) * 0.95) - 1)]
-    return round(avg, 4), round(p95, 4)
+    return round(avg, 4), round(p95, 4), last_result
 
 
 def _policy(owner: str, requester: str, policy_id: str, now: datetime, data_class: str = "calendar") -> DataSharingPolicy:
@@ -89,74 +95,116 @@ def _request(env) -> DataAccessRequest:
     )
 
 
-def run_performance(output_root: Path = Path("results")) -> list[PerformanceRow]:
+def run_performance(
+    output_root: Path = Path("results"),
+    *,
+    iterations: int = 50,
+    rule_counts: tuple[int, ...] = (10, 100, 1000),
+) -> list[PerformanceRow]:
+    if iterations < 1:
+        raise ValueError("iterations must be positive")
+    if not rule_counts or any(count < 1 for count in rule_counts):
+        raise ValueError("rule_counts must contain positive values")
     rows: list[PerformanceRow] = []
-    iterations = 50
 
-    for rule_count in (10, 100, 1000):
+    for rule_count in rule_counts:
         env = make_environment(max_uses=1000)
         request = _request(env)
         policies = _make_policy_set(rule_count, request.owner_aid, request.requester_aid)
-        env.app._data_policies[:] = policies
+        env.provider.replace_fixture_data_policies(policies)
 
         contact_policy = SAGAStyleContactPolicy([{"pattern": "*@mail.com:*_agent", "budget": 100000}])
-        avg, p95 = _measure(iterations, lambda: contact_policy.evaluate(request.requester_aid, consume=False))
+        avg, p95, _ = _measure(
+            iterations,
+            lambda: contact_policy.evaluate(
+                request.requester_aid,
+                consume=False,
+            ),
+            validate=lambda decision: decision.effect == "allow",
+        )
         rows.append(
             PerformanceRow(
                 "baseline_comparison",
                 "saga_contact_only",
+                "modeled_contact_baseline",
+                "contact_policy_decision",
                 rule_count,
                 iterations,
                 avg,
                 p95,
                 provider_plaintext_data_visible=False,
                 provider_plaintext_dek_visible=False,
+                cryptographic_provider_confidentiality_established=None,
                 data_layer_control=False,
             )
         )
 
         evaluator = DataPolicyEvaluator(policies)
-        avg, p95 = _measure(iterations, lambda: evaluator.evaluate(request))
+        avg, p95, _ = _measure(
+            iterations,
+            lambda: evaluator.evaluate(request),
+            validate=lambda decision: decision.effect == "allow",
+        )
         rows.append(
             PerformanceRow(
                 "policy_scalability",
                 "presaga_policy_only",
+                "policy_microbenchmark",
+                "data_policy_decision",
                 rule_count,
                 iterations,
                 avg,
                 p95,
                 provider_plaintext_data_visible=False,
                 provider_plaintext_dek_visible=False,
+                cryptographic_provider_confidentiality_established=None,
                 data_layer_control=True,
             )
         )
 
-        avg, p95 = _measure(iterations, lambda: _plaintext_token_server(env, evaluator, request))
+        avg, p95, _ = _measure(
+            iterations,
+            lambda: _plaintext_token_server(env, evaluator, request),
+            validate=lambda plaintext: bool(plaintext),
+        )
         rows.append(
             PerformanceRow(
                 "baseline_comparison",
                 "plaintext_token_server",
+                "modeled_plaintext_baseline",
+                "active_server_decryption",
                 rule_count,
                 iterations,
                 avg,
                 p95,
                 provider_plaintext_data_visible=True,
                 provider_plaintext_dek_visible=True,
+                cryptographic_provider_confidentiality_established=False,
                 data_layer_control=True,
             )
         )
 
-        avg, p95 = _measure(iterations, lambda: _presaga_flow(env, evaluator, request))
+        avg, p95, observation = _measure(
+            iterations,
+            lambda: _presaga_flow(env, request),
+            validate=lambda result: (
+                result.decision == "allow"
+                and result.transformed_encrypted_dek is not None
+            ),
+        )
         rows.append(
             PerformanceRow(
                 "baseline_comparison",
                 "presaga",
+                "provider_service",
+                "provider_transform_audit",
                 rule_count,
                 iterations,
                 avg,
                 p95,
-                provider_plaintext_data_visible=False,
-                provider_plaintext_dek_visible=False,
+                provider_plaintext_data_visible=observation.provider_saw_plaintext_data,
+                provider_plaintext_dek_visible=observation.provider_saw_plaintext_dek,
+                cryptographic_provider_confidentiality_established=False,
                 data_layer_control=True,
             )
         )
@@ -184,19 +232,14 @@ def _plaintext_token_server(env, evaluator: DataPolicyEvaluator, request: DataAc
     return env.store.decrypt_with_dek(env.stored, dek)
 
 
-def _presaga_flow(env, evaluator: DataPolicyEvaluator, request: DataAccessRequest):
-    decision = evaluator.evaluate(request)
-    if decision.effect != "allow":
-        raise RuntimeError(decision.reason)
-    issuance = env.app.request_data_token(contact_token=env.contact_token, request=request)
+def _presaga_flow(env, request: DataAccessRequest):
+    issuance = env.provider.issue_data_token(env.contact_token, request)
     if issuance.token is None:
-        raise RuntimeError(issuance.decision.reason)
-    return env.app.request_re_encryption(
-        contact_token=env.contact_token,
-        token=issuance.token,
-        request=request,
-        stored=env.stored,
-        rekey=rekey_for_requester(env),
+        raise RuntimeError(issuance.reason)
+    return env.provider.request_re_encryption(
+        issuance.token,
+        request,
+        rekey_for_requester(env),
     )
 
 

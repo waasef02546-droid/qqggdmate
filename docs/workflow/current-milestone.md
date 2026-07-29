@@ -2,118 +2,123 @@
 
 ## Active work package
 
-- ID: `CORE-004`
-- Title: Persistent rotation journal, restart recovery, and terminal wrap cleanup
-- State: `accepted_prototype_bounded`
+- ID: `REL-001`
+- Title: Authoritative experiment provenance and paper-grade release gate
+- State: `accepted`
 - Authorization date: `2026-07-29`
-- Acceptance date: `2026-07-29`
-- Objective: persist the owner-key rotation state machine and encrypted-object lifecycle across
-  provider restart, recover incomplete work without trusting stale state, clean staged/source
-  wraps idempotently after abort/commit, and verify MongoDB conditional updates on a real service.
-- Authorized scope: serializable rotation journal entries and terminal history; JSON state schema
-  migration; encrypted-object snapshot/restore; recovery validation; management-plane cleanup
-  operations; in-memory and Mongo per-object conditional cleanup; focused restart, corruption,
-  idempotency, conflict, and live-Mongo verification; ADR, claims, and reproducibility evidence.
-- Primary core modules:
-  - `project/presaga/storage/encrypted_store.py`
-  - `project/presaga/storage/mongo_encrypted_store.py`
-  - `project/presaga/provider/registry.py`
+- Objective: make the published PRE-SAGA experiment tables, figures, formal outputs, SAGA bridge,
+  and Mongo E2E traceable to one current source state and one authoritative Provider decision path,
+  then verify them with a tamper-evident release manifest.
+- Authorized scope:
+  - move data-token issuance audit ownership into the authoritative Provider domain path;
+  - remove experiment-only policy decisions and duplicate policy evaluation from PRE-SAGA flows;
+  - add a staged release runner and independent manifest verifier;
+  - execute fresh attack, task, performance, formal, bridge, and live-Mongo evidence;
+  - synchronize traceability, claims, paper results, limitations, and reproducibility guidance.
+- Primary implementation paths:
   - `project/presaga/provider/app.py`
   - `project/presaga/provider/server.py`
-  - `project/presaga/provider/json_repository.py`
-- Non-goals: production cryptography; HSM/KMS; cross-document or distributed atomicity; changing
-  PRE-SAGA policy semantics, experiment conclusions, or paper claims beyond matching implemented
-  evidence; moving held user/runtime/tool directories; or adding an unauthenticated cleanup path.
+  - `project/experiments/`
+  - `project/scripts/`
+  - `project/results/`
+  - `project/docs/traceability_matrix.md`
+  - `paper/`
+- Non-goals: production PRE/HPKE; RAFT, sharding, or multi-Provider linearizability; real cloud/on-
+  device LLM or geolocation experiments; full SAGA OTK/DH/ACT runtime integration; or claiming
+  parity with every evaluation dimension of arXiv:2504.21034v2.
 
 ## Selected orchestration mode
 
-- Mode: `A`
-- Rule: the primary agent owns architecture, core integration, and the evidence chain. Read-only
-  MCP review may run before edits. Subagents are used only if two or more genuinely independent
-  audits remain after semantic inspection, with one writer per overlapping component.
+- Mode: primary-agent implementation with three bounded read-only audits.
+- Rule: subagents inspect experiment provenance, paper-claim consistency, and clean-environment
+  reproducibility independently. The primary agent owns architecture, all writes, integration,
+  test selection, and final claim decisions.
 
 ## Acceptance criteria
 
-- Prepared, committed, and aborted rotations have immutable identifiers and persist as terminal
-  audit history instead of disappearing from memory.
-- A restart restores registrations, encrypted objects, and pending rotation inventory, rejects
-  malformed/inconsistent journals, and permits safe resume, abort, or cleanup.
-- Abort cleanup conditionally removes only wraps staged by that rotation. Commit cleanup
-  conditionally retires the matching source wrap while preserving the active target wrap.
-  Both operations are idempotent and fail closed on object-revision conflicts.
-- The JSON repository migrates explicitly to the new state schema. The Mongo-backed store uses
-  server-side conditional updates and preserves the same cleanup invariants.
-- Live MongoDB evidence demonstrates successful conditional update, stale-revision rejection, and
-  persistence after reconnect/restart against an isolated database.
-- Focused positive, negative, boundary, restart, and concurrency checks pass. A full regression
-  runs because the provider persistence schema and owner-store protocol are cross-cutting.
-- Claims and limitations remain bounded to a recoverable single-provider research prototype with
-  per-document CAS, not a distributed atomic rotation or production cryptographic system.
+- Every allowed or denied call to the Provider domain's data-token issuance path records one
+  `data_token_issuance` audit event and returns its audit identifier.
+- The HTTP service persists that domain audit without creating a duplicate event.
+- Published PRE-SAGA attacks obtain policy denial from `PREProviderApp.request_data_token` or
+  token consumption from `PREProviderApp.request_re_encryption`; they do not synthesize a
+  publication result by invoking `DataPolicyEvaluator` and manually appending an audit.
+- Full-flow performance and scalability measurements do not evaluate the same data policy once in
+  the experiment and again inside the Provider.
+- One release command writes into staging, enforces attack/task/proof/bridge/Mongo gates, publishes
+  only a passing artifact set, and writes source/config/artifact hashes in a release manifest.
+- An independent verifier accepts the fresh manifest and rejects missing, modified, or failed-gate
+  evidence.
+- Focused positive, denial, persistence, artifact-tamper, and boundary tests pass. One full
+  regression is justified because Provider audit behavior and the combined experiment entry point
+  are cross-cutting.
+- Claims and paper wording remain explicitly prototype-bounded and distinguish this local evidence
+  from SAGA's real LLM, geographic, RAFT, and sharding evaluation.
 
 ## Evidence obligations
 
-- Use Serena read-only semantic queries to trace the existing prepared-rotation and store
-  persistence boundaries before choosing the design.
-- Record the journal schema, recovery validation, cleanup transitions, failure modes, JSON
-  migration, and Mongo atomicity boundary in an ADR before acceptance.
-- Check the test ledger before each run and preserve unrelated dirty/untracked user material.
-- Update the claims matrix, test ledger, and this milestone after implementation and verification.
-
-## Completed prerequisite: repository layout migration
-
-- The old prototype, legacy config and result CSV, Stage-2 evidence, and SAGA comparison reviews
-  were moved to their documented authoritative/archive locations with before/after integrity
-  checks.
-- `project/` remains the only authoritative engineering tree; no compatibility links or duplicate
-  implementation copies were created.
-- `Record/`, `results/compare/`, `runtime/`, `tools/`, `tmp/`, `saga_reproduction/`, and private
-  reference inputs were deliberately not moved.
-- Recovery instructions and hashes are recorded in
-  `docs/repository/layout-migration-2026-07-28.md` and
-  `docs/repository/archive-manifest.yaml`.
-- Repository hygiene and the 24-file control-plane check pass. Functional tests were not rerun
-  because the migration changed no current implementation or active configuration.
+- Record the pre-change provenance gaps and the final decision in ADR 0007.
+- Preserve every failed test or release run in the ledger and link the causal correction.
+- Run the release with real ProVerif 2.05 and isolated MongoDB 8.3.4 when locally available.
+- Record exact artifact hashes, source-tree fingerprint, environment, gate results, and verifier
+  outcome.
+- Update claims `C-002` and `C-004` only to the level justified by the fresh manifest.
+- Keep performance results descriptive; timing variation is not a security proof.
 
 ## Risks
 
-- Per-document Mongo CAS does not make a multi-object rotation atomic; implemented partial cleanup
-  remains observable and resumable.
-- JSON persistence assumes one Provider writer and stable logical store IDs across restart.
-- Persisting encrypted-object metadata increases the corruption surface; implemented restore
-  validation rejects unreachable journal/object combinations before serving data.
-- The legacy Mongo E2E still hardcodes port 27017; CORE-004 live evidence comes from its dedicated
-  environment-configurable test and process restart probe on port 27018.
-- Toy backends permit owner-side unwrap/rewrap but do not establish production PRE security.
+- The worktree contains user and prior-work-package edits, so a source fingerprint is stronger than
+  an ambiguous branch name but remains uncommitted until a deliberate Git baseline is created.
+- Timing outputs vary across machines and runs. Correctness gates and artifact schema are
+  deterministic; latency values are not.
+- ProVerif models cover bounded token/DEK/rekey properties and do not model persistent rotation,
+  repository fencing, Mongo failure, or the full implementation.
+- The SAGA bridge consumes recorded SAGA reproduction evidence and is not direct runtime
+  interoperability.
+- Mongo evidence is a single-host local run and does not establish distributed transactions,
+  failover, RAFT, or sharding.
+- Toy PRE/HPKE and static management authentication remain non-production.
 
 ## Verification evidence
 
-- Final focused integration passed 19 tests covering JSON restart/resume, corrupt recovery,
-  commit/abort cleanup, idempotency, prior owner-rotation behavior, Provider HTTP persistence,
-  management/data-plane separation, provenance, and live Mongo CAS.
-- A MongoDB 8.3.4 process-level probe on isolated port 27018 recorded conditional match 1, stale
-  match 0, then preserved the committed state after stopping and restarting the server with the
-  same data directory.
-- The first isolated full regression found a real stable-store-ID collision among policy-aware
-  stores. Deterministic per-data-class IDs corrected the integration defect.
-- Final isolated full regression ran 83 tests: 82 passed; one legacy Mongo E2E skipped because it
-  is fixed to port 27017. The new CORE-004 live-Mongo test passed on port 27018.
-- JSON schema v3, terminal history, recovery invariants, cleanup transitions, conditional Mongo
-  boundaries, evidence, and non-claims are recorded in ADR 0005 and the CORE-004 security audit.
-- Repository workflow control, Python compilation, YAML parsing, and whitespace validation pass.
+- Data-token issuance auditing is owned by the Provider domain and returns one
+  audit identifier for allow and policy-deny decisions.
+- Publication-facing attacks, tasks, full-service performance/scalability, and
+  the SAGA bridge cross `ProviderService`; modeled microbenchmarks are labeled.
+- Accepted release: `20260729T121720Z-e77ba61e`.
+- Source fingerprint:
+  `1b5a64e3c8abaf27e3d5156309ba638c3f5312bcc08a25adde361a4d8f3c5fc1`.
+- Release gates: 7/7 blocking attacks, 1/1 active ToyPRE limitation probe, 4/4
+  tasks, 12/12 performance rows, 3/3 ProVerif models with four verified
+  queries, 2/2 SAGA bridge cases, and live Mongo E2E.
+- Independent release verifier: pass.
+- Focused verification: 22/22.
+- Full regression with MongoDB 8.3.4: 89/89, no skips.
+- Acceptance review:
+  `docs/verification/reviews/REL-001-release-acceptance.md`.
+- Claim correction: ToyPRE public-material DEK recovery is reproduced;
+  concrete Provider confidentiality remains unsupported.
 
 ## Previous accepted work packages
 
-- `CORE-003`: accepted on `2026-07-28`; registration-bound owner-wrap provenance, explicit
-  prepare/rewrap/commit lifecycle, and per-object Mongo CAS established.
-- `CORE-002`: accepted on `2026-07-28`; authenticated AID-to-key binding, versioned registry,
-  management/data-plane separation, persistence migration, and MCP review tooling established.
-- `CFG-002`: accepted on `2026-07-28`; repository normalization, readable guidance, canonical
-  engineering tree, recoverable archive plan, and Git baseline established.
+- `CORE-005`: accepted on `2026-07-29`; revisioned JSON/Mongo repository contract, restart recovery,
+  service-driven Mongo E2E, and stale-writer fencing established.
+- `FE-001`: accepted on `2026-07-29`; local PRE-SAGA demonstration console and loopback Provider
+  proxy established without changing scientific claims.
+- `CORE-004`: accepted on `2026-07-29`; persistent rotation history, JSON restart recovery,
+  terminal cleanup, and live Mongo per-document CAS established.
+- `CORE-003`: accepted on `2026-07-28`; registration-bound owner-wrap provenance and authenticated
+  prepare/rewrap/commit or abort lifecycle established.
+- `CORE-002`: accepted on `2026-07-28`; authenticated AID-to-key binding, versioned registry, and
+  management/data-plane separation established.
+- `CFG-002`: accepted on `2026-07-28`; repository normalization and canonical engineering layout
+  established.
 - `CORE-001`: accepted on `2026-07-26`; server-enforced Contact-to-data-token-to-re-encryption
-  binding implemented and verified.
+  binding established.
 
 ## Proposed next work package
 
-- Candidate: not selected; a paper/experiment claim gap review should choose it.
+- Candidate ID: `CRYPTO-001`
+- Candidate topic: replace ToyPRE with a reviewed concrete backend and define a
+  malicious-Provider recovery gate that the real backend must block.
 - State: `awaiting_user_choice`
-- Rule: do not begin another package automatically.
+- Rule: do not begin this candidate automatically.

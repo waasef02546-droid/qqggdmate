@@ -14,10 +14,14 @@ import socket
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT = ROOT / "project"
 SAGA_REPRODUCTION = ROOT / "saga_reproduction"
+
+if str(PROJECT) not in sys.path:
+    sys.path.insert(0, str(PROJECT))
+
+from proofs.run_proverif import find_proverif
 
 
 PYTHON_PACKAGES = [
@@ -76,7 +80,7 @@ def main() -> int:
         },
         "tools": {
             "git": shutil.which("git") is not None,
-            "proverif": shutil.which("proverif") is not None,
+            "proverif": find_proverif(PROJECT / "proofs") is not None,
         },
     }
     print(json.dumps(report, indent=2, ensure_ascii=False))
