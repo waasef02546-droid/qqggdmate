@@ -1,81 +1,103 @@
 # Repository ownership and canonical layout
 
-- Work package: `CFG-002`
-- Decision date: `2026-07-28`
 - Decision: `project/` is the only authoritative PRE-SAGA engineering tree.
+- Established by: `CFG-002`
+- Physical migration completed: `2026-07-28`
+
+## Why this layout exists
+
+The repository previously mixed current implementation, old prototypes, generated evidence,
+research reviews, local runtime state, and private inputs at the root. The canonical layout now
+makes three distinctions explicit:
+
+1. code that defines current PRE-SAGA behavior;
+2. evidence and documents that support or limit paper claims; and
+3. legacy, local, or provenance-unknown material that must not be mistaken for current code.
+
+No compatibility links are created. A file has one authoritative location so searches, reviews,
+and automated agents do not silently select an obsolete copy.
 
 ## Canonical paths
 
-| Path | Ownership | Rule |
+| Path | Purpose | Write rule |
 |---|---|---|
-| `project/presaga/` | Core implementation | Authoritative protocol, Provider, policy, token, crypto, storage, and agent code |
-| `project/experiments/` | Research execution | Authoritative baselines, attacks, tasks, E2E, evaluation, and performance runners |
-| `project/proofs/` | Formal evidence | Authoritative formal models and proof runners |
-| `project/tests/` | Verification | Tests that falsify changed behavior; not a substitute for implementation |
-| `project/configs/` | Active experiment config | Configuration loaded or required by current framework/tests |
-| `project/scripts/` | Active project tooling | Environment and reproducibility checks |
-| `project/docs/` | Engineering evidence | Implementation-level traceability |
-| `project/results/` | Checked-in result evidence | Only formal experiment/evaluation work packages may update it |
-| `paper/` | Paper artifacts | Drafts, figures, limitations, and publication plans |
-| `docs/` | Repository control/evidence | Workflow state, ADRs, claims matrix, verification ledger, reviews, and repository maps |
-| `saga_reproduction/` | Baseline reproduction | SAGA source copies, compatibility changes, and recorded reproduction evidence |
+| `project/presaga/` | Current protocol, Provider, policy, token, crypto, storage, and agent code | Change only inside an accepted engineering work package |
+| `project/experiments/` | Baselines, attacks, end-to-end scenarios, evaluation, and performance | Change only for an accepted experiment or implementation package |
+| `project/proofs/` | Formal models and proof runners | Keep assumptions synchronized with implementation |
+| `project/tests/` | Focused verification of changed behavior | Tests support implementation; they do not replace it |
+| `project/configs/` | Active project configuration | Treat changes as behavior-affecting |
+| `project/scripts/` | Active reproducibility and environment tooling | Keep deterministic and documented |
+| `project/docs/` | Implementation-level engineering evidence | Link to the behavior it describes |
+| `project/results/` | Checked-in experimental evidence | Do not overwrite outside an authorized evidence run |
+| `paper/` | Drafts, figures, plans, limitations, and submission material | Claims must match code and evidence |
+| `docs/` | Workflow, ADRs, reviews, verification ledger, and repository maps | Keep current with every completed work package |
+| `saga_reproduction/` | SAGA baseline reproduction and compatibility material | Retained at its current path until a separate migration |
+| `archive/legacy-prototype/` | Preserved non-authoritative prototype, schema, and output | Read-only except for archive maintenance |
 
-## Non-canonical root paths
-
-| Path | Classification | Current disposition |
-|---|---|---|
-| `prototype/` | Legacy toy implementation | Preserve; later move with root legacy config and result CSV |
-| `configs/` | Legacy schema/design artifact | Preserve separately; it is not equivalent to `project/configs/` |
-| `results/experiment_summary.csv` | Legacy prototype output | Preserve with legacy prototype |
-| `results/compare/` | Unknown user material | Hold in place until source/provenance is confirmed |
-| `project/result/` | Legacy Stage-2 evidence | Candidate for `project/results/legacy/stage2/` |
-| `comparison_reports/` | Research review material | Candidate for `docs/reviews/saga/` |
-| `Record/` | SAGA reproduction orchestration/evidence | Keep until absolute paths are parameterized, then move under SAGA reproduction |
-| `tools/` | Local external-tool cache | Keep ignored; record versions/sources, never commit binaries |
-| `runtime/` | Local MongoDB runtime state | Keep ignored; never treat as evidence or source |
-| `tmp/` | Temporary generated extraction | Ignored from now on; existing files are not deleted |
-| `local_conversation_management/` | Private reference input | Keep ignored and read-only |
-
-## Target layout
+## Current top-level structure
 
 ```text
 /
-├─ AGENTS.md
-├─ .agents/skills/
-├─ .codex/agents/
-├─ docs/
-│  ├─ workflow/
-│  ├─ adr/
-│  ├─ verification/
-│  └─ repository/
-├─ paper/
-├─ project/
-│  ├─ presaga/
-│  ├─ experiments/
-│  ├─ proofs/
-│  ├─ tests/
-│  ├─ configs/
-│  ├─ scripts/
-│  ├─ docs/
-│  └─ results/
-├─ saga_reproduction/
-└─ archive/
-   └─ legacy-prototype/
+|-- AGENTS.md
+|-- .agents/skills/
+|-- .codex/
+|-- archive/
+|   `-- legacy-prototype/
+|       |-- configs/
+|       |-- prototype/
+|       `-- results/
+|-- docs/
+|   |-- adr/
+|   |-- repository/
+|   |-- reviews/saga/
+|   |-- verification/
+|   `-- workflow/
+|-- paper/
+|-- project/
+|   |-- configs/
+|   |-- docs/
+|   |-- experiments/
+|   |-- presaga/
+|   |-- proofs/
+|   |-- results/
+|   |   `-- legacy/stage2/
+|   |-- scripts/
+|   `-- tests/
+`-- saga_reproduction/
 ```
 
-The target intentionally keeps `saga_reproduction/` at its present path. Current bridge code,
-environment scripts, and historical documents reference it directly; renaming it requires a
-separate migration work package.
+## Completed migration
 
-## Safe migration order
+| Former path | Current path | Classification |
+|---|---|---|
+| `prototype/` | `archive/legacy-prototype/prototype/` | Legacy toy implementation |
+| `configs/` | `archive/legacy-prototype/configs/` | Legacy schema/design artifact |
+| `results/experiment_summary.csv` | `archive/legacy-prototype/results/experiment_summary.csv` | Legacy prototype output |
+| `project/result/` | `project/results/legacy/stage2/` | Legacy Stage-2 evidence |
+| `comparison_reports/` | `docs/reviews/saga/` | Research review material |
 
-1. Freeze this ownership table and the hash inventory in `archive-manifest.yaml`.
-2. Keep `project/` as the only documented run entry point.
-3. Move `comparison_reports/` and `project/result/` only after updating their small reference sets.
-4. Move `prototype/`, root `configs/`, and `results/experiment_summary.csv` together so the old
-   schema and output remain reproducible.
-5. Parameterize absolute workspace paths in `Record/` before moving it.
-6. Do not move `saga_reproduction/`, `tools/`, or `runtime/` inside `CFG-002`.
+The migration inventory, hashes, reference changes, and rollback procedure are recorded in
+`layout-migration-2026-07-28.md` and `archive-manifest.yaml`.
 
-No source directory is deleted or physically moved by this decision. Physical migration requires
-an explicit user-approved archive operation with before/after hashes and updated references.
+## Deliberately held paths
+
+| Path | Reason it remains |
+|---|---|
+| `Record/` | Scripts still contain absolute workspace and `Record` paths |
+| `results/compare/` | Source and provenance are not yet recorded |
+| `runtime/` | Local MongoDB state; never source or paper evidence |
+| `tools/` | Local third-party tool cache and machine-specific outputs |
+| `tmp/` | Existing temporary extraction is preserved; future content is ignored |
+| `local_conversation_management/` | Private reference input; read-only and ignored |
+
+These paths are not implementation entry points. Moving or deleting them requires a new,
+explicitly accepted migration with a reference audit and before/after verification.
+
+## Placement rule for new work
+
+- New behavior belongs in the appropriate `project/` package, not at the root.
+- New research reviews belong in `docs/reviews/`.
+- New repository decisions and verification records belong in `docs/`.
+- New paper artifacts belong in `paper/`.
+- Generated local state and external binaries stay ignored.
+- Legacy artifacts are preserved under `archive/`; they are never imported by current code.

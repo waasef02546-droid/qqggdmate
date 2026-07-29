@@ -79,9 +79,9 @@ class P1SagaAdapterTest(unittest.TestCase):
         app = PREProviderApp(backend)
         owner = backend.generate_keypair()
         requester = backend.generate_keypair()
-        app.register_agent("alice@mail.com:calendar_agent", owner.public_key)
-        app.register_agent("bob@mail.com:scheduler_agent", requester.public_key)
-        app.set_contact_rulebook("alice@mail.com:calendar_agent", [{"pattern": "bob@mail.com:*", "budget": 1}])
+        app.management.register_agent("alice@mail.com:calendar_agent", owner.public_key)
+        app.management.register_agent("bob@mail.com:scheduler_agent", requester.public_key)
+        app.management.set_contact_rulebook("alice@mail.com:calendar_agent", [{"pattern": "bob@mail.com:*", "budget": 1}])
 
         token = app.issue_contact_session("alice@mail.com:calendar_agent", "bob@mail.com:scheduler_agent")
         self.assertIsNotNone(token)

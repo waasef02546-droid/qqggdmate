@@ -18,7 +18,7 @@ from presaga.protocol.schemas import ContactToken, DataAccessRequest, DataRecord
 from presaga.storage.encrypted_store import EncryptedStore
 
 if TYPE_CHECKING:
-    from presaga.provider.app import PREProviderApp
+    from presaga.provider.app import PREProviderApp, TrustedManagementPlane
 
 
 class AgentRuntimeError(RuntimeError):
@@ -64,6 +64,7 @@ class PREAgent:
 
     material: AgentMaterial
     provider: "PREProviderApp"
+    management: "TrustedManagementPlane | None" = None
     local_stores: dict[str, EncryptedStore] = field(default_factory=dict)
     contact_token_cache: dict[str, ContactToken] = field(default_factory=dict, init=False)
     data_token_cache: dict[str, DataToken] = field(default_factory=dict, init=False)
@@ -76,7 +77,9 @@ class PREAgent:
         return self.material.aid
 
     def register_with_provider(self) -> None:
-        self.provider.register_agent(self.aid, self.material.public_key)
+        if self.management is None:
+            raise AgentRuntimeError("trusted management capability is required for registration")
+        self.management.register_agent(self.aid, self.material.public_key)
         self.registered = True
         self._audit("registered", "allow", "agent_registered")
 
@@ -86,7 +89,9 @@ class PREAgent:
 
     def set_contact_policy(self, rulebook: list[dict[str, int | str]]) -> None:
         self._require_registered()
-        self.provider.set_contact_rulebook(self.aid, rulebook)
+        if self.management is None:
+            raise AgentRuntimeError("trusted management capability is required for policy changes")
+        self.management.set_contact_rulebook(self.aid, rulebook)
         self._audit("contact_policy", "allow", "rulebook_set")
 
     def open_contact_session(self, owner_aid: str) -> ContactToken | None:
@@ -157,12 +162,18 @@ class PREAgent:
             raise AgentRuntimeError("owner does not match token request")
         stored = store.get(record_id)
         _assert_request_matches_record(request, stored.record)
-        rekey = store.backend.generate_rekey(owner.material.private_key, self.material.public_key, store.context(stored.record))
+        owner_wrap = store.resolve_active_owner_wrap(stored)
+        wrap_context = store.wrap_context(stored.record, owner_wrap.provenance)
+        rekey = store.backend.generate_rekey(
+            owner.material.private_key,
+            self.material.public_key,
+            wrap_context,
+        )
         result = self.provider.request_re_encryption(
             contact_token=self.contact_token_cache.get(token.owner_aid),
             token=token,
             request=request,
-            encrypted_dek_owner=stored.encrypted_dek_owner,
+            stored=stored,
             rekey=rekey,
         )
         if result.decision != "allow" or result.transformed_encrypted_dek is None:
@@ -174,7 +185,13 @@ class PREAgent:
     def decrypt_stored_object(self, *, store: EncryptedStore, record_id: str, transformed_encrypted_dek: bytes) -> bytes:
         """Unwrap the requester-bound DEK and decrypt one authenticated record."""
         stored = store.get(record_id)
-        dek = store.backend.unwrap_dek(transformed_encrypted_dek, self.material.private_key, store.context(stored.record))
+        owner_wrap = store.resolve_active_owner_wrap(stored)
+        wrap_context = store.wrap_context(stored.record, owner_wrap.provenance)
+        dek = store.backend.unwrap_dek(
+            transformed_encrypted_dek,
+            self.material.private_key,
+            wrap_context,
+        )
         plaintext = store.decrypt_with_dek(stored, dek)
         self._audit("decrypt", "allow", "record_decrypted", peer_aid=stored.record.owner_aid, record_id=record_id)
         self._audit("audit", "allow", "lifecycle_recorded", peer_aid=stored.record.owner_aid, record_id=record_id)

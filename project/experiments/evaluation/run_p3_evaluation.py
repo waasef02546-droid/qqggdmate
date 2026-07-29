@@ -143,7 +143,7 @@ def _measure_scalability(
             contact_token=env.contact_token,
             token=issuance.token,
             request=request,
-            encrypted_dek_owner=env.stored.encrypted_dek_owner,
+            stored=env.stored,
             rekey=rekey_for_requester(env),
         )
         if result.decision == "allow":

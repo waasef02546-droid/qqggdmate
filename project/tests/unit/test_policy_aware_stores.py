@@ -4,6 +4,7 @@ import unittest
 
 from presaga.crypto.toy_pre import ToyPRE
 from presaga.protocol.schemas import DataRecord
+from presaga.provider.registry import AgentRegistry
 from presaga.storage import CalendarStore, DataAccessDenied, DocumentStore, MailStore, MemoryStore
 
 
@@ -11,7 +12,9 @@ class PolicyAwareStoreTest(unittest.TestCase):
     def setUp(self):
         self.backend = ToyPRE()
         self.owner = self.backend.generate_keypair()
-        self.calendar = CalendarStore(self.backend)
+        self.registry = AgentRegistry()
+        self.registry.create("alice:calendar", self.owner.public_key, actor="test-manager")
+        self.calendar = CalendarStore(self.backend, self.registry)
         self.record = DataRecord(
             record_id="cal-available",
             owner_aid="alice:calendar",
@@ -22,11 +25,11 @@ class PolicyAwareStoreTest(unittest.TestCase):
         self.stored = self.calendar.put_payload(
             self.record,
             {"availability": "10:00-11:00", "private_note": "medical appointment"},
-            self.owner.public_key,
             purposes=["schedule_meeting"],
         )
+        owner_wrap = self.calendar.resolve_active_owner_wrap(self.stored)
         self.dek = self.backend.unwrap_dek(
-            self.stored.encrypted_dek_owner,
+            owner_wrap.encrypted_dek,
             self.owner.private_key,
             self.calendar.context(self.record),
         )
@@ -83,10 +86,10 @@ class PolicyAwareStoreTest(unittest.TestCase):
             )
 
     def test_domain_stores_reject_wrong_data_class(self):
-        for store, data_class in ((MailStore(self.backend), "mail"), (DocumentStore(self.backend), "document"), (MemoryStore(self.backend), "memory")):
+        for store, data_class in ((MailStore(self.backend, self.registry), "mail"), (DocumentStore(self.backend, self.registry), "document"), (MemoryStore(self.backend, self.registry), "memory")):
             record = DataRecord("wrong", "alice", "calendar", "availability", 1)
             with self.assertRaises(ValueError):
-                store.put_payload(record, {"availability": "x"}, self.owner.public_key, purposes=["schedule_meeting"])
+                store.put_payload(record, {"availability": "x"}, purposes=["schedule_meeting"])
             self.assertEqual(store.data_class, data_class)
 
 

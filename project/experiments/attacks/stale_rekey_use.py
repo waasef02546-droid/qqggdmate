@@ -22,7 +22,7 @@ def run_attack():
             contact_token=env.contact_token,
             token=stale_token,
             request=rotated_request,
-            encrypted_dek_owner=env.stored.encrypted_dek_owner,
+            stored=env.stored,
             rekey=stale_rekey,
         )
         return {

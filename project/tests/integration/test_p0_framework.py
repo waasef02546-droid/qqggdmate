@@ -34,7 +34,7 @@ class P0FrameworkTest(unittest.TestCase):
         backend = HPKEKEMStub()
         app = PREProviderApp(backend)
         keypair = backend.generate_keypair()
-        app.register_agent("alice@mail.com:test_agent", keypair.public_key)
+        app.management.register_agent("alice@mail.com:test_agent", keypair.public_key)
         self.assertEqual(keypair.public_key, app.registry.get("alice@mail.com:test_agent").public_key)
 
     def test_task_scripts_run(self):

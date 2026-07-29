@@ -1,51 +1,70 @@
-schema_version: 1
+schema_version: 2
 captured_at: "2026-07-28"
-hash_method: "sha256(sorted(relative_path|file_sha256) joined with LF); single files use file SHA256"
+hash_method: "sha256(sorted(repository_relative_path|file_sha256) joined with LF); single files use file SHA256"
+content_tree_hash_method: "sha256(sorted(path_relative_to_moved_root|file_sha256) joined with LF)"
 policy:
   destructive_actions: forbidden_without_explicit_user_authorization
   preserve_unknown_user_material: true
   verify_before_and_after_move: true
+  compatibility_links: forbidden_to_preserve_unique_authority
 entries:
-  - source: project/result
+  - source: project/results/legacy/stage2
+    original_source: project/result
     classification: legacy_evidence
     files: 5
-    bytes: 61059
-    manifest_sha256: f544eb21a9e9537212fd14c377bce70c0fd7bd8468ce32d6a1a3e63f01f1786e
-    proposed_target: project/results/legacy/stage2
-    action: plan_only
-    blocker: update old paper and self-references
-  - source: comparison_reports
+    bytes: 61104
+    manifest_sha256: a4530048dd3e0fd4f4806e9d61c20b150775faf4850e9867ad8ce8c1588d0dac
+    original_manifest_sha256: f544eb21a9e9537212fd14c377bce70c0fd7bd8468ce32d6a1a3e63f01f1786e
+    move_verified_content_tree_sha256: 87ee64a554c56606ccdb8e1ddf393ca8d6cd2d4028024957896a6c5d09049a60
+    content_tree_sha256: f59ef72eb70977d9665b46f180e1cae00a3c7f2aa0d198e78d0d516ab8c95d9f
+    action: completed
+    moved_at: "2026-07-28"
+    rollback_target: project/result
+  - source: docs/reviews/saga
+    original_source: comparison_reports
     classification: research_review
     files: 2
     bytes: 21720
-    manifest_sha256: 7c4cbe6feab44a3878c52103ce05704e91af971d80b9a96d17aad26688e98e34
-    proposed_target: docs/reviews/saga
-    action: plan_only
-    blocker: update paper progress references
-  - source: prototype
+    manifest_sha256: 0b667df0c9202cf607ec824590b3f25746781a02e56851738da7c3a68e4ec1e0
+    original_manifest_sha256: 7c4cbe6feab44a3878c52103ce05704e91af971d80b9a96d17aad26688e98e34
+    content_tree_sha256: dff4ba419022b5e0fa8f081cf73f4c9161e4add0b0683a25b8240f3459ef13a9
+    action: completed
+    moved_at: "2026-07-28"
+    rollback_target: comparison_reports
+  - source: archive/legacy-prototype/prototype
+    original_source: prototype
     classification: legacy_implementation
     files: 3
-    bytes: 15578
-    manifest_sha256: 1efe103e3d062122ef8b5384ff76ef97263d6ff89e36973f3b953313278cb616
-    proposed_target: archive/legacy-prototype/prototype
-    action: plan_only
-    blocker: migrate together with legacy config and result CSV
-  - source: configs
+    bytes: 15602
+    manifest_sha256: a0fab48feed56b724adc68a798fb7c782c980410099ad6dbb723126ce5e3952e
+    original_manifest_sha256: 1efe103e3d062122ef8b5384ff76ef97263d6ff89e36973f3b953313278cb616
+    move_verified_content_tree_sha256: 3e372654afa967a918ff5daf5c80c5e884f7ed475cd0eb3e88f1dce094794732
+    content_tree_sha256: 9b00846bda616ec675ce1fd2553c39e692564139682dfaf304c3c437e68ba73d
+    action: completed
+    moved_at: "2026-07-28"
+    rollback_target: prototype
+  - source: archive/legacy-prototype/configs
+    original_source: configs
     classification: legacy_design_artifact
     files: 1
     bytes: 5060
-    manifest_sha256: 5757e5c0ad513b35ad41de4096e6eeb357d833aa8401335486cdaef052c019f9
-    proposed_target: archive/legacy-prototype/configs
-    action: plan_only
-    blocker: not equivalent to project/configs; preserve schema history
-  - source: results/experiment_summary.csv
+    manifest_sha256: 8e14bab30fa18a2b8684334ad9eff49668f4e354765d62e0d9a04ff25b3391a2
+    original_manifest_sha256: 5757e5c0ad513b35ad41de4096e6eeb357d833aa8401335486cdaef052c019f9
+    content_tree_sha256: fd7a2ee949735b5578bb4e31ab2b00e36c726d374d336aed8a621611396ee3e2
+    action: completed
+    moved_at: "2026-07-28"
+    rollback_target: configs
+  - source: archive/legacy-prototype/results/experiment_summary.csv
+    original_source: results/experiment_summary.csv
     classification: legacy_generated_result
     files: 1
     bytes: 211
     manifest_sha256: 15359589910b708b3d6c27564d2de9b86bd2faa7bb0446a30139da20f1836b14
-    proposed_target: archive/legacy-prototype/results/experiment_summary.csv
-    action: plan_only
-    blocker: preserve with the code that generated it
+    original_manifest_sha256: 15359589910b708b3d6c27564d2de9b86bd2faa7bb0446a30139da20f1836b14
+    content_tree_sha256: 15359589910b708b3d6c27564d2de9b86bd2faa7bb0446a30139da20f1836b14
+    action: completed
+    moved_at: "2026-07-28"
+    rollback_target: results/experiment_summary.csv
   - source: Record
     classification: reproduction_evidence_and_orchestration
     files: 46
@@ -66,7 +85,7 @@ entries:
     classification: external_and_reproduction
     proposed_target: null
     action: keep
-    blocker: many code and evidence references use the current path
+    blocker: code and evidence references use the current path
   - source: tools
     classification: ignored_external_tool_cache
     proposed_target: null

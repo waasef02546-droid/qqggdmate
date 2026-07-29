@@ -11,11 +11,13 @@ from datetime import datetime, timezone
 from threading import RLock
 
 from presaga.protocol.schemas import ContactToken, DataAccessRequest, DataToken, PolicyDecision, TokenDecision
+from presaga.provider.registry import AgentRegistry, RegistrationError
 
 
 class TokenService:
-    def __init__(self, issuer_secret: bytes):
+    def __init__(self, issuer_secret: bytes, registry: AgentRegistry):
         self.issuer_secret = issuer_secret
+        self.registry = registry
         self._lock = RLock()
 
     def _issue_data_token(
@@ -36,6 +38,13 @@ class TokenService:
             raise ValueError("contact_requester_mismatch")
         if not (contact_token.not_before <= issued_at <= contact_token.expires_at):
             raise ValueError("contact_token_expired")
+        requester_registration = self.registry.resolve_active(request.requester_aid)
+        owner_registration = self.registry.resolve_active(request.owner_aid)
+        if request.requester_public_key is not None and not hmac.compare_digest(
+            request.requester_public_key,
+            requester_registration.public_key,
+        ):
+            raise ValueError("requester_key_mismatch")
         token = DataToken(
             token_id=f"dtok-{secrets.token_hex(8)}",
             owner_aid=request.owner_aid,
@@ -53,7 +62,12 @@ class TokenService:
             remaining_uses=decision.max_uses,
             min_version=request.version,
             max_version=request.version,
-            requester_public_key_hash=self.key_hash(request.requester_public_key),
+            requester_public_key_hash=requester_registration.public_key_fingerprint,
+            requester_registration_version=requester_registration.registration_version,
+            owner_public_key_fingerprint=owner_registration.public_key_fingerprint,
+            owner_registration_version=owner_registration.registration_version,
+            owner_registration_id=owner_registration.registration_id,
+            owner_key_algorithm=owner_registration.key_algorithm,
             issuer_signature="",
         )
         token.issuer_signature = self._sign(token)
@@ -113,8 +127,34 @@ class TokenService:
             return TokenDecision(effect="deny", reason="purpose_mismatch")
         if not (token.min_version <= request.version <= token.max_version):
             return TokenDecision(effect="deny", reason="version_out_of_bounds")
-        if token.requester_public_key_hash != self.key_hash(request.requester_public_key):
+        try:
+            owner_registration = self.registry.resolve_active(request.owner_aid)
+            requester_registration = self.registry.resolve_active(request.requester_aid)
+        except RegistrationError as error:
+            return TokenDecision(effect="deny", reason=error.reason)
+        if request.requester_public_key is not None and not hmac.compare_digest(
+            request.requester_public_key,
+            requester_registration.public_key,
+        ):
             return TokenDecision(effect="deny", reason="requester_key_mismatch")
+        if (
+            token.owner_registration_version != owner_registration.registration_version
+            or token.owner_registration_id != owner_registration.registration_id
+            or token.owner_key_algorithm != owner_registration.key_algorithm
+            or not hmac.compare_digest(
+                token.owner_public_key_fingerprint,
+                owner_registration.public_key_fingerprint,
+            )
+        ):
+            return TokenDecision(effect="deny", reason="owner_registration_stale")
+        if (
+            token.requester_registration_version != requester_registration.registration_version
+            or not hmac.compare_digest(
+                token.requester_public_key_hash,
+                requester_registration.public_key_fingerprint,
+            )
+        ):
+            return TokenDecision(effect="deny", reason="requester_registration_stale")
         if contact_token is None:
             return TokenDecision(effect="deny", reason="contact_session_not_found")
         if (
@@ -132,9 +172,6 @@ class TokenService:
                 raise ValueError("token exhausted")
             token.remaining_uses -= 1
             token.issuer_signature = self._sign(token)
-
-    def key_hash(self, public_key: bytes) -> str:
-        return hashlib.sha256(public_key).hexdigest()
 
     def _sign(self, token: DataToken) -> str:
         payload = asdict(token)

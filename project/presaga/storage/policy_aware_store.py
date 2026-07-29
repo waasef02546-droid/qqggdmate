@@ -15,6 +15,7 @@ from typing import Any, Iterable, Mapping
 
 from presaga.crypto.pre_interface import PREBackend
 from presaga.protocol.schemas import DataRecord
+from presaga.provider.registry import AgentRegistry
 from presaga.storage.encrypted_store import EncryptedStore, StoredObject
 
 
@@ -45,8 +46,12 @@ class PolicyAwareStore(EncryptedStore):
 
     data_class: str = "generic"
 
-    def __init__(self, backend: PREBackend):
-        super().__init__(backend)
+    def __init__(self, backend: PREBackend, registry: AgentRegistry):
+        super().__init__(
+            backend,
+            registry,
+            store_id=f"policy-store:{self.data_class}",
+        )
         self._grants: dict[str, DataAccessGrant] = {}
         self._record_purposes: dict[str, frozenset[str]] = {}
 
@@ -54,7 +59,6 @@ class PolicyAwareStore(EncryptedStore):
         self,
         record: DataRecord,
         payload: Mapping[str, Any],
-        owner_public_key: bytes,
         *,
         purposes: Iterable[str],
     ) -> StoredObject:
@@ -63,7 +67,7 @@ class PolicyAwareStore(EncryptedStore):
         if not allowed_purposes:
             raise ValueError("purposes must contain at least one declared purpose")
         plaintext = json.dumps(dict(payload), sort_keys=True, separators=(",", ":")).encode("utf-8")
-        stored = self.put(record, plaintext, owner_public_key)
+        stored = self.put(record, plaintext)
         self._record_purposes[record.record_id] = allowed_purposes
         return stored
 

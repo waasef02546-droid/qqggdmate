@@ -27,7 +27,7 @@ class PREAgentRuntimeIntegrationTest(unittest.TestCase):
         self.mallory = self._agent("mallory@mail.com:assistant_agent")
         for agent in (self.alice, self.bob, self.mallory):
             agent.register_with_provider()
-        self.store = EncryptedStore(self.backend)
+        self.store = EncryptedStore(self.backend, self.provider.registry)
         self.alice.attach_store("calendar", self.store)
         self.record = DataRecord(
             record_id="cal-runtime-001",
@@ -36,9 +36,9 @@ class PREAgentRuntimeIntegrationTest(unittest.TestCase):
             data_subclass="availability",
             version=1,
         )
-        self.stored = self.store.put(self.record, b"Alice is free at 10:00.", self.alice.material.public_key)
+        self.stored = self.store.put(self.record, b"Alice is free at 10:00.")
         now = datetime.now(timezone.utc)
-        self.provider.add_data_policy(
+        self.provider.management.add_data_policy(
             DataSharingPolicy(
                 policy_id="runtime-calendar-policy",
                 owner_aid=self.alice.aid,
@@ -57,7 +57,11 @@ class PREAgentRuntimeIntegrationTest(unittest.TestCase):
 
     def _agent(self, aid: str) -> PREAgent:
         pair = self.backend.generate_keypair()
-        return PREAgent(AgentMaterial(aid=aid, public_key=pair.public_key, private_key=pair.private_key), self.provider)
+        return PREAgent(
+            AgentMaterial(aid=aid, public_key=pair.public_key, private_key=pair.private_key),
+            self.provider,
+            self.provider.management,
+        )
 
     def test_alice_bob_normal_data_sharing_lifecycle(self) -> None:
         self.assertIsNotNone(self.bob.open_contact_session(self.alice.aid))

@@ -27,7 +27,7 @@ class ToyPRE:
         public_key = hashlib.sha256(private_key).digest()
         return KeyPair(public_key=public_key, private_key=private_key)
 
-    def _public_from_private(self, private_key: bytes) -> bytes:
+    def public_key_from_private(self, private_key: bytes) -> bytes:
         return hashlib.sha256(private_key).digest()
 
     def _mask(self, public_key: bytes, context: bytes, size: int) -> bytes:
@@ -45,11 +45,11 @@ class ToyPRE:
         return self._xor(dek, self._mask(public_key, context, len(dek)))
 
     def unwrap_dek(self, encrypted_dek: bytes, private_key: bytes, context: bytes) -> bytes:
-        public_key = self._public_from_private(private_key)
+        public_key = self.public_key_from_private(private_key)
         return self._xor(encrypted_dek, self._mask(public_key, context, len(encrypted_dek)))
 
     def generate_rekey(self, owner_private_key: bytes, requester_public_key: bytes, context: bytes) -> bytes:
-        owner_public_key = self._public_from_private(owner_private_key)
+        owner_public_key = self.public_key_from_private(owner_private_key)
         owner_mask = self._mask(owner_public_key, context, 32)
         requester_mask = self._mask(requester_public_key, context, 32)
         return self._xor(owner_mask, requester_mask)
@@ -58,3 +58,17 @@ class ToyPRE:
         if len(encrypted_dek) != len(rekey):
             raise ValueError("encrypted DEK and rekey must have equal length")
         return self._xor(encrypted_dek, rekey)
+
+    def rewrap_dek(
+        self,
+        encrypted_dek: bytes,
+        source_private_key: bytes,
+        target_public_key: bytes,
+        source_context: bytes,
+        target_context: bytes,
+    ) -> bytes:
+        """INSECURE deterministic owner rewrap for lifecycle testing only."""
+        source_public_key = self.public_key_from_private(source_private_key)
+        source_mask = self._mask(source_public_key, source_context, len(encrypted_dek))
+        target_mask = self._mask(target_public_key, target_context, len(encrypted_dek))
+        return self._xor(encrypted_dek, self._xor(source_mask, target_mask))

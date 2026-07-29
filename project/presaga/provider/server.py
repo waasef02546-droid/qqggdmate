@@ -9,21 +9,26 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hmac
 import json
+import os
 from dataclasses import asdict
 from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import RLock
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from presaga.crypto import envelope
 from presaga.crypto.hpke_kem_stub import HPKEKEMStub
 from presaga.crypto.pre_interface import PREBackend
 from presaga.protocol.schemas import (
     AuditEvent,
     ContactToken,
     DataAccessRequest,
+    DataRecord,
     DataScope,
     DataSharingPolicy,
     DataToken,
@@ -34,31 +39,152 @@ from presaga.protocol.schemas import (
 )
 from presaga.provider.app import PREProviderApp
 from presaga.provider.json_repository import JsonProviderRepository, from_b64, to_jsonable
-from presaga.provider.registry import AgentRecord
+from presaga.provider.registry import AgentRecord, PreparedReplacement, RegistrationError
+from presaga.storage.encrypted_store import (
+    EncryptedStore,
+    OwnerKeyProvenance,
+    OwnerWrappedDEK,
+    StoredObject,
+)
 
 
 class ProviderService:
     """Stateful application service used by the HTTP handler and tests."""
 
-    def __init__(self, app: PREProviderApp, repository: JsonProviderRepository | None = None):
+    def __init__(
+        self,
+        app: PREProviderApp,
+        repository: JsonProviderRepository | None = None,
+        *,
+        object_store=None,
+    ):
         self.app = app
         self.repository = repository
+        self.object_store = object_store
         self.contact_tokens: dict[str, ContactToken] = {}
         self.data_tokens: dict[str, DataToken] = {}
         self.contact_rulebooks: dict[str, list[dict[str, int | str]]] = {}
+        self._lock = RLock()
+        if object_store is not None:
+            self.app.management.attach_store(object_store)
         if repository:
             self._restore(repository.load())
 
     def register_agent(self, payload: dict[str, Any]) -> dict[str, Any]:
         aid = _required_str(payload, "aid")
         public_key = from_b64(_required_str(payload, "public_key_b64"))
-        self.app.register_agent(aid, public_key)
-        self._persist()
-        return {"aid": aid, "public_key_b64": _b64(public_key)}
+        with self._lock:
+            record = self.app.management.register_agent(aid, public_key)
+            self._persist()
+        return _registration_to_payload(record)
+
+    def replace_agent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        aid = _required_str(payload, "aid")
+        public_key = from_b64(_required_str(payload, "public_key_b64"))
+        expected_version = int(payload["expected_version"])
+        with self._lock:
+            record = self.app.management.replace_agent(
+                aid,
+                public_key,
+                expected_version=expected_version,
+            )
+            self._persist()
+        return _registration_to_payload(record)
+
+    def prepare_agent_replacement(self, payload: dict[str, Any]) -> dict[str, Any]:
+        aid = _required_str(payload, "aid")
+        public_key = from_b64(_required_str(payload, "public_key_b64"))
+        expected_version = int(payload["expected_version"])
+        with self._lock:
+            prepared = self.app.management.prepare_agent_replacement(
+                aid,
+                public_key,
+                expected_version=expected_version,
+            )
+            self._persist()
+        return {
+            "rotation_id": prepared.rotation_id,
+            "candidate": _registration_to_payload(prepared.candidate),
+        }
+
+    def stage_agent_rewrap(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if self.object_store is None:
+            raise RegistrationError("trusted_store_required")
+        aid = _required_str(payload, "aid")
+        record_id = _required_str(payload, "record_id")
+        source_private_key = from_b64(_required_str(payload, "source_private_key_b64"))
+        with self._lock:
+            stored = self.app.management.stage_agent_rewrap(
+                aid,
+                expected_version=int(payload["expected_version"]),
+                rotation_id=_required_str(payload, "rotation_id"),
+                store=self.object_store,
+                record_id=record_id,
+                source_private_key=source_private_key,
+                expected_object_revision=int(payload["expected_object_revision"]),
+            )
+            self._persist()
+        return {
+            "aid": aid,
+            "record_id": record_id,
+            "object_revision": stored.object_revision,
+            "rotation_id": _required_str(payload, "rotation_id"),
+        }
+
+    def commit_agent_replacement(self, payload: dict[str, Any]) -> dict[str, Any]:
+        aid = _required_str(payload, "aid")
+        with self._lock:
+            record = self.app.management.commit_agent_replacement(
+                aid,
+                expected_version=int(payload["expected_version"]),
+                rotation_id=_required_str(payload, "rotation_id"),
+            )
+            self._persist()
+        return _registration_to_payload(record)
+
+    def abort_agent_replacement(self, payload: dict[str, Any]) -> dict[str, Any]:
+        aid = _required_str(payload, "aid")
+        rotation_id = _required_str(payload, "rotation_id")
+        with self._lock:
+            self.app.management.abort_agent_replacement(
+                aid,
+                expected_version=int(payload["expected_version"]),
+                rotation_id=rotation_id,
+            )
+            self._persist()
+        return {
+            "aid": aid,
+            "rotation_id": rotation_id,
+            "status": "aborted",
+        }
+
+    def cleanup_agent_rotation(self, payload: dict[str, Any]) -> dict[str, Any]:
+        aid = _required_str(payload, "aid")
+        rotation_id = _required_str(payload, "rotation_id")
+        with self._lock:
+            rotation = self.app.management.cleanup_agent_rotation(
+                aid,
+                rotation_id=rotation_id,
+            )
+            self._persist()
+        return {
+            "aid": aid,
+            "rotation_id": rotation.rotation_id,
+            "status": rotation.status,
+            "cleanup_completed": rotation.cleanup_completed,
+        }
+
+    def revoke_agent(self, payload: dict[str, Any]) -> dict[str, Any]:
+        aid = _required_str(payload, "aid")
+        expected_version = int(payload["expected_version"])
+        with self._lock:
+            record = self.app.management.revoke_agent(aid, expected_version=expected_version)
+            self._persist()
+        return _registration_to_payload(record)
 
     def add_data_policy(self, payload: dict[str, Any]) -> dict[str, Any]:
         policy = _policy_from_payload(payload)
-        self.app.add_data_policy(policy)
+        self.app.management.add_data_policy(policy)
         self._persist()
         return to_jsonable(policy)
 
@@ -67,7 +193,7 @@ class ProviderService:
         rulebook = payload["rulebook"]
         if not isinstance(rulebook, list) or not all(isinstance(item, dict) for item in rulebook):
             raise ValueError("rulebook must be a list of objects")
-        self.app.set_contact_rulebook(owner_aid, rulebook)
+        self.app.management.set_contact_rulebook(owner_aid, rulebook)
         self.contact_rulebooks[owner_aid] = [dict(item) for item in rulebook]
         self._persist()
         return {"owner_aid": owner_aid, "rulebook": rulebook}
@@ -105,11 +231,23 @@ class ProviderService:
             return HTTPStatus.NOT_FOUND, {"error": "data_token_not_found"}
         request = _request_from_payload(_required_dict(payload, "request"))
         contact_token = self.contact_tokens.get(token.contact_token_id)
+        if "encrypted_dek_owner_b64" in payload:
+            return HTTPStatus.FORBIDDEN, {"error": "raw_owner_wrap_forbidden"}
+        if self.object_store is None:
+            return HTTPStatus.FORBIDDEN, {"error": "trusted_store_required"}
+        try:
+            stored = self.object_store.get(request.record_id)
+        except KeyError:
+            return HTTPStatus.NOT_FOUND, {"error": "stored_object_not_found"}
+        except Exception as error:
+            if str(error) == "stored_object_not_found":
+                return HTTPStatus.NOT_FOUND, {"error": "stored_object_not_found"}
+            return HTTPStatus.FORBIDDEN, {"error": "owner_store_unavailable"}
         result = self.app.request_re_encryption(
             contact_token=contact_token,
             token=token,
             request=request,
-            encrypted_dek_owner=from_b64(_required_str(payload, "encrypted_dek_owner_b64")),
+            stored=stored,
             rekey=from_b64(_required_str(payload, "rekey_b64")),
         )
         self._persist()
@@ -128,13 +266,33 @@ class ProviderService:
         return {"audit_events": to_jsonable(events), "count": len(events)}
 
     def _restore(self, state: dict[str, Any]) -> None:
+        schema_version = int(state.get("schema_version", 1))
         for record in state["agents"]:
-            self.app.registry.register(AgentRecord(aid=record["aid"], public_key=from_b64(record["public_key_b64"])))
+            if schema_version < 2 or "registration_version" not in record:
+                self.app.management.import_legacy_registration(
+                    record["aid"],
+                    from_b64(record["public_key_b64"]),
+                )
+                continue
+            self.app.management.restore_registration(_registration_from_payload(record))
+        if state.get("encrypted_objects"):
+            if self.object_store is None:
+                raise RegistrationError("trusted_store_required")
+            for raw_object in state["encrypted_objects"]:
+                self.object_store.restore(_stored_object_from_payload(raw_object))
+        for raw_rotation in state.get("rotation_journal", []):
+            self.app.management.restore_rotation(_rotation_from_payload(raw_rotation))
         for owner_aid, rulebook in state["contact_rulebooks"].items():
-            self.app.set_contact_rulebook(owner_aid, rulebook)
+            try:
+                self.app.management.set_contact_rulebook(owner_aid, rulebook)
+            except RegistrationError:
+                continue
             self.contact_rulebooks[owner_aid] = [dict(item) for item in rulebook]
         for raw_policy in state["data_policies"]:
-            self.app.add_data_policy(_policy_from_payload(raw_policy))
+            try:
+                self.app.management.add_data_policy(_policy_from_payload(raw_policy))
+            except RegistrationError:
+                continue
         self.contact_tokens = {raw["token_id"]: _contact_token_from_payload(raw) for raw in state["contact_tokens"]}
         self.data_tokens = {raw["token_id"]: _data_token_from_payload(raw) for raw in state["data_tokens"]}
         self.app.audit.events.extend(_audit_event_from_payload(raw) for raw in state["audit_events"])
@@ -147,20 +305,33 @@ class ProviderService:
             for owner_aid, policy in self.app.saga_adapter._rulebooks.items()
         }
         state = {
+            "schema_version": 3,
             "agents": [
-                {"aid": record.aid, "public_key_b64": _b64(record.public_key)}
-                for record in self.app.registry._agents.values()
+                _registration_to_payload(record)
+                for record in self.app.management.registrations()
             ],
             "contact_rulebooks": self.contact_rulebooks,
             "data_policies": self.app._data_policies,
             "contact_tokens": list(self.contact_tokens.values()),
             "data_tokens": list(self.data_tokens.values()),
             "audit_events": self.app.audit_query(),
+            "rotation_journal": [
+                _rotation_to_payload(rotation)
+                for rotation in self.app.management.rotation_journal()
+            ],
+            "encrypted_objects": (
+                [
+                    _stored_object_to_payload(stored)
+                    for stored in self.object_store.snapshot()
+                ]
+                if self.object_store is not None
+                else []
+            ),
         }
         self.repository.save(state)
 
 
-def make_handler(service: ProviderService) -> type[BaseHTTPRequestHandler]:
+def make_handler(service: ProviderService, management_token: str) -> type[BaseHTTPRequestHandler]:
     class ProviderRequestHandler(BaseHTTPRequestHandler):
         server_version = "PRE-SAGA-Provider/0.1"
 
@@ -177,11 +348,44 @@ def make_handler(service: ProviderService) -> type[BaseHTTPRequestHandler]:
         def do_POST(self) -> None:  # noqa: N802
             try:
                 payload = self._read_json()
-                if self.path == "/v1/agents":
+                if self.path.startswith("/v1/management/"):
+                    if not self._management_authorized(management_token):
+                        self._write_json(HTTPStatus.UNAUTHORIZED, {"error": "management_authentication_required"})
+                        return
+                if self.path == "/v1/management/agents":
                     self._write_json(HTTPStatus.CREATED, {"agent": service.register_agent(payload)})
-                elif self.path == "/v1/contact-rulebooks":
+                elif self.path == "/v1/management/agent-replacements":
+                    self._write_json(HTTPStatus.OK, {"agent": service.replace_agent(payload)})
+                elif self.path == "/v1/management/agent-rotation-preparations":
+                    self._write_json(
+                        HTTPStatus.CREATED,
+                        {"agent": service.prepare_agent_replacement(payload)},
+                    )
+                elif self.path == "/v1/management/agent-rotation-rewraps":
+                    self._write_json(
+                        HTTPStatus.OK,
+                        {"rewrap": service.stage_agent_rewrap(payload)},
+                    )
+                elif self.path == "/v1/management/agent-rotation-commits":
+                    self._write_json(
+                        HTTPStatus.OK,
+                        {"agent": service.commit_agent_replacement(payload)},
+                    )
+                elif self.path == "/v1/management/agent-rotation-aborts":
+                    self._write_json(
+                        HTTPStatus.OK,
+                        {"rotation": service.abort_agent_replacement(payload)},
+                    )
+                elif self.path == "/v1/management/agent-rotation-cleanups":
+                    self._write_json(
+                        HTTPStatus.OK,
+                        {"rotation": service.cleanup_agent_rotation(payload)},
+                    )
+                elif self.path == "/v1/management/agent-revocations":
+                    self._write_json(HTTPStatus.OK, {"agent": service.revoke_agent(payload)})
+                elif self.path == "/v1/management/contact-rulebooks":
                     self._write_json(HTTPStatus.CREATED, {"contact_rulebook": service.set_contact_rulebook(payload)})
-                elif self.path == "/v1/data-policies":
+                elif self.path == "/v1/management/data-policies":
                     self._write_json(HTTPStatus.CREATED, {"data_policy": service.add_data_policy(payload)})
                 elif self.path == "/v1/contact-sessions":
                     status, response = service.issue_contact_session(payload)
@@ -194,8 +398,29 @@ def make_handler(service: ProviderService) -> type[BaseHTTPRequestHandler]:
                     self._write_json(status, response)
                 else:
                     self._write_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+            except RegistrationError as error:
+                status = HTTPStatus.CONFLICT if error.reason in {
+                    "registration_exists",
+                    "registration_version_conflict",
+                    "registration_key_unchanged",
+                    "registration_replacement_pending",
+                    "prepared_rotation_mismatch",
+                    "owner_rotation_required",
+                    "owner_object_revision_conflict",
+                    "owner_rotation_object_set_changed",
+                    "owner_rewrap_incomplete",
+                } else HTTPStatus.FORBIDDEN
+                self._write_json(status, {"error": error.reason})
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
                 self._write_json(HTTPStatus.BAD_REQUEST, {"error": "invalid_request", "detail": str(error)})
+
+        def _management_authorized(self, expected_token: str) -> bool:
+            authorization = self.headers.get("Authorization", "")
+            prefix = "Bearer "
+            if not authorization.startswith(prefix):
+                return False
+            supplied = authorization[len(prefix):]
+            return bool(supplied) and hmac.compare_digest(supplied, expected_token)
 
         def _read_json(self) -> dict[str, Any]:
             length = int(self.headers.get("Content-Length", "0"))
@@ -221,11 +446,25 @@ def make_handler(service: ProviderService) -> type[BaseHTTPRequestHandler]:
 
 
 def create_server(
-    host: str = "127.0.0.1", port: int = 8080, *, state_file: str | Path = "provider-state.json", backend: PREBackend | None = None
+    host: str = "127.0.0.1",
+    port: int = 8080,
+    *,
+    state_file: str | Path = "provider-state.json",
+    backend: PREBackend | None = None,
+    management_token: str | None = None,
+    object_store=None,
 ) -> ThreadingHTTPServer:
-    app = PREProviderApp(backend or HPKEKEMStub())
-    service = ProviderService(app, JsonProviderRepository(state_file))
-    return ThreadingHTTPServer((host, port), make_handler(service))
+    if not management_token:
+        raise ValueError("management_token is required")
+    selected_backend = backend or HPKEKEMStub()
+    app = PREProviderApp(selected_backend)
+    selected_store = object_store or EncryptedStore(selected_backend, app.registry)
+    service = ProviderService(
+        app,
+        JsonProviderRepository(state_file),
+        object_store=selected_store,
+    )
+    return ThreadingHTTPServer((host, port), make_handler(service, management_token))
 
 
 def main() -> None:
@@ -233,8 +472,17 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--state-file", default="provider-state.json")
+    parser.add_argument("--management-token-env", default="PRESAGA_MANAGEMENT_TOKEN")
     args = parser.parse_args()
-    server = create_server(args.host, args.port, state_file=args.state_file)
+    management_token = os.environ.get(args.management_token_env)
+    if not management_token:
+        parser.error(f"environment variable {args.management_token_env} is required")
+    server = create_server(
+        args.host,
+        args.port,
+        state_file=args.state_file,
+        management_token=management_token,
+    )
     print(f"PRE-SAGA Provider listening on http://{args.host}:{args.port}")
     try:
         server.serve_forever()
@@ -267,6 +515,11 @@ def _b64(value: bytes) -> str:
 
 
 def _request_from_payload(payload: dict[str, Any]) -> DataAccessRequest:
+    requester_public_key_b64 = payload.get("requester_public_key_b64")
+    if requester_public_key_b64 is not None and (
+        not isinstance(requester_public_key_b64, str) or not requester_public_key_b64
+    ):
+        raise ValueError("requester_public_key_b64 must be a non-empty string when supplied")
     return DataAccessRequest(
         request_id=_required_str(payload, "request_id"),
         owner_aid=_required_str(payload, "owner_aid"),
@@ -276,7 +529,7 @@ def _request_from_payload(payload: dict[str, Any]) -> DataAccessRequest:
         data_subclass=_required_str(payload, "data_subclass"),
         purpose=_required_str(payload, "purpose"),
         version=int(payload["version"]),
-        requester_public_key=from_b64(_required_str(payload, "requester_public_key_b64")),
+        requester_public_key=from_b64(requester_public_key_b64) if requester_public_key_b64 else None,
         timestamp=_parse_datetime(payload["timestamp"]) if payload.get("timestamp") else datetime.now().astimezone(),
     )
 
@@ -321,7 +574,139 @@ def _data_token_from_payload(payload: dict[str, Any]) -> DataToken:
         allowed_data_subclasses=list(payload["allowed_data_subclasses"]), purpose=payload["purpose"],
         not_before=_parse_datetime(payload["not_before"]), expires_at=_parse_datetime(payload["expires_at"]), max_uses=int(payload["max_uses"]),
         remaining_uses=int(payload["remaining_uses"]), min_version=int(payload["min_version"]), max_version=int(payload["max_version"]),
-        requester_public_key_hash=payload["requester_public_key_hash"], issuer_signature=payload["issuer_signature"],
+        requester_public_key_hash=payload["requester_public_key_hash"],
+        requester_registration_version=int(payload.get("requester_registration_version", 0)),
+        owner_public_key_fingerprint=payload.get("owner_public_key_fingerprint", ""),
+        owner_registration_version=int(payload.get("owner_registration_version", 0)),
+        owner_registration_id=payload.get("owner_registration_id", ""),
+        owner_key_algorithm=payload.get("owner_key_algorithm", ""),
+        issuer_signature=payload["issuer_signature"],
+    )
+
+
+def _registration_to_payload(record: AgentRecord) -> dict[str, Any]:
+    return {
+        "aid": record.aid,
+        "public_key_b64": _b64(record.public_key),
+        "public_key_fingerprint": record.public_key_fingerprint,
+        "registration_version": record.registration_version,
+        "status": record.status,
+        "registered_by": record.registered_by,
+        "registration_id": record.registration_id,
+        "created_at": record.created_at.isoformat(),
+        "updated_at": record.updated_at.isoformat(),
+        "key_algorithm": record.key_algorithm,
+    }
+
+
+def _registration_from_payload(payload: dict[str, Any]) -> AgentRecord:
+    return AgentRecord(
+        aid=_required_str(payload, "aid"),
+        public_key=from_b64(_required_str(payload, "public_key_b64")),
+        public_key_fingerprint=_required_str(payload, "public_key_fingerprint"),
+        registration_version=int(payload["registration_version"]),
+        status=payload["status"],
+        registered_by=_required_str(payload, "registered_by"),
+        registration_id=_required_str(payload, "registration_id"),
+        created_at=_parse_datetime(payload["created_at"]),
+        updated_at=_parse_datetime(payload["updated_at"]),
+        key_algorithm=_required_str(payload, "key_algorithm"),
+    )
+
+
+def _rotation_to_payload(rotation: PreparedReplacement) -> dict[str, Any]:
+    return {
+        "current_registration_id": rotation.current_registration_id,
+        "current_version": rotation.current_version,
+        "candidate": _registration_to_payload(rotation.candidate),
+        "prepared_by": rotation.prepared_by,
+        "rotation_id": rotation.rotation_id,
+        "owner_object_revisions": [
+            {
+                "store_id": store_id,
+                "objects": dict(sorted(revisions.items())),
+            }
+            for store_id, revisions in rotation.owner_object_revisions
+        ],
+        "status": rotation.status,
+        "created_at": rotation.created_at.isoformat(),
+        "updated_at": rotation.updated_at.isoformat(),
+        "cleanup_completed": rotation.cleanup_completed,
+    }
+
+
+def _rotation_from_payload(payload: dict[str, Any]) -> PreparedReplacement:
+    raw_inventory = payload["owner_object_revisions"]
+    if not isinstance(raw_inventory, list):
+        raise ValueError("rotation inventory must be a list")
+    inventory: list[tuple[str, dict[str, int]]] = []
+    for raw_store in raw_inventory:
+        store_id = _required_str(raw_store, "store_id")
+        raw_objects = _required_dict(raw_store, "objects")
+        inventory.append(
+            (
+                store_id,
+                {
+                    str(record_id): int(revision)
+                    for record_id, revision in raw_objects.items()
+                },
+            )
+        )
+    return PreparedReplacement(
+        current_registration_id=_required_str(payload, "current_registration_id"),
+        current_version=int(payload["current_version"]),
+        candidate=_registration_from_payload(_required_dict(payload, "candidate")),
+        prepared_by=_required_str(payload, "prepared_by"),
+        rotation_id=_required_str(payload, "rotation_id"),
+        owner_object_revisions=tuple(inventory),
+        status=payload["status"],
+        created_at=_parse_datetime(payload["created_at"]),
+        updated_at=_parse_datetime(payload["updated_at"]),
+        cleanup_completed=bool(payload.get("cleanup_completed", False)),
+    )
+
+
+def _stored_object_to_payload(stored: StoredObject) -> dict[str, Any]:
+    return {
+        "schema_version": stored.schema_version,
+        "object_revision": stored.object_revision,
+        "record": asdict(stored.record),
+        "ciphertext": stored.ciphertext.to_dict(),
+        "owner_wraps": [
+            {
+                "encrypted_dek_b64": _b64(wrapped.encrypted_dek),
+                "provenance": asdict(wrapped.provenance),
+                "rotation_id": wrapped.rotation_id,
+            }
+            for wrapped in stored.owner_wraps
+        ],
+    }
+
+
+def _stored_object_from_payload(payload: dict[str, Any]) -> StoredObject:
+    record = DataRecord(**_required_dict(payload, "record"))
+    ciphertext = envelope.EnvelopeCiphertext.from_dict(
+        _required_dict(payload, "ciphertext")
+    )
+    raw_wraps = payload["owner_wraps"]
+    if not isinstance(raw_wraps, list):
+        raise ValueError("owner_wraps must be a list")
+    wraps = tuple(
+        OwnerWrappedDEK(
+            encrypted_dek=from_b64(_required_str(raw, "encrypted_dek_b64")),
+            provenance=OwnerKeyProvenance(
+                **_required_dict(raw, "provenance")
+            ),
+            rotation_id=raw.get("rotation_id"),
+        )
+        for raw in raw_wraps
+    )
+    return StoredObject(
+        record=record,
+        ciphertext=ciphertext,
+        owner_wraps=wraps,
+        object_revision=int(payload["object_revision"]),
+        schema_version=int(payload["schema_version"]),
     )
 
 

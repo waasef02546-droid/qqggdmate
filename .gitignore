@@ -42,8 +42,18 @@ saga_reproduction/runtime/
 # Local private notes, not part of the public repository
 local_conversation_management/
 
-# Local binary screenshots for PRE-SAGA results; SVG screenshots are kept in Git.
-project/result/*.png
+# Local binary screenshots for archived Stage-2 results; SVG screenshots are kept in Git.
+project/results/legacy/stage2/*.png
+
+# Repository-scoped MCP runtimes and caches (configuration and docs remain tracked)
+.codex/mcp/**/.venv/
+.codex/mcp/**/node_modules/
+.codex/mcp/**/cache/
+.codex/mcp/**/state/
+.codex/mcp/runtime/
+.serena/cache/
+.serena/logs/
+.serena/memories/
 
 # Keep only redacted reproduction summaries and screenshots under saga_reproduction/
 !saga_reproduction/

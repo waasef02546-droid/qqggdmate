@@ -5,3 +5,61 @@ multi_agent = true
 enabled = true
 max_concurrent_threads_per_session = 3
 default_subagent_reasoning_effort = "medium"
+
+# Repository-scoped research and code-review MCP servers.
+# Global node_repl and openaideveloperdocs entries remain in the user's Codex config.
+
+[mcp_servers.arxiv]
+command = "cmd.exe"
+args = ["/d", "/c", ".codex\\mcp\\arxiv\\run.cmd"]
+cwd = "D:\\Users\\New project 1"
+enabled = true
+required = false
+enabled_tools = ["search_papers", "get_abstract", "citation_graph"]
+startup_timeout_sec = 30
+tool_timeout_sec = 90
+default_tools_approval_mode = "auto"
+
+[mcp_servers.context7]
+command = "cmd.exe"
+args = ["/d", "/c", ".codex\\mcp\\context7\\run.cmd"]
+cwd = "D:\\Users\\New project 1"
+enabled = true
+required = false
+enabled_tools = ["resolve-library-id", "query-docs"]
+startup_timeout_sec = 30
+tool_timeout_sec = 60
+default_tools_approval_mode = "auto"
+
+[mcp_servers.serena]
+command = "cmd.exe"
+args = ["/d", "/c", ".codex\\mcp\\serena\\run.cmd"]
+cwd = "D:\\Users\\New project 1"
+enabled = true
+required = false
+enabled_tools = [
+  "search_for_pattern",
+  "get_symbols_overview",
+  "find_symbol",
+  "find_referencing_symbols",
+  "find_implementations",
+  "find_declaration",
+  "get_diagnostics_for_file",
+  "get_current_config",
+  "initial_instructions",
+]
+startup_timeout_sec = 60
+tool_timeout_sec = 120
+default_tools_approval_mode = "auto"
+
+# Semgrep is installed and pinned, but disabled because v1.164.0 MCP startup
+# currently fetches semgrep.dev OAuth metadata even for local stdio mode.
+[mcp_servers.semgrep]
+command = "cmd.exe"
+args = ["/d", "/c", ".codex\\mcp\\semgrep\\run.cmd"]
+cwd = "D:\\Users\\New project 1"
+enabled = false
+required = false
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+default_tools_approval_mode = "auto"

@@ -172,7 +172,15 @@ def _plaintext_token_server(env, evaluator: DataPolicyEvaluator, request: DataAc
     decision = evaluator.evaluate(request)
     if decision.effect != "allow":
         raise RuntimeError(decision.reason)
-    dek = env.backend.unwrap_dek(env.stored.encrypted_dek_owner, env.owner_keypair.private_key, env.store.context(env.stored.record))
+    # Intentionally insecure comparison baseline: unlike PRE-SAGA, this path
+    # unwraps the owner DEK in the server process and exposes plaintext.
+    owner_wrap = env.store.resolve_active_owner_wrap(env.stored)
+    wrap_context = env.store.wrap_context(env.stored.record, owner_wrap.provenance)
+    dek = env.backend.unwrap_dek(
+        owner_wrap.encrypted_dek,
+        env.owner_keypair.private_key,
+        wrap_context,
+    )
     return env.store.decrypt_with_dek(env.stored, dek)
 
 
@@ -187,7 +195,7 @@ def _presaga_flow(env, evaluator: DataPolicyEvaluator, request: DataAccessReques
         contact_token=env.contact_token,
         token=issuance.token,
         request=request,
-        encrypted_dek_owner=env.stored.encrypted_dek_owner,
+        stored=env.stored,
         rekey=rekey_for_requester(env),
     )
 

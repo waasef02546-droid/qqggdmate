@@ -24,7 +24,15 @@ def run_baseline() -> PlaintextBaselineResult:
     decision = DataPolicyEvaluator([env.policy]).evaluate(request)
     if decision.effect != "allow":
         return PlaintextBaselineResult("token_plaintext_server", False, False, False, decision.reason, "")
-    dek = env.backend.unwrap_dek(env.stored.encrypted_dek_owner, env.owner_keypair.private_key, env.store.context(env.stored.record))
+    # Intentionally insecure baseline: the server directly unwraps the owner
+    # DEK and returns plaintext. This is not an authoritative PRE-SAGA path.
+    owner_wrap = env.store.resolve_active_owner_wrap(env.stored)
+    wrap_context = env.store.wrap_context(env.stored.record, owner_wrap.provenance)
+    dek = env.backend.unwrap_dek(
+        owner_wrap.encrypted_dek,
+        env.owner_keypair.private_key,
+        wrap_context,
+    )
     plaintext = env.store.decrypt_with_dek(env.stored, dek).decode("utf-8")
     return PlaintextBaselineResult("token_plaintext_server", True, True, True, "policy_match", plaintext)
 

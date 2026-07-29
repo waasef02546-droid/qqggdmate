@@ -53,7 +53,7 @@ caches, and cryptographic/runtime outputs.
 | Active source not yet tracked | `project/scripts/check_environment.py`, `project/tests/integration/test_contact_data_binding.py` | Review and include with the matching implementation/evidence commit |
 | Paper/user edits | modified and untracked files under `paper/` | Preserve; commit only in a paper work package |
 | Checked-in generated evidence | dirty files under `project/results/` | Preserve; verify provenance before any experiment-evidence commit |
-| Reproduction/review material | `Record/`, `comparison_reports/`, one SAGA explanation | Preserve and classify before migration |
+| Reproduction/review material | `Record/`, `docs/reviews/saga/`, one SAGA explanation | Reviews migrated; keep `Record/` held until absolute paths are parameterized |
 | Unknown user material | `results/compare/*.png`, `paper/方案.zip` | Hold; never stage, move, or delete automatically |
 | Temporary/ignored local state | `tmp/`, `runtime/`, `tools/`, SAGA work copies | Keep out of Git; existing material is not deleted |
 

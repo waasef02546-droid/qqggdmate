@@ -77,7 +77,7 @@ class DataAccessRequest:
     data_subclass: str
     purpose: str
     version: int
-    requester_public_key: bytes
+    requester_public_key: bytes | None = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -110,6 +110,11 @@ class DataToken:
     min_version: int
     max_version: int
     requester_public_key_hash: str
+    requester_registration_version: int
+    owner_public_key_fingerprint: str
+    owner_registration_version: int
+    owner_registration_id: str
+    owner_key_algorithm: str
     issuer_signature: str
 
 

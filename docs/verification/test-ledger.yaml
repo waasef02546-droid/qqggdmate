@@ -304,3 +304,295 @@ entries:
       - project/tests/integration/test_contact_data_binding.py
     rerun_reason: "First provenance-preserving Git baseline for known accepted core work."
     notes: "Created commit 9966baba2d37356771d06ae3bee07d50e40f11ae. No paper, result, reproduction, or unknown user material was included."
+  - id: CORE-002-MCP-CONFIG
+    work_package: CORE-002
+    target: repository_mcp_inventory_and_codex_merge
+    command: "parse .codex/config.toml and .codex/mcp/inventory.yaml; CODEX_HOME=C:\\Users\\asus\\.codex codex.cmd mcp list"
+    relevant_code_state: "pinned ArXiv, Context7, Serena, and disabled Semgrep project configuration"
+    configuration: "six configured MCP entries including two unchanged global servers; repository limit ten"
+    environment: "Windows repository root; Codex CLI with corrected user CODEX_HOME"
+    result: "pass"
+    evidence:
+      - .codex/config.toml
+      - .codex/mcp/inventory.yaml
+      - docs/repository/tooling-inventory.md
+    rerun_reason: "First merged-config and inventory validation after installing the authorized research and review MCP set."
+    notes: "TOML and YAML parsed; configured_total=6, active_total=5; Codex listed ArXiv, Context7, Serena, Semgrep disabled, node_repl, and official OpenAI Docs."
+  - id: CORE-002-MCP-SMOKE
+    work_package: CORE-002
+    target: enabled_project_mcp_startup_and_serena_symbol_review
+    command: ".codex\\mcp\\arxiv\\.venv\\Scripts\\python.exe .codex\\mcp\\check_servers.py --functional-serena"
+    relevant_code_state: "final launchers with project-local Serena uv and cache configuration"
+    configuration: "ArXiv 3-tool allowlist; Context7 2-tool allowlist; Serena 9-tool read-only allowlist"
+    environment: "Windows actual-user network context; project-local runtimes and ignored caches"
+    result: "pass"
+    evidence:
+      - .codex/mcp/check_servers.py
+      - .codex/mcp/arxiv
+      - .codex/mcp/context7
+      - .codex/mcp/serena
+    rerun_reason: "Final causal retry after the deterministic smoke exposed Serena's default dependency on an unwritable user-profile uv cache; UV_CACHE_DIR was moved into project-local ignored state."
+    notes: "ArXiv PASS raw=10 allowlist=3; Context7 PASS raw=2 allowlist=2; Serena PASS raw=22 allowlist=9 plus a real read-only TokenService symbol query. Semgrep was not started because its evidenced semgrep.dev OAuth-metadata dependency keeps it disabled."
+  - id: CORE-002-COMPILE
+    work_package: CORE-002
+    target: aid_registration_provider_and_experiment_syntax
+    command: "python -m compileall -q presaga experiments tests"
+    relevant_code_state: "versioned registry, management/data facade split, token binding, persistence migration, and callers implemented"
+    configuration: "authoritative project source tree; no external service"
+    environment: "Windows, repository project directory, system Python"
+    result: "pass"
+    evidence:
+      - project/presaga/provider/registry.py
+      - project/presaga/provider/app.py
+      - project/presaga/provider/token_service.py
+      - project/presaga/provider/server.py
+    rerun_reason: "First syntax/import check after the cross-cutting CORE-002 schema and Provider API changes."
+    notes: "Compile validation completed without output."
+  - id: CORE-002-FOCUSED
+    work_package: CORE-002
+    target: authenticated_aid_key_binding_and_plane_separation
+    command: "python -m unittest tests.unit.test_agent_registry tests.unit.test_token_service tests.integration.test_management_data_plane tests.integration.test_contact_data_binding tests.integration.test_normal_sharing tests.integration.test_agent_runtime tests.integration.test_provider_http_service -v"
+    relevant_code_state: "final CORE-002 registry lifecycle, token binding, JSON migration, HTTP management auth, and focused tests"
+    configuration: "ToyPRE and HPKE stub fixtures; temporary JSON repositories; no external service"
+    environment: "Windows, repository project directory, system Python"
+    result: "pass"
+    evidence:
+      - project/tests/unit/test_agent_registry.py
+      - project/tests/integration/test_management_data_plane.py
+      - project/tests/integration/test_provider_http_service.py
+      - docs/adr/0003-authenticated-aid-key-registration.md
+    rerun_reason: "First final focused acceptance run after implementing all behavior identified by the three independent read-only audits."
+    notes: "31 tests passed. Coverage includes server-derived fingerprints/versions, caller-key forgery, actor/version failures, concurrent CAS, rotation/revocation invalidation, legacy quarantine, restart persistence, management Bearer auth, and unchanged Contact/one-use behavior."
+  - id: CORE-002-FULL-REGRESSION
+    work_package: CORE-002
+    target: cross_cutting_registry_schema_provider_api_and_experiment_regression
+    command: "copy project plus saga_e2e_terminal_output.txt and saga_multi_agent_terminal_output.txt to a validated temporary root; python -m unittest discover -s tests -v; remove the validated temporary root"
+    relevant_code_state: "final CORE-002 implementation and migrated authoritative experiment callers"
+    configuration: "complete test discovery in isolated copy; required recorded SAGA bridge evidence copied read-only"
+    environment: "Windows system Python; temporary copy under the system temp directory; no local MongoDB"
+    result: "pass_with_skip"
+    evidence:
+      - project/tests
+      - docs/verification/reviews/CORE-002-security-audit.md
+      - saga_reproduction/saga_e2e_terminal_output.txt
+      - saga_reproduction/saga_multi_agent_terminal_output.txt
+    rerun_reason: "Cross-cutting DataToken schema, Provider API, persistence, runtime, and experiment-fixture changes require one full regression. Two preceding attempts were invalid because the isolated copy omitted first one, then the second, required SAGA evidence file; no core failure was observed, and the final environment causally corrected both omissions."
+    notes: "73 tests total: 72 passed and one MongoDB E2E test was skipped because no service was listening at 127.0.0.1:27017. The validated temporary root was removed. No repository experiment result was overwritten."
+  - id: CORE-002-CONTROL-CLOSURE
+    work_package: CORE-002
+    target: final_design_claim_tooling_and_evidence_closure
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "CORE-002 accepted; ADR 0003, audit, claims, MCP inventory, milestone, and ledger updated"
+    configuration: "repository guidance and evidence-control files"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - docs/adr/0003-authenticated-aid-key-registration.md
+      - docs/claims-evidence-matrix.md
+      - docs/verification/reviews/CORE-002-security-audit.md
+      - docs/repository/tooling-inventory.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Final closure after implementation, verification, MCP documentation, claim bounding, and milestone acceptance. The first closure attempt found one missing legacy checker heading; restoring the required heading causally fixed it."
+    notes: "CONTROL_PLANE_CHECK passed for 24 required files. YAML/TOML parsing also passed before the final heading fix; no core test was rerun."
+  - id: CORE-003-LAYOUT-HYGIENE-INITIAL
+    work_package: CORE-003
+    target: authorized_layout_migration_integrity
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repository_hygiene.py --root ."
+    relevant_code_state: "five authorized path moves completed; references and archive manifest initially updated"
+    configuration: "repository UTF-8 and archive integrity policy"
+    environment: "Windows, repository root, system Python with PyYAML"
+    result: "fail"
+    evidence:
+      - docs/repository/layout-migration-2026-07-28.md
+      - docs/repository/archive-manifest.yaml
+      - .agents/skills/presaga-paper-grade/scripts/check_repository_hygiene.py
+    rerun_reason: "First impact-scoped validation after the user-authorized physical layout migration."
+    notes: "The checker exposed its own overly broad scan of project-local MCP dependencies/logs and two expected hash changes caused by post-move reference edits inside archived documentation. No current core behavior failed."
+  - id: CORE-003-LAYOUT-HYGIENE-FINAL
+    work_package: CORE-003
+    target: authorized_layout_migration_integrity
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repository_hygiene.py --root ."
+    relevant_code_state: "MCP dependency/runtime state excluded from governed text; final archive hashes and move-time evidence separated"
+    configuration: "324 governed UTF-8 text files and hash-bearing archive entries"
+    environment: "Windows, repository root, system Python with PyYAML"
+    result: "pass"
+    evidence:
+      - docs/repository/layout.md
+      - docs/repository/layout-migration-2026-07-28.md
+      - docs/repository/archive-manifest.yaml
+      - .agents/skills/presaga-paper-grade/scripts/check_repository_hygiene.py
+    rerun_reason: "Causal rerun after correcting the checker boundary and refreshing only the two intentionally edited archive hashes."
+    notes: "REPOSITORY_HYGIENE_CHECK passed for 324 UTF-8 text files with stable archive hashes. No functional test was run."
+  - id: CORE-003-LAYOUT-CONTROL
+    work_package: CORE-003
+    target: canonical_layout_documentation_and_workflow_controls
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "physical migration documented; README, layout rules, manifest, ignore rules, and workflow markers synchronized"
+    configuration: "24 repository guidance and control files"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - README.md
+      - docs/repository/layout.md
+      - docs/repository/layout-migration-2026-07-28.md
+      - docs/repository/archive-manifest.yaml
+    rerun_reason: "Control files and checker markers changed to reflect the completed migration."
+    notes: "CONTROL_PLANE_CHECK passed for 24 required files. PRE-SAGA functional tests were intentionally not rerun because only paths and documentation changed."
+  - id: CORE-003-MCP-AUDIT
+    work_package: CORE-003
+    target: storage_and_rotation_design_discovery
+    command: "Serena MCP read-only symbol/search calls; ArXiv MCP focused search_papers calls"
+    relevant_code_state: "pre-implementation CORE-003 storage and Provider paths"
+    configuration: "Serena read-only project allowlist; ArXiv cs.CR queries"
+    environment: "Windows repository-local MCP runtimes"
+    result: "partial"
+    evidence:
+      - docs/verification/reviews/CORE-003-security-audit.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "First MCP-assisted audit for the accepted CORE-003 objective."
+    notes: "Serena text search found 69 encrypted_dek_owner references, but Pyright terminated during semantic initialization; no symbol-level success is claimed. ArXiv returned irrelevant results for the narrow rotation queries and did not influence the design."
+  - id: CORE-003-FOCUSED
+    work_package: CORE-003
+    target: owner_registration_provenance_and_staged_rotation
+    command: "python -m unittest <eight provenance/rotation/nearest-integration modules> -v"
+    relevant_code_state: "registration-bound stores, dual owner wraps, staged replacement, trusted StoredObject consumption, and migrated HTTP/tests"
+    configuration: "ToyPRE fixtures; in-memory/JSON paths; no external service"
+    environment: "Windows, repository project directory, system Python"
+    result: "pass"
+    evidence:
+      - project/tests/unit/test_encrypted_store_provenance.py
+      - project/tests/integration/test_owner_key_rotation.py
+      - project/tests/integration/test_provider_http_service.py
+    rerun_reason: "First focused verification of newly implemented CORE-003 behavior."
+    notes: "29 tests passed. Two initial fixture issues were corrected before the final bounded run; neither exposed a core failure."
+  - id: CORE-003-FOCUSED-INTEGRATION
+    work_package: CORE-003
+    target: final_provenance_rotation_attack_and_bridge_integration
+    command: "python -m unittest <CORE-003 focused modules plus attack, P3, and SAGA bridge modules> -v"
+    relevant_code_state: "token scope is validated read-only before provenance, then atomically consumed only after trusted-store validation"
+    configuration: "ToyPRE fixtures; temporary output directories used by evaluation tests"
+    environment: "Windows, repository project directory, system Python"
+    result: "pass"
+    evidence:
+      - project/presaga/provider/pre_proxy.py
+      - project/tests/integration/test_owner_key_rotation.py
+      - project/tests/security/test_attack_scripts.py
+      - project/tests/security/test_p3_evaluation.py
+    rerun_reason: "Full-regression diagnosis showed that provenance validation had changed expected token-scope denial reasons; the validation order was corrected without weakening pre-consumption provenance enforcement."
+    notes: "35 tests passed. Scope failures are rejected before stored-object matching, provenance failures still occur before token decrement/PRE, and prior attack/evaluation semantics are preserved."
+  - id: CORE-003-FULL-REGRESSION
+    work_package: CORE-003
+    target: cross_cutting_storage_token_provider_http_and_experiment_regression
+    command: "copy project and two recorded SAGA evidence files to a validated temporary root; python -m unittest discover -s tests -v; remove temporary root"
+    relevant_code_state: "final CORE-003 core, caller migrations, owner token binding, and deterministic timestamp fixtures"
+    configuration: "complete discovery in isolated copy; repository experiment artifacts not overwritten"
+    environment: "Windows system Python; validated temporary directory; no local MongoDB"
+    result: "pass_with_skip"
+    evidence:
+      - project/tests
+      - docs/verification/reviews/CORE-003-security-audit.md
+      - saga_reproduction/saga_e2e_terminal_output.txt
+      - saga_reproduction/saga_multi_agent_terminal_output.txt
+    rerun_reason: "Cross-cutting StoredObject, DataToken, Provider/HTTP API, crypto-context, and experiment-callsite changes require one final regression. Earlier attempts diagnosed an incorrect temporary SAGA path, then scope-order regressions, then two microsecond-sensitive Contact timestamps; each causal issue was corrected before this final run."
+    notes: "79 tests total: 78 passed and one MongoDB E2E test skipped because no service was listening at 127.0.0.1:27017. Temporary roots were safely removed."
+  - id: CORE-003-CONTROL-CLOSURE
+    work_package: CORE-003
+    target: final_layout_design_claim_and_evidence_closure
+    command: "parse YAML; run repository hygiene and 24-file workflow checks; git diff --check; scan for forbidden raw owner-key/EDEK APIs"
+    relevant_code_state: "CORE-003 accepted as prototype-bounded; ADR 0004, C-007, audit, milestone, and ledger synchronized"
+    configuration: "repository guidance, archive integrity, and UTF-8 policy"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - docs/adr/0004-owner-wrapped-dek-provenance-and-rotation.md
+      - docs/claims-evidence-matrix.md
+      - docs/verification/reviews/CORE-003-security-audit.md
+      - docs/workflow/current-milestone.md
+      - docs/repository/layout-migration-2026-07-28.md
+    rerun_reason: "Final control and evidence closure after CORE-003 implementation, verification, claim bounding, and the authorized layout migration."
+    notes: "YAML parsed; hygiene passed for 328 governed UTF-8 files with stable archive hashes; control plane passed 24 files; diff check found no whitespace errors; forbidden API scan returned no matches. Git emitted only line-ending advisory warnings for pre-existing/dirty files."
+  - id: CORE-004-FOCUSED-INITIAL
+    work_package: CORE-004
+    target: persistent_rotation_recovery_cleanup_and_live_mongo_cas
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest project.tests.integration.test_rotation_recovery project.tests.integration.test_owner_key_rotation project.tests.integration.test_mongodb_rotation_cas -v"
+    relevant_code_state: "initial complete journal serialization, JSON object recovery, terminal cleanup, and Mongo journal/object CAS implementation"
+    configuration: "HPKE stub and ToyPRE fixtures; temporary JSON state; isolated MongoDB 8.3.4 on port 27018"
+    environment: "Windows, repository root, system Python, MongoDB data under ignored runtime/core004-mongodb"
+    result: "pass"
+    evidence:
+      - project/tests/integration/test_rotation_recovery.py
+      - project/tests/integration/test_owner_key_rotation.py
+      - project/tests/integration/test_mongodb_rotation_cas.py
+    rerun_reason: "First impact-scoped verification of newly implemented CORE-004 behavior."
+    notes: "7 tests passed. A causal rerun of the same seven tests also passed after adding stricter restored object/wrap-state validation."
+  - id: CORE-004-FOCUSED-FINAL
+    work_package: CORE-004
+    target: final_rotation_provider_provenance_and_live_mongo_integration
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest <six recovery/rotation/Mongo/Provider/management/provenance modules> -v"
+    relevant_code_state: "final runtime behavior before cross-cutting regression"
+    configuration: "in-memory and temporary JSON paths; isolated live MongoDB 8.3.4"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - project/tests/integration/test_rotation_recovery.py
+      - project/tests/integration/test_mongodb_rotation_cas.py
+      - project/tests/integration/test_provider_http_service.py
+      - project/tests/integration/test_management_data_plane.py
+    rerun_reason: "Expanded focused verification after Provider schema/store integration; the immediately preceding attempt exposed a pre-existing nondeterministic issuance timestamp fixture, which was fixed before this causal rerun."
+    notes: "19 tests passed. The failed predecessor returned token_expired instead of requester_registration_stale because issuance used wall-clock time while consumption used the fixture time; no CORE-004 mechanism failed."
+  - id: CORE-004-MONGODB-SERVER-RESTART
+    work_package: CORE-004
+    target: real_mongodb_conditional_transition_and_server_restart_persistence
+    command: "insert prepared probe; conditionally update prepared->committed; attempt stale prepared update; stop exact isolated mongod process; restart the same binary/data directory; read and remove probe database"
+    relevant_code_state: "Mongo conditional journal design and local MongoDB persistence boundary"
+    configuration: "MongoDB 8.3.4, 127.0.0.1:27018, isolated runtime/core004-mongodb data directory"
+    environment: "Windows, local mongod executable D:/MongoDB/SAGA_MongoDB/server/mongodb-win32-x86_64-windows-8.3.4/bin/mongod.exe"
+    result: "pass"
+    evidence:
+      - docs/adr/0005-persistent-rotation-recovery-and-cleanup.md
+      - docs/verification/reviews/CORE-004-security-audit.md
+    rerun_reason: "First process-level persistence check; reconnect-only evidence was insufficient for the authorized recovery objective."
+    notes: "Conditional match=1, stale match=0. After mongod restart the document remained status=committed and sequence=2; ping=1.0 and server version=8.3.4."
+  - id: CORE-004-FULL-REGRESSION-INITIAL
+    work_package: CORE-004
+    target: cross_cutting_provider_schema_registry_store_protocol_regression
+    command: "copy project and required recorded SAGA evidence to a validated isolated root; PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest discover -s tests -v"
+    relevant_code_state: "CORE-004 implementation before policy-store stable-ID correction"
+    configuration: "complete discovery in isolated copy; new Mongo rotation test uses port 27018; legacy Mongo E2E remains fixed to 27017"
+    environment: "Windows system Python; isolated workspace tmp directory; repository experiment artifacts not overwritten"
+    result: "fail"
+    evidence:
+      - project/tests/unit/test_policy_aware_stores.py
+      - project/presaga/storage/policy_aware_store.py
+    rerun_reason: "Required cross-cutting regression after changing Provider persistence schema and the owner-store protocol."
+    notes: "82 tests passed, one legacy Mongo E2E skipped, and one error exposed that mail/document/memory stores shared the default stable store ID. This was a real integration defect, not a flaky test."
+  - id: CORE-004-FULL-REGRESSION-FINAL
+    work_package: CORE-004
+    target: final_cross_cutting_provider_schema_registry_store_protocol_regression
+    command: "update the isolated copy with the deterministic per-data-class store-ID correction; PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest discover -s tests -v"
+    relevant_code_state: "final CORE-004 runtime behavior including distinct stable policy-store IDs"
+    configuration: "complete discovery in isolated copy; live Mongo rotation CAS on port 27018; legacy Mongo E2E fixed to unavailable port 27017"
+    environment: "Windows system Python; isolated workspace tmp directory"
+    result: "pass_with_skip"
+    evidence:
+      - project/tests
+      - project/tests/integration/test_rotation_recovery.py
+      - project/tests/integration/test_mongodb_rotation_cas.py
+      - docs/verification/reviews/CORE-004-security-audit.md
+    rerun_reason: "Causal rerun after correcting the store-identity defect found by the required full regression."
+    notes: "83 tests total: 82 passed and one legacy MongoDB E2E test skipped only because it hardcodes port 27017. The new live-Mongo CORE-004 test passed against port 27018. Later annotation/cast edits did not alter runtime behavior and did not justify repeating the suite."
+  - id: CORE-004-CONTROL-CLOSURE
+    work_package: CORE-004
+    target: final_design_claim_evidence_and_repository_control_closure
+    command: "parse test-ledger YAML; run 24-file workflow check; compile nine affected Python modules; git diff --check"
+    relevant_code_state: "CORE-004 accepted as prototype-bounded; ADR 0005, C-007, security audit, milestone, and ledger synchronized"
+    configuration: "repository evidence controls and affected Python source"
+    environment: "Windows, repository root, system Python"
+    result: "pass"
+    evidence:
+      - docs/adr/0005-persistent-rotation-recovery-and-cleanup.md
+      - docs/claims-evidence-matrix.md
+      - docs/verification/reviews/CORE-004-security-audit.md
+      - docs/workflow/current-milestone.md
+    rerun_reason: "Final closure after implementation, live-service verification, full regression, claim bounding, and milestone acceptance."
+    notes: "Ledger YAML parsed with 40 entries before this closure entry; workflow check passed 24 required files; affected modules compiled; diff check reported no whitespace errors. Line-ending advisories concerned pre-existing dirty files and were not failures."

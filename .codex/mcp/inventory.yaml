@@ -1,0 +1,59 @@
+schema_version: 1
+inventory_date: "2026-07-28"
+configured_limit: 10
+configured_total: 6
+active_total: 5
+star_counts:
+  meaning: "Approximate GitHub stars sampled on the inventory date; popularity is not a security guarantee."
+servers:
+  - id: openaideveloperdocs
+    scope: global
+    state: active
+    source: "https://developers.openai.com/codex/mcp"
+    version: managed_remote
+    authentication: none
+    purpose: official_openai_and_codex_documentation
+  - id: node_repl
+    scope: global
+    state: active
+    source: desktop_bundled
+    version: desktop_managed
+    authentication: local_runtime
+    purpose: persistent_javascript_orchestration
+  - id: arxiv
+    scope: project
+    state: active
+    source: "https://github.com/blazickjp/arxiv-mcp-server"
+    version: "0.5.0"
+    github_stars_approx: 3000
+    license: Apache-2.0
+    authentication: none
+    purpose: paper_search_abstracts_and_citation_graph
+  - id: context7
+    scope: project
+    state: active
+    source: "https://github.com/upstash/context7"
+    version: "3.2.5"
+    github_stars_approx: 59900
+    license: MIT
+    authentication: optional_api_key_not_configured
+    purpose: version_aware_library_documentation
+  - id: serena
+    scope: project
+    state: active
+    source: "https://github.com/oraios/serena"
+    version: "1.5.3"
+    github_stars_approx: 27100
+    license: MIT
+    authentication: none
+    purpose: read_only_symbol_reference_and_diagnostic_review
+  - id: semgrep
+    scope: project
+    state: installed_disabled
+    source: "https://github.com/semgrep/semgrep"
+    version: "1.164.0"
+    github_stars_approx: 16000
+    license: LGPL-2.1-or-later
+    authentication: "MCP startup requests semgrep.dev OAuth metadata"
+    purpose: static_analysis_candidate
+    disabled_reason: "The pinned MCP exits when semgrep.dev OAuth metadata cannot be fetched."

@@ -15,7 +15,7 @@ def run_attack():
             contact_token=env.contact_token,
             token=token,
             request=request,
-            encrypted_dek_owner=env.stored.encrypted_dek_owner,
+            stored=env.stored,
             rekey=rekey_for_requester(env),
         )
         event = env.audit.events[-1]

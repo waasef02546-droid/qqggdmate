@@ -26,7 +26,6 @@ from presaga.crypto.toy_pre import ToyPRE
 from presaga.protocol.schemas import DataAccessRequest, DataRecord, DataScope, DataSharingPolicy, Limits, RequesterSelector, Validity, VersionConstraints
 from presaga.provider.app import PREProviderApp
 from presaga.provider.mongo_repository import MongoProviderRepository
-from presaga.provider.registry import AgentRecord
 from presaga.storage.mongo_encrypted_store import MongoEncryptedStore
 
 
@@ -71,17 +70,17 @@ def run_mongodb_e2e(
     bob = backend.generate_keypair()
     mallory = backend.generate_keypair()
     app = PREProviderApp(backend)
-    store = MongoEncryptedStore(backend, db)
+    store = MongoEncryptedStore(backend, db, app.registry)
 
     owner_aid = "alice@mail.com:calendar_agent"
     bob_aid = "bob@mail.com:scheduler_agent"
     mallory_aid = "mallory@mail.com:research_agent"
     for aid, keypair in ((owner_aid, alice), (bob_aid, bob), (mallory_aid, mallory)):
-        app.register_agent(aid, keypair.public_key)
-        repo.save_agent(AgentRecord(aid=aid, public_key=keypair.public_key))
+        registration = app.management.register_agent(aid, keypair.public_key)
+        repo.save_agent(registration)
 
     rulebook = [{"pattern": "*@mail.com:*_agent", "budget": 10}]
-    app.set_contact_rulebook(owner_aid, rulebook)
+    app.management.set_contact_rulebook(owner_aid, rulebook)
     repo.save_contact_rulebook(owner_aid, rulebook)
 
     record = DataRecord(
@@ -92,7 +91,7 @@ def run_mongodb_e2e(
         version=1,
         metadata={"source": "mongodb_e2e"},
     )
-    stored = store.put(record, b"Alice is free from 10:00 to 11:00.", alice.public_key)
+    stored = store.put(record, b"Alice is free from 10:00 to 11:00.")
     stored_from_mongo = store.get(record.record_id)
 
     now = datetime.now(timezone.utc)
@@ -107,7 +106,7 @@ def run_mongodb_e2e(
         version_constraints=VersionConstraints(min_version=1, max_version=1),
         obligations={"projection": ["availability"], "audit": True},
     )
-    app.add_data_policy(policy)
+    app.management.add_data_policy(policy)
     repo.save_data_policy(policy)
 
     contact_token = app.issue_contact_session(owner_aid, bob_aid)
@@ -134,18 +133,24 @@ def run_mongodb_e2e(
         raise RuntimeError(issuance.decision.reason)
     data_token = issuance.token
     repo.save_data_token(data_token)
-    rekey = backend.generate_rekey(alice.private_key, bob.public_key, store.context(stored_from_mongo.record))
+    owner_wrap = store.resolve_active_owner_wrap(stored_from_mongo)
+    wrap_context = store.wrap_context(stored_from_mongo.record, owner_wrap.provenance)
+    rekey = backend.generate_rekey(alice.private_key, bob.public_key, wrap_context)
     transform = app.request_re_encryption(
         contact_token=contact_token,
         token=data_token,
         request=request,
-        encrypted_dek_owner=stored_from_mongo.encrypted_dek_owner,
+        stored=stored_from_mongo,
         rekey=rekey,
     )
     normal_success = transform.decision == "allow" and transform.transformed_encrypted_dek is not None
     if not normal_success:
         raise RuntimeError(transform.reason)
-    bob_dek = backend.unwrap_dek(transform.transformed_encrypted_dek, bob.private_key, store.context(stored_from_mongo.record))
+    bob_dek = backend.unwrap_dek(
+        transform.transformed_encrypted_dek,
+        bob.private_key,
+        wrap_context,
+    )
     plaintext = store.decrypt_with_dek(stored_from_mongo, bob_dek).decode("utf-8")
 
     attack_request = DataAccessRequest(

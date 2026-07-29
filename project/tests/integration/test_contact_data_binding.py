@@ -33,7 +33,9 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
         self.requester = self.backend.generate_keypair()
         self.owner_aid = "alice@mail.com:calendar_agent"
         self.requester_aid = "bob@mail.com:scheduler_agent"
-        self.app.set_contact_rulebook(
+        self.app.management.register_agent(self.owner_aid, self.owner.public_key)
+        self.app.management.register_agent(self.requester_aid, self.requester.public_key)
+        self.app.management.set_contact_rulebook(
             self.owner_aid,
             [{"pattern": "bob@mail.com:*", "budget": 4}],
         )
@@ -50,9 +52,9 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
             data_subclass="availability",
             version=1,
         )
-        self.store = EncryptedStore(self.backend)
-        self.stored = self.store.put(self.record, b"Alice is free at 10:00.", self.owner.public_key)
-        self.app.add_data_policy(
+        self.store = EncryptedStore(self.backend, self.app.registry)
+        self.stored = self.store.put(self.record, b"Alice is free at 10:00.")
+        self.app.management.add_data_policy(
             DataSharingPolicy(
                 policy_id="binding-policy",
                 owner_aid=self.owner_aid,
@@ -124,7 +126,7 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
             contact_token=other_contact,
             token=issued.token,
             request=self.request,
-            encrypted_dek_owner=self.stored.encrypted_dek_owner,
+            stored=self.stored,
             rekey=self.rekey,
             now=self.now,
         )
@@ -145,7 +147,7 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
             contact_token=self.contact,
             token=issued.token,
             request=self.request,
-            encrypted_dek_owner=self.stored.encrypted_dek_owner,
+            stored=self.stored,
             rekey=self.rekey,
             now=self.contact.expires_at + timedelta(microseconds=1),
         )
@@ -166,7 +168,7 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
             contact_token=None,
             token=issued.token,
             request=self.request,
-            encrypted_dek_owner=self.stored.encrypted_dek_owner,
+            stored=self.stored,
             rekey=self.rekey,
             now=self.now,
         )
@@ -192,6 +194,14 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
             state["data_tokens"] = [legacy_token]
             repository.save(state)
             restored = ProviderService(PREProviderApp(self.backend), repository)
+            restored.app.management.register_agent(self.owner_aid, self.owner.public_key)
+            restored.app.management.register_agent(
+                self.requester_aid,
+                self.requester.public_key,
+            )
+            restored_store = EncryptedStore(self.backend, restored.app.registry)
+            restored_store.put(self.record, b"Alice is free at 10:00.")
+            restored.object_store = restored_store
             restored_token = restored.data_tokens[issued.token.token_id]
             self.assertEqual("", restored_token.contact_token_id)
             self.assertEqual("", restored_token.contact_session_ref)
@@ -211,7 +221,6 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
                         "requester_public_key_b64": _b64(self.request.requester_public_key),
                         "timestamp": self.request.timestamp.isoformat(),
                     },
-                    "encrypted_dek_owner_b64": _b64(self.stored.encrypted_dek_owner),
                     "rekey_b64": _b64(self.rekey),
                 }
             )
@@ -232,7 +241,7 @@ class ContactDataBindingIntegrationTest(unittest.TestCase):
             contact_token=forged_contact,
             token=issued.token,
             request=self.request,
-            encrypted_dek_owner=self.stored.encrypted_dek_owner,
+            stored=self.stored,
             rekey=self.rekey,
             now=self.now,
         )

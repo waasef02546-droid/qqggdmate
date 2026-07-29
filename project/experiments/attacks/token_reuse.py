@@ -16,14 +16,14 @@ def run_attack():
             contact_token=env.contact_token,
             token=token,
             request=request,
-            encrypted_dek_owner=env.stored.encrypted_dek_owner,
+            stored=env.stored,
             rekey=rekey,
         )
         second = env.app.request_re_encryption(
             contact_token=env.contact_token,
             token=token,
             request=request,
-            encrypted_dek_owner=env.stored.encrypted_dek_owner,
+            stored=env.stored,
             rekey=rekey,
         )
         return {

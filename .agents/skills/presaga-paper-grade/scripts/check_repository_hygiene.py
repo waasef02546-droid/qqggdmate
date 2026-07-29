@@ -24,7 +24,9 @@ TEXT_SUFFIXES = {
 }
 EXCLUDED_PARTS = {
     ".git",
+    ".venv",
     "__pycache__",
+    "node_modules",
     "runtime",
     "tools",
 }
@@ -37,6 +39,8 @@ def governed_text_files(root: Path) -> list[Path]:
             continue
         relative = path.relative_to(root)
         if any(part in EXCLUDED_PARTS for part in relative.parts):
+            continue
+        if len(relative.parts) >= 4 and relative.parts[:2] == (".codex", "mcp") and "state" in relative.parts:
             continue
         if relative.parts[:2] == ("saga_reproduction", "saga_clean"):
             continue

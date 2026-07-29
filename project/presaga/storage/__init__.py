@@ -2,6 +2,13 @@
 
 from presaga.storage.calendar_store import CalendarStore
 from presaga.storage.document_store import DocumentStore
+from presaga.storage.encrypted_store import (
+    EncryptedStore,
+    OwnerKeyProvenance,
+    OwnerWrappedDEK,
+    StoredObject,
+    StorageProvenanceError,
+)
 from presaga.storage.mail_store import MailStore
 from presaga.storage.memory_store import MemoryStore
 from presaga.storage.policy_aware_store import DataAccessDenied, DataAccessGrant, PolicyAwareStore
@@ -11,7 +18,12 @@ __all__ = [
     "DataAccessDenied",
     "DataAccessGrant",
     "DocumentStore",
+    "EncryptedStore",
     "MailStore",
     "MemoryStore",
+    "OwnerKeyProvenance",
+    "OwnerWrappedDEK",
     "PolicyAwareStore",
+    "StoredObject",
+    "StorageProvenanceError",
 ]

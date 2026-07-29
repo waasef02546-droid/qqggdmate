@@ -2,7 +2,7 @@
 
 This directory is reserved for hash-verified, recoverable legacy material.
 
-Nothing is moved here automatically. Before any archive operation:
+The first hash-verified migration was completed on 2026-07-28. Before any later archive operation:
 
 1. inspect all code, paper, and script references;
 2. record the source tree hash in `docs/repository/archive-manifest.yaml`;
@@ -10,10 +10,12 @@ Nothing is moved here automatically. Before any archive operation:
 4. move only explicitly approved paths;
 5. verify the destination hash and keep the Git history recoverable.
 
-The first candidate is the coupled legacy prototype set:
+The coupled legacy prototype set is now stored as:
 
-- `prototype/`
-- root `configs/`
-- `results/experiment_summary.csv`
+- `archive/legacy-prototype/prototype/`
+- `archive/legacy-prototype/configs/`
+- `archive/legacy-prototype/results/experiment_summary.csv`
 
-These must move together because they represent one historical implementation/schema/result chain.
+They moved together because they represent one historical implementation/schema/result chain.
+The move record and rollback mapping are in
+`docs/repository/layout-migration-2026-07-28.md`.

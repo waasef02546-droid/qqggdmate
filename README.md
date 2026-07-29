@@ -22,10 +22,12 @@ remain toy/stub implementations and do not establish production cryptographic se
 - `docs/` — repository workflow, ADRs, verification ledger, claims matrix, and repository maps.
 - `saga_reproduction/` — SAGA baseline reproduction evidence and local compatibility notes.
 
-Root-level `prototype/`, `runtime/`, `tools/`, `results/`, `Record/`, `comparison_reports/`, and
-`project/result/` are not authoritative implementation entry points. They are classified in
-`docs/repository/archive-manifest.yaml` and must not be deleted or moved without a reference audit
-and an explicitly approved archive operation.
+The former root prototype is preserved under `archive/legacy-prototype/`, legacy Stage-2 evidence
+is under `project/results/legacy/stage2/`, and SAGA comparison reviews are under
+`docs/reviews/saga/`. Root-level `Record/`, `results/compare/`, `runtime/`, and `tools/` remain
+deliberately held in place because their provenance or path dependencies are unresolved. See
+`docs/repository/layout.md`, `docs/repository/layout-migration-2026-07-28.md`, and
+`docs/repository/archive-manifest.yaml`.
 
 ## Codex workflow
 

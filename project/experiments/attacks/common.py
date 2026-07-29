@@ -79,7 +79,6 @@ def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
     owner = backend.generate_keypair()
     requester = backend.generate_keypair()
     intruder = backend.generate_keypair()
-    store = EncryptedStore(backend)
     record = DataRecord(
         record_id="cal-001",
         owner_aid=OWNER_AID,
@@ -87,7 +86,6 @@ def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
         data_subclass="availability",
         version=1,
     )
-    stored = store.put(record, b"Alice is free from 10:00 to 11:00.", owner.public_key)
     now = datetime.now(timezone.utc)
     policy = DataSharingPolicy(
         policy_id="policy-calendar-v1",
@@ -100,11 +98,13 @@ def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
         version_constraints=VersionConstraints(min_version=1, max_version=1),
     )
     app = PREProviderApp(backend)
-    app.register_agent(OWNER_AID, owner.public_key)
-    app.register_agent(REQUESTER_AID, requester.public_key)
-    app.register_agent(INTRUDER_AID, intruder.public_key)
-    app.add_data_policy(policy)
-    app.set_contact_rulebook(
+    app.management.register_agent(OWNER_AID, owner.public_key)
+    app.management.register_agent(REQUESTER_AID, requester.public_key)
+    app.management.register_agent(INTRUDER_AID, intruder.public_key)
+    store = EncryptedStore(backend, app.registry)
+    stored = store.put(record, b"Alice is free from 10:00 to 11:00.")
+    app.management.add_data_policy(policy)
+    app.management.set_contact_rulebook(
         OWNER_AID,
         [
             {"pattern": REQUESTER_AID, "budget": 100},
@@ -160,10 +160,11 @@ def issue_allowed_token(env: AttackEnvironment):
 
 
 def rekey_for_requester(env: AttackEnvironment) -> bytes:
+    owner_wrap = env.store.resolve_active_owner_wrap(env.stored)
     return env.backend.generate_rekey(
         env.owner_keypair.private_key,  # type: ignore[attr-defined]
         env.requester_keypair.public_key,  # type: ignore[attr-defined]
-        env.store.context(env.stored.record),
+        env.store.wrap_context(env.stored.record, owner_wrap.provenance),
     )
 
 

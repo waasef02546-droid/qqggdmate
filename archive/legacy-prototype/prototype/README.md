@@ -11,7 +11,7 @@
 运行：
 
 ```powershell
-python .\prototype\run_experiments.py
+python .\archive\legacy-prototype\prototype\run_experiments.py
 ```
 
 实验场景：
@@ -27,4 +27,3 @@ python .\prototype\run_experiments.py
 - 数据加密使用简化信封加密模型。
 - PRE 使用 toy transform：`Enc(pk, dek) = dek XOR H(pk)`，`rk_a_b = H(pk_a) XOR H(pk_b)`。
 - 该 toy transform 只用于演示“代理可转换密文密钥但不接触明文”的协议语义，不能用于真实安全系统。
-

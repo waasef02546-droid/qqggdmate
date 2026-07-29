@@ -7,14 +7,19 @@ from datetime import datetime, timedelta, timezone
 from presaga.crypto.toy_pre import ToyPRE
 from presaga.protocol.schemas import DataAccessRequest, PolicyDecision
 from presaga.provider.saga_adapter import SagaCompatibleAdapter
+from presaga.provider.registry import AgentRegistry
 from presaga.provider.token_service import TokenService
 
 
 class TokenServiceTest(unittest.TestCase):
     def setUp(self):
         self.backend = ToyPRE()
+        self.owner = self.backend.generate_keypair()
         self.requester = self.backend.generate_keypair()
-        self.service = TokenService(b"issuer-secret")
+        self.registry = AgentRegistry()
+        self.registry.create("alice@mail.com:calendar_agent", self.owner.public_key, actor="test-manager")
+        self.registry.create("bob@mail.com:scheduler_agent", self.requester.public_key, actor="test-manager")
+        self.service = TokenService(b"issuer-secret", self.registry)
         self.contact_authorizer = SagaCompatibleAdapter(b"issuer-secret")
         self.request = DataAccessRequest(
             request_id="req-1",

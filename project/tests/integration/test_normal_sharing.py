@@ -17,6 +17,7 @@ from presaga.protocol.schemas import (
 from presaga.provider.audit import AuditLogger
 from presaga.provider.data_policy import DataPolicyEvaluator
 from presaga.provider.pre_proxy import PREProxy
+from presaga.provider.registry import AgentRegistry
 from presaga.provider.saga_adapter import SagaCompatibleAdapter
 from presaga.provider.token_service import TokenService
 from presaga.storage.encrypted_store import EncryptedStore
@@ -27,7 +28,7 @@ class NormalSharingIntegrationTest(unittest.TestCase):
         backend = ToyPRE()
         owner = backend.generate_keypair()
         requester = backend.generate_keypair()
-        store = EncryptedStore(backend)
+        registry = AgentRegistry()
 
         record = DataRecord(
             record_id="cal-001",
@@ -37,7 +38,10 @@ class NormalSharingIntegrationTest(unittest.TestCase):
             version=1,
         )
         plaintext = b"Alice is free from 10:00 to 11:00."
-        stored = store.put(record, plaintext, owner.public_key)
+        registry.create(record.owner_aid, owner.public_key, actor="test-manager")
+        registry.create("bob@mail.com:scheduler_agent", requester.public_key, actor="test-manager")
+        store = EncryptedStore(backend, registry)
+        stored = store.put(record, plaintext)
 
         now = datetime.now(timezone.utc)
         policy = DataSharingPolicy(
@@ -65,7 +69,7 @@ class NormalSharingIntegrationTest(unittest.TestCase):
         decision = DataPolicyEvaluator([policy]).evaluate(request)
         self.assertEqual(decision.effect, "allow")
 
-        token_service = TokenService(b"issuer-secret")
+        token_service = TokenService(b"issuer-secret", registry)
         contact_authorizer = SagaCompatibleAdapter(b"issuer-secret")
         contact_authorizer.set_rulebook(
             record.owner_aid,
@@ -78,14 +82,14 @@ class NormalSharingIntegrationTest(unittest.TestCase):
         self.assertIsNotNone(contact_token)
         token = token_service._issue_data_token(decision, request, contact_token)
         audit = AuditLogger()
-        proxy = PREProxy(backend, token_service, contact_authorizer, audit)
+        proxy = PREProxy(backend, token_service, contact_authorizer, audit, registry)
         rekey = backend.generate_rekey(owner.private_key, requester.public_key, store.context(record))
 
         result = proxy.transform(
             contact_token=contact_token,
             token=token,
             request=request,
-            encrypted_dek_owner=stored.encrypted_dek_owner,
+            stored=stored,
             rekey=rekey,
         )
 
@@ -102,7 +106,7 @@ class NormalSharingIntegrationTest(unittest.TestCase):
             contact_token=contact_token,
             token=token,
             request=request,
-            encrypted_dek_owner=stored.encrypted_dek_owner,
+            stored=stored,
             rekey=rekey,
         )
         self.assertEqual(denied.decision, "deny")

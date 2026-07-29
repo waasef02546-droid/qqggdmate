@@ -1,0 +1,9 @@
+{
+  "name": "presaga-context7-mcp-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pinned Context7 MCP runtime for the PRE-SAGA repository.",
+  "dependencies": {
+    "@upstash/context7-mcp": "3.2.5"
+  }
+}

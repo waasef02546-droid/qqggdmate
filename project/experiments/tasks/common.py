@@ -57,12 +57,12 @@ def run_authorized_task(
     owner = backend.generate_keypair()
     requester = backend.generate_keypair()
     app = PREProviderApp(backend)
-    store = _store_for_data_class(backend, seed["data_class"])
 
     owner_aid = seed["owner_aid"]
-    app.register_agent(owner_aid, owner.public_key)
-    app.register_agent(requester_aid, requester.public_key)
-    app.set_contact_rulebook(owner_aid, [{"pattern": requester_aid, "budget": 10}])
+    app.management.register_agent(owner_aid, owner.public_key)
+    app.management.register_agent(requester_aid, requester.public_key)
+    app.management.set_contact_rulebook(owner_aid, [{"pattern": requester_aid, "budget": 10}])
+    store = _store_for_data_class(backend, app.registry, seed["data_class"])
 
     contact_started = time.perf_counter()
     contact = app.issue_contact_session(owner_aid, requester_aid)
@@ -87,11 +87,10 @@ def run_authorized_task(
             seed["data_subclass"]: seed["plaintext"],
             "owner_internal_note": "not released to delegated agents",
         },
-        owner.public_key,
         purposes=[seed["purpose"]],
     )
     now = datetime.now(timezone.utc)
-    app.add_data_policy(
+    app.management.add_data_policy(
         DataSharingPolicy(
             policy_id=f"policy-{task_name}",
             owner_aid=owner_aid,
@@ -148,14 +147,16 @@ def run_authorized_task(
         )
     token = issuance.token
     token_issue_ms = round((time.perf_counter() - token_started) * 1000, 3)
-    rekey = backend.generate_rekey(owner.private_key, requester.public_key, store.context(record))
+    owner_wrap = store.resolve_active_owner_wrap(stored)
+    wrap_context = store.wrap_context(stored.record, owner_wrap.provenance)
+    rekey = backend.generate_rekey(owner.private_key, requester.public_key, wrap_context)
 
     transform_started = time.perf_counter()
     result = app.request_re_encryption(
         contact_token=contact,
         token=token,
         request=request,
-        encrypted_dek_owner=stored.encrypted_dek_owner,
+        stored=stored,
         rekey=rekey,
     )
     pre_transform_ms = round((time.perf_counter() - transform_started) * 1000, 3)
@@ -174,7 +175,7 @@ def run_authorized_task(
         )
 
     decrypt_started = time.perf_counter()
-    dek = backend.unwrap_dek(result.transformed_encrypted_dek, requester.private_key, store.context(record))
+    dek = backend.unwrap_dek(result.transformed_encrypted_dek, requester.private_key, wrap_context)
     # This is the tool-facing data access point: it applies the approved
     # requester, purpose, record scope, data class, and field projection.
     grant = store.grant_access(
@@ -208,7 +209,7 @@ def run_authorized_task(
     )
 
 
-def _store_for_data_class(backend: ToyPRE, data_class: str) -> PolicyAwareStore:
+def _store_for_data_class(backend: ToyPRE, registry, data_class: str) -> PolicyAwareStore:
     stores: dict[str, type[PolicyAwareStore]] = {
         "calendar": CalendarStore,
         "mail": MailStore,
@@ -216,6 +217,6 @@ def _store_for_data_class(backend: ToyPRE, data_class: str) -> PolicyAwareStore:
         "memory": MemoryStore,
     }
     try:
-        return stores[data_class](backend)
+        return stores[data_class](backend, registry)
     except KeyError as exc:
         raise ValueError(f"No policy-aware tool store for {data_class!r}") from exc

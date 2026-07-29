@@ -37,17 +37,26 @@ prototype/E2E workflow, not as a production authentication service.
 
 ```powershell
 cd project
+$env:PRESAGA_MANAGEMENT_TOKEN = "replace-with-a-local-secret"
 python -m presaga.provider.server --host 127.0.0.1 --port 8080 --state-file provider-state.json
 ```
 
-The JSON APIs are:
+The service creates a trusted encrypted-object store and persists schema-v3 registrations,
+encrypted objects, and rotation history in the state file. All `/v1/management/*` requests require
+`Authorization: Bearer <PRESAGA_MANAGEMENT_TOKEN>`.
 
-- `POST /v1/agents` — `{aid, public_key_b64}` registers an agent.
-- `POST /v1/contact-rulebooks` — `{owner_aid, rulebook}` configures the SAGA-compatible contact policy needed by session issuance.
-- `POST /v1/data-policies` — adds a policy using the `DataSharingPolicy` JSON schema.
+The principal JSON APIs are:
+
+- `POST /v1/management/agents` — `{aid, public_key_b64}` registers an agent.
+- `POST /v1/management/agent-rotation-preparations`, `agent-rotation-rewraps`,
+  `agent-rotation-commits`, `agent-rotation-aborts`, and `agent-rotation-cleanups` — drive the
+  authenticated, restart-recoverable owner-key lifecycle.
+- `POST /v1/management/contact-rulebooks` — configures the SAGA-compatible contact policy.
+- `POST /v1/management/data-policies` — adds a `DataSharingPolicy`.
 - `POST /v1/contact-sessions` — `{owner_aid, requester_aid}` issues a contact token.
 - `POST /v1/data-tokens` — accepts a data-access request and returns a policy decision and, if allowed, a data token.
-- `POST /v1/re-encryptions` — `{token_id, request, encrypted_dek_owner_b64, rekey_b64}` validates and consumes a token before transforming the encrypted DEK.
+- `POST /v1/re-encryptions` — `{token_id, request, rekey_b64}` resolves the trusted stored object,
+  validates provenance, and consumes a token before transforming the encrypted DEK.
 - `GET /v1/audit` — returns audit records; optional `owner_aid`, `requester_aid`, `decision`, and `event_type` query filters are supported.
 
 `GET /healthz` provides a lightweight service-health endpoint.
@@ -128,9 +137,14 @@ cd project
 python -m experiments.e2e.mongodb_e2e
 ```
 
-The E2E persists agent registry state, data policies, contact tokens, data
-tokens, audit events, and encrypted objects in MongoDB. It verifies a normal
-Alice/Bob data-sharing path and a Mallory requester-mismatch denial path.
+The E2E persists agent registry state, data policies, contact tokens, data tokens, audit events,
+and encrypted objects in MongoDB. The CORE-004 rotation test additionally exercises journal-state
+and object-revision compare-and-swap updates:
+
+```powershell
+$env:PRESAGA_MONGODB_URI = "mongodb://127.0.0.1:27017"
+python -m unittest tests.integration.test_mongodb_rotation_cas -v
+```
 
 ## Run the SAGA-to-PRE-SAGA bridge
 

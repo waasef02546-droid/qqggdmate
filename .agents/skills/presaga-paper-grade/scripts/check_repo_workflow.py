@@ -84,8 +84,8 @@ CONTENT_RULES = {
     ),
     "docs/repository/layout.md": (
         "only authoritative PRE-SAGA engineering tree",
-        "Non-canonical root paths",
-        "Safe migration order",
+        "Completed migration",
+        "Deliberately held paths",
     ),
     "docs/repository/archive-manifest.yaml": (
         "destructive_actions: forbidden_without_explicit_user_authorization",

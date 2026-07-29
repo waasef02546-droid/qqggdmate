@@ -13,9 +13,9 @@ This check verifies the `plan.md` stage 2 requirement:
 | `presaga/` main code package | `project/presaga/` | Passed |
 | Unit tests | `project/tests/unit/` | Passed |
 | Integration tests | `project/tests/integration/` | Passed |
-| Test result text | `project/result/terminal_output.txt` | Passed |
-| Test screenshot | `project/result/terminal_screenshot.svg` | Passed |
-| Feasibility note | `project/result/feasibility_note.md` | Passed |
+| Test result text | `project/results/legacy/stage2/terminal_output.txt` | Passed |
+| Test screenshot | `project/results/legacy/stage2/terminal_screenshot.svg` | Passed |
+| Feasibility note | `project/results/legacy/stage2/feasibility_note.md` | Passed |
 
 ## Implemented modules
 

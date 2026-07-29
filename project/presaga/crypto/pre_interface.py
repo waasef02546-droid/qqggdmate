@@ -23,6 +23,10 @@ class PREBackend(Protocol):
     def generate_keypair(self) -> KeyPair:
         ...
 
+    def public_key_from_private(self, private_key: bytes) -> bytes:
+        """Derive the public key so rotation can reject the wrong source key."""
+        ...
+
     def wrap_dek(self, dek: bytes, public_key: bytes, context: bytes) -> bytes:
         ...
 
@@ -33,4 +37,19 @@ class PREBackend(Protocol):
         ...
 
     def transform(self, encrypted_dek: bytes, rekey: bytes) -> bytes:
+        ...
+
+    def rewrap_dek(
+        self,
+        encrypted_dek: bytes,
+        source_private_key: bytes,
+        target_public_key: bytes,
+        source_context: bytes,
+        target_context: bytes,
+    ) -> bytes:
+        """Prototype seam for owner-to-owner rewrap without returning a plaintext DEK.
+
+        The bundled implementations remain insecure control-flow stubs. A real
+        adapter must replace this with an authenticated owner/KMS operation.
+        """
         ...

@@ -104,10 +104,10 @@ def run_saga_bridge(*, output_root: Path = Path("results"), workspace_root: Path
     bob_aid = "bob@mail.com:scheduler_agent"
     mallory_aid = "mallory@mail.com:research_agent"
     for aid, keypair in ((owner_aid, alice), (bob_aid, bob), (mallory_aid, mallory)):
-        app.register_agent(aid, keypair.public_key)
+        app.management.register_agent(aid, keypair.public_key)
     # Both Bob and Mallory may pass the SAGA-style contact gate, matching the
     # multi-agent baseline.  PRE-SAGA must still distinguish their data rights.
-    app.set_contact_rulebook(owner_aid, [{"pattern": "*@mail.com:*_agent", "budget": 3}])
+    app.management.set_contact_rulebook(owner_aid, [{"pattern": "*@mail.com:*_agent", "budget": 3}])
 
     record = DataRecord(
         record_id="calendar-availability-001",
@@ -116,10 +116,10 @@ def run_saga_bridge(*, output_root: Path = Path("results"), workspace_root: Path
         data_subclass="availability",
         version=1,
     )
-    store = EncryptedStore(backend)
-    stored = store.put(record, b"Alice is free from 10:00 to 11:00.", alice.public_key)
+    store = EncryptedStore(backend, app.registry)
+    stored = store.put(record, b"Alice is free from 10:00 to 11:00.")
     now = datetime.now(timezone.utc)
-    app.add_data_policy(
+    app.management.add_data_policy(
         DataSharingPolicy(
             policy_id="bridge-calendar-bob-only",
             owner_aid=owner_aid,
@@ -170,16 +170,22 @@ def _run_case(*, app: PREProviderApp, backend: ToyPRE, store: EncryptedStore, st
         token = issuance.token
         if token is None:
             raise RuntimeError(issuance.decision.reason)
-        rekey = backend.generate_rekey(owner_private_key, requester_public_key, store.context(record))
+        owner_wrap = store.resolve_active_owner_wrap(stored)
+        wrap_context = store.wrap_context(stored.record, owner_wrap.provenance)
+        rekey = backend.generate_rekey(owner_private_key, requester_public_key, wrap_context)
         transform = app.request_re_encryption(
             contact_token=contact,
             token=token,
             request=request,
-            encrypted_dek_owner=stored.encrypted_dek_owner,
+            stored=stored,
             rekey=rekey,
         )
         if transform.decision == "allow" and transform.transformed_encrypted_dek:
-            dek = backend.unwrap_dek(transform.transformed_encrypted_dek, requester_private_key, store.context(record))
+            dek = backend.unwrap_dek(
+                transform.transformed_encrypted_dek,
+                requester_private_key,
+                wrap_context,
+            )
             plaintext_released = store.decrypt_with_dek(stored, dek) == b"Alice is free from 10:00 to 11:00."
     audit_events = app.audit_query()
     return SagaBridgeResult(
