@@ -71,9 +71,12 @@ existing database.
 
 ## Evidence
 
-- Accepted run: `20260729T121720Z-e77ba61e`
+- Accepted run: `20260729T123951Z-23c9fbf1`
+- Clean release-input commit:
+  `6109b3eb6318a9714ee29b65da2340be5a6abcdf`
 - Independent verifier: pass
-- Gates: 7/7 blocking attacks, one active limitation probe, 4/4 tasks, 12
+- Gates: clean release inputs, 7/7 blocking attacks, one active limitation
+  probe, 4/4 tasks, 12
   performance rows, three ProVerif models/four verified queries, two SAGA
   bridge cases, and live Mongo E2E
 - Full regression: 89/89 tests passed with MongoDB 8.3.4

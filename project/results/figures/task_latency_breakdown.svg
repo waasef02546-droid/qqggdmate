@@ -6,15 +6,15 @@
 <text x="24" y="230.0" transform="rotate(-90 24 230.0)" text-anchor="middle" font-family="Arial" font-size="13">Total latency (ms)</text>
 <text x="490.0" y="442" text-anchor="middle" font-family="Arial" font-size="13">Task</text>
 <rect x="98" y="80.00" width="192" height="270.00" fill="#0f766e" rx="4"/>
-<text x="194.0" y="72.00" text-anchor="middle" font-family="Arial" font-size="11">1.117</text>
+<text x="194.0" y="72.00" text-anchor="middle" font-family="Arial" font-size="11">2.678</text>
 <text x="194.0" y="368" transform="rotate(35 194.0 368)" text-anchor="start" font-family="Arial" font-size="10">schedule_meeting</text>
-<rect x="308" y="112.87" width="192" height="237.13" fill="#0f766e" rx="4"/>
-<text x="404.0" y="104.87" text-anchor="middle" font-family="Arial" font-size="11">0.981</text>
+<rect x="308" y="152.49" width="192" height="197.51" fill="#0f766e" rx="4"/>
+<text x="404.0" y="144.49" text-anchor="middle" font-family="Arial" font-size="11">1.959</text>
 <text x="404.0" y="368" transform="rotate(35 404.0 368)" text-anchor="start" font-family="Arial" font-size="10">expense_report</text>
-<rect x="518" y="141.64" width="192" height="208.36" fill="#0f766e" rx="4"/>
-<text x="614.0" y="133.64" text-anchor="middle" font-family="Arial" font-size="11">0.862</text>
+<rect x="518" y="174.17" width="192" height="175.83" fill="#0f766e" rx="4"/>
+<text x="614.0" y="166.17" text-anchor="middle" font-family="Arial" font-size="11">1.744</text>
 <text x="614.0" y="368" transform="rotate(35 614.0 368)" text-anchor="start" font-family="Arial" font-size="10">collaborative_writing</text>
-<rect x="728" y="141.64" width="192" height="208.36" fill="#0f766e" rx="4"/>
-<text x="824.0" y="133.64" text-anchor="middle" font-family="Arial" font-size="11">0.862</text>
+<rect x="728" y="185.96" width="192" height="164.04" fill="#0f766e" rx="4"/>
+<text x="824.0" y="177.96" text-anchor="middle" font-family="Arial" font-size="11">1.627</text>
 <text x="824.0" y="368" transform="rotate(35 824.0 368)" text-anchor="start" font-family="Arial" font-size="10">cross_agent_memory_query</text>
 </svg>

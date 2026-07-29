@@ -3,7 +3,9 @@
 - Work package: `REL-001`
 - Review date: 2026-07-29
 - Outcome: accepted as a paper-evidence control plane for the bounded prototype
-- Authoritative run: `20260729T121720Z-e77ba61e`
+- Authoritative run: `20260729T123951Z-23c9fbf1`
+- Release-input commit:
+  `6109b3eb6318a9714ee29b65da2340be5a6abcdf`
 
 ## What changed
 
@@ -28,6 +30,8 @@ paths instead of the canonical result directory.
 | Staged, gated, manifest-controlled publication | pass | accepted release manifest |
 | Independent verifier accepts current evidence | pass | `RELEASE_VERIFY: PASS` |
 | Verifier rejects modification | pass | release evidence tamper test |
+| Verifier rejects path/gate/artifact/paper-source drift | pass | hardened semantic and source checks |
+| Release inputs are clean and reconstructible | pass | Git commit `6109b3e`; clean-input gate |
 | Real formal and persistence dependencies | pass | ProVerif 2.05; MongoDB 8.3.4 |
 | Focused regression | pass | 22/22 |
 | Full cross-cutting regression | pass | 89/89 with live Mongo |
@@ -58,10 +62,12 @@ Provider “cannot obtain the DEK” is rejected.
 - Mongo normal path and data-policy attack path passed
 - 89/89 repository tests passed with live Mongo
 
-The manifest captures 23 authoritative artifacts. It also records that the
-source tree was dirty at Git HEAD `55b86fbe45c9ddf667001ad9f5f7e0421c466ffb`.
-The combined source fingerprint is authoritative for this run; a clean commit
-is still needed before external artifact distribution.
+The manifest captures 23 authoritative artifacts and 132 release-input files.
+Those inputs were clean at commit
+`6109b3eb6318a9714ee29b65da2340be5a6abcdf`; unrelated workspace materials
+were still present and are recorded separately. The manifest is not signed or
+externally witnessed, so its guarantee is manifest-relative integrity rather
+than malicious publisher authenticity.
 
 ## Independent audit synthesis
 
@@ -71,6 +77,8 @@ and clean-environment reproducibility. Their material findings were addressed:
 - direct policy evaluation and manual audit synthesis were removed from
   publication paths;
 - cross-run task latency consistency is checked;
+- the verifier rejects non-Provider attack paths, missing gates, incomplete
+  artifact inventories, and authoritative-paper/claim drift;
 - ProVerif query text, SAGA evidence paths, Mongo database safety, dependency
   declarations, and test-output isolation are enforced;
 - stale and overbroad paper statements are no longer authoritative;

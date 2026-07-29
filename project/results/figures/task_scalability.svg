@@ -5,31 +5,31 @@
 <line x1="80" y1="350" x2="940" y2="350" stroke="#374151"/>
 <text x="24" y="230.0" transform="rotate(-90 24 230.0)" text-anchor="middle" font-family="Arial" font-size="13">Average latency (ms)</text>
 <text x="490.0" y="442" text-anchor="middle" font-family="Arial" font-size="13">Dimension:value</text>
-<rect x="98" y="91.99" width="75" height="258.01" fill="#0f766e" rx="4"/>
-<text x="135.5" y="83.99" text-anchor="middle" font-family="Arial" font-size="11">0.2368</text>
+<rect x="98" y="150.58" width="75" height="199.42" fill="#0f766e" rx="4"/>
+<text x="135.5" y="142.58" text-anchor="middle" font-family="Arial" font-size="11">0.6058</text>
 <text x="135.5" y="368" transform="rotate(35 135.5 368)" text-anchor="start" font-family="Arial" font-size="10">agent_count:2</text>
-<rect x="191" y="106.37" width="75" height="243.63" fill="#0f766e" rx="4"/>
-<text x="228.5" y="98.37" text-anchor="middle" font-family="Arial" font-size="11">0.2236</text>
+<rect x="191" y="80.00" width="75" height="270.00" fill="#0f766e" rx="4"/>
+<text x="228.5" y="72.00" text-anchor="middle" font-family="Arial" font-size="11">0.8202</text>
 <text x="228.5" y="368" transform="rotate(35 228.5 368)" text-anchor="start" font-family="Arial" font-size="10">agent_count:8</text>
-<rect x="284" y="80.00" width="75" height="270.00" fill="#0f766e" rx="4"/>
-<text x="321.5" y="72.00" text-anchor="middle" font-family="Arial" font-size="11">0.2478</text>
+<rect x="284" y="116.38" width="75" height="233.62" fill="#0f766e" rx="4"/>
+<text x="321.5" y="108.38" text-anchor="middle" font-family="Arial" font-size="11">0.7097</text>
 <text x="321.5" y="368" transform="rotate(35 321.5 368)" text-anchor="start" font-family="Arial" font-size="10">agent_count:32</text>
-<rect x="377" y="187.87" width="75" height="162.13" fill="#0f766e" rx="4"/>
-<text x="414.5" y="179.87" text-anchor="middle" font-family="Arial" font-size="11">0.1488</text>
+<rect x="377" y="168.42" width="75" height="181.58" fill="#0f766e" rx="4"/>
+<text x="414.5" y="160.42" text-anchor="middle" font-family="Arial" font-size="11">0.5516</text>
 <text x="414.5" y="368" transform="rotate(35 414.5 368)" text-anchor="start" font-family="Arial" font-size="10">policy_count:10</text>
-<rect x="470" y="178.39" width="75" height="171.61" fill="#0f766e" rx="4"/>
-<text x="507.5" y="170.39" text-anchor="middle" font-family="Arial" font-size="11">0.1575</text>
+<rect x="470" y="146.30" width="75" height="203.70" fill="#0f766e" rx="4"/>
+<text x="507.5" y="138.30" text-anchor="middle" font-family="Arial" font-size="11">0.6188</text>
 <text x="507.5" y="368" transform="rotate(35 507.5 368)" text-anchor="start" font-family="Arial" font-size="10">policy_count:100</text>
-<rect x="563" y="95.69" width="75" height="254.31" fill="#0f766e" rx="4"/>
-<text x="600.5" y="87.69" text-anchor="middle" font-family="Arial" font-size="11">0.2334</text>
+<rect x="563" y="99.69" width="75" height="250.31" fill="#0f766e" rx="4"/>
+<text x="600.5" y="91.69" text-anchor="middle" font-family="Arial" font-size="11">0.7604</text>
 <text x="600.5" y="368" transform="rotate(35 600.5 368)" text-anchor="start" font-family="Arial" font-size="10">policy_count:500</text>
-<rect x="656" y="160.85" width="75" height="189.15" fill="#0f766e" rx="4"/>
-<text x="693.5" y="152.85" text-anchor="middle" font-family="Arial" font-size="11">0.1736</text>
+<rect x="656" y="155.05" width="75" height="194.95" fill="#0f766e" rx="4"/>
+<text x="693.5" y="147.05" text-anchor="middle" font-family="Arial" font-size="11">0.5922</text>
 <text x="693.5" y="368" transform="rotate(35 693.5 368)" text-anchor="start" font-family="Arial" font-size="10">record_count:10</text>
-<rect x="749" y="197.02" width="75" height="152.98" fill="#0f766e" rx="4"/>
-<text x="786.5" y="189.02" text-anchor="middle" font-family="Arial" font-size="11">0.1404</text>
+<rect x="749" y="144.98" width="75" height="205.02" fill="#0f766e" rx="4"/>
+<text x="786.5" y="136.98" text-anchor="middle" font-family="Arial" font-size="11">0.6228</text>
 <text x="786.5" y="368" transform="rotate(35 786.5 368)" text-anchor="start" font-family="Arial" font-size="10">record_count:100</text>
-<rect x="842" y="138.40" width="75" height="211.60" fill="#0f766e" rx="4"/>
-<text x="879.5" y="130.40" text-anchor="middle" font-family="Arial" font-size="11">0.1942</text>
+<rect x="842" y="150.15" width="75" height="199.85" fill="#0f766e" rx="4"/>
+<text x="879.5" y="142.15" text-anchor="middle" font-family="Arial" font-size="11">0.6071</text>
 <text x="879.5" y="368" transform="rotate(35 879.5 368)" text-anchor="start" font-family="Arial" font-size="10">record_count:500</text>
 </svg>

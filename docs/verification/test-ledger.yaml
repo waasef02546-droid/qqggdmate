@@ -853,3 +853,46 @@ entries:
       - docs/verification/reviews/REL-001-release-acceptance.md
     rerun_reason: "One full regression is required because domain audit ownership and the unified experiment entry point are cross-cutting."
     notes: "Independent release verification passed and all 89 discovered tests passed with live Mongo; no skips. This is the only full-suite run for the final REL-001 code state."
+  - id: REL-001-VERIFIER-HARDENING
+    work_package: REL-001
+    target: release_path_gate_artifact_completeness_and_paper_source_binding
+    command: "python -m py_compile experiments/release.py experiments/release_verifier.py tests/security/test_release_evidence.py; python -m unittest tests.security.test_release_evidence tests.security.test_traceability -v"
+    relevant_code_state: "independent-audit corrections: exact gate/artifact sets, Provider path enforcement, clean release inputs, and paper/claim source fingerprinting"
+    configuration: "synthetic complete release fixture plus current traceability matrix"
+    environment: "Windows, project directory, Python 3.12"
+    result: "pass"
+    evidence:
+      - project/experiments/release_verifier.py
+      - project/tests/security/test_release_evidence.py
+      - project/docs/traceability_matrix.md
+    rerun_reason: "Targeted verification after the three final read-only audits found a missing explicit Provider path gate and paper-source drift detection."
+    notes: "5/5 targeted checks passed. The full 89-test regression was not repeated because no Provider, storage, protocol, crypto, or task behavior changed after that regression."
+  - id: REL-001-SOURCE-BASELINE
+    work_package: REL-001
+    target: reconstructible_release_inputs
+    command: "git commit -m 'feat: establish authoritative PRE-SAGA evidence release'"
+    relevant_code_state: "all SOURCE_PATHS inputs, authoritative paper, claims, traceability, configuration, tests, and release tooling"
+    configuration: "branch codex/rel-001-authoritative-release"
+    environment: "local Git repository"
+    result: "pass"
+    evidence:
+      - project/experiments/release.py
+      - project/experiments/release_verifier.py
+      - paper/pre_saga_paper.md
+      - docs/claims-evidence-matrix.md
+    rerun_reason: "First clean, reconstructible Git baseline after REL-001 implementation and focused verification."
+    notes: "Release inputs committed at 6109b3eb6318a9714ee29b65da2340be5a6abcdf. Unrelated user/frontend/history files remained preserved outside the release-input set."
+  - id: REL-001-RELEASE-PASS-2
+    work_package: REL-001
+    target: final_clean_input_authoritative_release
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018; python scripts/verify_release.py"
+    relevant_code_state: "clean release inputs at commit 6109b3eb6318a9714ee29b65da2340be5a6abcdf; source fingerprint fc8c5a40159d622cca1830dc0f25582d2f76a32a4e146e7f19fbefc80e8af195"
+    configuration: "full release profile with exact gate/artifact inventory and authoritative paper/claim inputs"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/results/release-manifest.json
+      - project/results/reproducibility/release_report.md
+      - docs/verification/reviews/REL-001-release-acceptance.md
+    rerun_reason: "Required regeneration after strengthening release semantics and creating a clean input commit; the prior manifest no longer matched the expanded source fingerprint."
+    notes: "Run 20260729T123951Z-23c9fbf1 passed all eight gates, including release_inputs_clean, and the independent verifier accepted all 23 authoritative artifacts and 132 source inputs."

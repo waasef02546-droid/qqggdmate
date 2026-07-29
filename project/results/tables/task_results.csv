@@ -1,5 +1,5 @@
-task,success,reason,latency_ms,plaintext,audit_events,contact_ms,policy_ms,token_issue_ms,pre_transform_ms,decrypt_ms
-schedule_meeting,True,task_completed,1.347,"{""availability"": ""Alice is free from 10:00 to 11:00.""}",1,0.178,0.012,0.069,0.089,0.079
-expense_report,True,task_completed,1.162,"{""receipt_summary"": ""Taxi receipt total 42.50 USD.""}",1,0.195,0.006,0.049,0.074,0.039
-collaborative_writing,True,task_completed,0.952,"{""outline"": ""Draft outline for joint report.""}",1,0.176,0.005,0.05,0.078,0.034
-cross_agent_memory_query,True,task_completed,0.934,"{""summary"": ""Alice prefers morning meetings.""}",1,0.188,0.005,0.048,0.077,0.032
+task,success,reason,latency_ms,plaintext,audit_events,contact_ms,authorization_ms,pre_transform_ms,decrypt_ms
+schedule_meeting,True,task_completed,2.678,"{""availability"": ""Alice is free from 10:00 to 11:00.""}",2,0.141,0.239,0.267,1.036
+expense_report,True,task_completed,1.959,"{""receipt_summary"": ""Taxi receipt total 42.50 USD.""}",2,0.259,0.227,0.258,0.062
+collaborative_writing,True,task_completed,1.744,"{""outline"": ""Draft outline for joint report.""}",2,0.25,0.22,0.265,0.05
+cross_agent_memory_query,True,task_completed,1.627,"{""summary"": ""Alice prefers morning meetings.""}",2,0.236,0.226,0.255,0.047

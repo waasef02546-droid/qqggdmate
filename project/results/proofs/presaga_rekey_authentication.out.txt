@@ -2,6 +2,8 @@ status=passed
 tool=D:\Users\New project 1\tools\proverif2.05\proverif.exe
 proof=presaga_rekey_authentication.pv
 return_code=0
+verified_queries=1
+expected_queries=1
 architecture_contribution=Connects requester/purpose/record/version binding to P2 stale-rekey and mismatch attacks.
 
 [stdout]

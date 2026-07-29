@@ -1,0 +1,17 @@
+schema_version: 1
+profile: full
+performance:
+  iterations: 50
+  policy_rule_counts:
+    - 10
+    - 100
+    - 1000
+task_scalability:
+  iterations: 20
+required:
+  blocking_attacks: 7
+  limitation_probes: 1
+  successful_tasks: 4
+  proverif_models: 3
+  saga_bridge_cases: 2
+  mongodb_e2e: true

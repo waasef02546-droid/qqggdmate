@@ -2,6 +2,8 @@ status=passed
 tool=D:\Users\New project 1\tools\proverif2.05\proverif.exe
 proof=presaga_dek_secrecy.pv
 return_code=0
+verified_queries=2
+expected_queries=2
 architecture_contribution=Connects PRE transform design to provider_plaintext_probe and P3 latency visibility boundaries.
 
 [stdout]

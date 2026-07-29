@@ -13,12 +13,12 @@ Alice stores encrypted calendar availability in MongoDB. Bob obtains contact aut
 - provider_plaintext_dek_visible: `False`
 - persisted_agents: `3`
 - persisted_policies: `1`
-- persisted_contact_tokens: `1`
+- persisted_contact_tokens: `2`
 - persisted_data_tokens: `1`
-- persisted_audit_events: `2`
+- persisted_audit_events: `3`
 - persisted_encrypted_objects: `1`
-- latency_ms: `16.092`
+- latency_ms: `296.48`
 
 ## Architecture impact
 
-This E2E supplements the in-memory prototype with persistent Provider and encrypted-object state. It does not yet reproduce the full SAGA mTLS/OTK/ACT runtime, but it closes part of the engineering gap by exercising registry, policy, token, encrypted storage, PRE transform, decryption, attack denial, and audit persistence in one MongoDB-backed flow.
+This E2E drives registry, policy, token, encrypted storage, PRE transform, decryption, attack denial, and audit persistence through the recoverable ProviderService with MongoDB as its authoritative backend. It no longer relies on experiment-side manual save calls. Aggregate metadata CAS and per-object CAS remain separate atomicity domains, and the flow does not reproduce SAGA mTLS/OTK/ACT or claim distributed transactions.

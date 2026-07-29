@@ -1,4 +1,4 @@
-proof,status,return_code,output_path,contribution
-presaga_token_secrecy.pv,passed,0,results/proofs/presaga_token_secrecy.out.txt,Connects P1 ContactToken/DataToken layering to P2 token misuse attacks.
-presaga_dek_secrecy.pv,passed,0,results/proofs/presaga_dek_secrecy.out.txt,Connects PRE transform design to provider_plaintext_probe and P3 latency visibility boundaries.
-presaga_rekey_authentication.pv,passed,0,results/proofs/presaga_rekey_authentication.out.txt,Connects requester/purpose/record/version binding to P2 stale-rekey and mismatch attacks.
+proof,status,return_code,verified_queries,output_path,contribution
+presaga_token_secrecy.pv,passed,0,1,presaga_token_secrecy.out.txt,Connects P1 ContactToken/DataToken layering to P2 token misuse attacks.
+presaga_dek_secrecy.pv,passed,0,2,presaga_dek_secrecy.out.txt,Connects PRE transform design to provider_plaintext_probe and P3 latency visibility boundaries.
+presaga_rekey_authentication.pv,passed,0,1,presaga_rekey_authentication.out.txt,Connects requester/purpose/record/version binding to P2 stale-rekey and mismatch attacks.

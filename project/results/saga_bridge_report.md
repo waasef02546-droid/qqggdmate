@@ -10,7 +10,7 @@ The listed baseline paths are recorded terminal outputs for SAGA Provider access
 
 ### alice_bob_authorized_calendar
 
-- SAGA baseline evidence: `D:\Users\New project 1\saga_reproduction\saga_e2e_terminal_output.txt`
+- SAGA baseline evidence: `saga_reproduction/saga_e2e_terminal_output.txt`
 - Baseline conclusion: Alice and Bob completed certificate-verified contact, token issuance, quota consumption, and token invalidation.
 - SAGA contact allowed: `True`
 - PRE-SAGA data decision: `allow` (policy_match)
@@ -19,7 +19,7 @@ The listed baseline paths are recorded terminal outputs for SAGA Provider access
 
 ### alice_mallory_contact_allowed_data_denied
 
-- SAGA baseline evidence: `D:\Users\New project 1\saga_reproduction\saga_multi_agent_terminal_output.txt`
+- SAGA baseline evidence: `saga_reproduction/saga_multi_agent_terminal_output.txt`
 - Baseline conclusion: Alice accepted separately authorized Bob and Mallory contact sessions; both consumed and invalidated SAGA tokens.
 - SAGA contact allowed: `True`
 - PRE-SAGA data decision: `deny` (requester_mismatch)

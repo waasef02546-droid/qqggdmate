@@ -1,0 +1,282 @@
+{
+  "schema_version": 1,
+  "status": "accepted",
+  "run_id": "20260729T123951Z-23c9fbf1",
+  "created_at_utc": "2026-07-29T12:39:53.031960+00:00",
+  "profile": "full",
+  "source": {
+    "fingerprint_sha256": "fc8c5a40159d622cca1830dc0f25582d2f76a32a4e146e7f19fbefc80e8af195",
+    "file_count": 132
+  },
+  "git": {
+    "head": "6109b3eb6318a9714ee29b65da2340be5a6abcdf",
+    "dirty": false,
+    "release_inputs_dirty": false,
+    "release_inputs_status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "workspace_dirty": true,
+    "workspace_status_sha256": "d56be047e1e3f9b3f326f523e21b19310949694be82640254501b56adf6d638b"
+  },
+  "config": {
+    "source_path": "project/configs/release.yaml",
+    "sha256": "f38acefbd46de58adbdae84d0e0cbd6e23acae92f60510b895ccf596dfdbce56",
+    "values": {
+      "schema_version": 1,
+      "profile": "full",
+      "performance": {
+        "iterations": 50,
+        "policy_rule_counts": [
+          10,
+          100,
+          1000
+        ]
+      },
+      "task_scalability": {
+        "iterations": 20
+      },
+      "required": {
+        "blocking_attacks": 7,
+        "limitation_probes": 1,
+        "successful_tasks": 4,
+        "proverif_models": 3,
+        "saga_bridge_cases": 2,
+        "mongodb_e2e": true
+      }
+    }
+  },
+  "environment": {
+    "python": "3.12.0",
+    "python_executable": "D:\\MINE\\python.exe",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "dependencies": {
+      "cryptography": "49.0.0",
+      "pymongo": "4.17.0",
+      "PyYAML": "6.0.3"
+    },
+    "proverif": {
+      "available": true,
+      "path": "tools/proverif2.05/proverif.exe",
+      "sha256": "702273912616a46919d5a2ecd0c5465cffdea9ff66296171d44d01d1700b8894",
+      "version_output": "D:\\Users\\New project 1\\tools\\proverif2.05\\proverif.exe: unknown option '-version'.\nProverif 2.05. Cryptographic protocol verifier, by Bruno Blanchet, Vincent Cheval, and Marc Sylvestre\n  -test \t\tdisplay a bit more information for debugging\n  -in <format> \t\tchoose the input format (horn, horntype, spass, pi, pitype)\n  -out <format> \tchoose the output format (solve, spass)\n  -o <filename> \tchoose the output file name (for spass output)\n  -lib <filename> \tchoose the library file (for pitype front-e"
+    },
+    "mongodb": {
+      "available": true,
+      "version": "8.3.4"
+    }
+  },
+  "stages": [
+    {
+      "name": "attacks",
+      "status": "passed",
+      "duration_ms": 20.399
+    },
+    {
+      "name": "tasks",
+      "status": "passed",
+      "duration_ms": 9.284
+    },
+    {
+      "name": "performance",
+      "status": "passed",
+      "duration_ms": 255.974
+    },
+    {
+      "name": "task_evaluation",
+      "status": "passed",
+      "duration_ms": 266.41
+    },
+    {
+      "name": "proverif",
+      "status": "passed",
+      "duration_ms": 187.295
+    },
+    {
+      "name": "saga_bridge",
+      "status": "passed",
+      "duration_ms": 4.225
+    },
+    {
+      "name": "mongodb_e2e",
+      "status": "passed",
+      "duration_ms": 301.807
+    }
+  ],
+  "gates": [
+    {
+      "name": "blocking_attacks",
+      "passed": true,
+      "observation": "7/7"
+    },
+    {
+      "name": "prototype_limitation_probe",
+      "passed": true,
+      "observation": "1 active probe(s)"
+    },
+    {
+      "name": "task_success",
+      "passed": true,
+      "observation": "4/4"
+    },
+    {
+      "name": "performance_rows",
+      "passed": true,
+      "observation": "12/12"
+    },
+    {
+      "name": "proverif_queries",
+      "passed": true,
+      "observation": "presaga_token_secrecy.pv:passed:1,presaga_dek_secrecy.pv:passed:2,presaga_rekey_authentication.pv:passed:1"
+    },
+    {
+      "name": "saga_bridge",
+      "passed": true,
+      "observation": "2 case(s)"
+    },
+    {
+      "name": "mongodb_e2e",
+      "passed": true,
+      "observation": "required"
+    },
+    {
+      "name": "release_inputs_clean",
+      "passed": true,
+      "observation": "clean"
+    }
+  ],
+  "limitations": [
+    "ToyPRE and HPKEKEMStub are deterministic prototype backends, not production cryptography.",
+    "The active limitation probe recovers the ToyPRE DEK from public material; cryptographic Provider confidentiality is not established.",
+    "Provider plaintext visibility booleans are control-flow instrumentation, not a confidentiality proof.",
+    "The SAGA bridge consumes recorded SAGA evidence and does not run a live SAGA network.",
+    "MongoDB evidence is single-node local persistence and does not establish distributed transactions, RAFT, or sharding.",
+    "ProVerif models cover their explicit symbolic queries only and do not verify the complete Python implementation.",
+    "Artifact integrity is checked relative to the manifest; the manifest is not cryptographically signed or externally witnessed."
+  ],
+  "artifacts": [
+    {
+      "path": "figures/latency_breakdown.svg",
+      "sha256": "f99a4a0fe3a64f852ba64062bd9cdb26dab4c97ce733bd26c90dbc7a41c7b813",
+      "bytes": 1484
+    },
+    {
+      "path": "figures/scalability_policy_rules.svg",
+      "sha256": "dbdbfe8e2c134ce489dbc536d15f3c6157ea5d61d51604b177eb461358c90b68",
+      "bytes": 1442
+    },
+    {
+      "path": "figures/task_latency_breakdown.svg",
+      "sha256": "bf371cbf865ca41dffce2e9256d9a70301a1d599ce46f43ccda18fb7e1b8e027",
+      "bytes": 1878
+    },
+    {
+      "path": "figures/task_scalability.svg",
+      "sha256": "1b858fc9010a268bcc217bfeeaab02936fe07f82e51edb5bdb29d05b14b27536",
+      "bytes": 3426
+    },
+    {
+      "path": "mongodb_e2e_report.md",
+      "sha256": "046f4ed96d525813c8df174771ff4ead1134c07a95ab1fbd59df313d2a06c81d",
+      "bytes": 1202
+    },
+    {
+      "path": "proofs/presaga_dek_secrecy.out.txt",
+      "sha256": "7754b53fd1a76fdac308d459a6e9db5b3af965c72a918e6be827113b27dbf6a4",
+      "bytes": 2450
+    },
+    {
+      "path": "proofs/presaga_rekey_authentication.out.txt",
+      "sha256": "53252c8813e7f4d7ff59f771e61a0ad19e9a4e6099b7a3a81e8bc0c76763e7d2",
+      "bytes": 5134
+    },
+    {
+      "path": "proofs/presaga_token_secrecy.out.txt",
+      "sha256": "b33cfe3cc7f444ef6ded7bbd5636b6ea2a22f7d786921b950a485335132b40be",
+      "bytes": 4793
+    },
+    {
+      "path": "proofs/proverif_report.md",
+      "sha256": "e7f1f4e0c0911a34d17af6a117725d6cefe0cbc14c048f0c840025db9827d8e3",
+      "bytes": 1283
+    },
+    {
+      "path": "proofs/proverif_summary.csv",
+      "sha256": "432116b649d2da74a6b547a3786bd8f837792eeb06f60aa19b38b4c245f27754",
+      "bytes": 537,
+      "row_count": 3
+    },
+    {
+      "path": "reproducibility/release_config.yaml",
+      "sha256": "f38acefbd46de58adbdae84d0e0cbd6e23acae92f60510b895ccf596dfdbce56",
+      "bytes": 290
+    },
+    {
+      "path": "reproducibility/release_report.md",
+      "sha256": "0b1901c515b00dcc0d9f9f4ec1815bb3ad432d636eab35f54b75d4b4d7e7b437",
+      "bytes": 1902
+    },
+    {
+      "path": "saga_bridge_report.md",
+      "sha256": "3c21db3dc41ad2f01e42b6198cf90f34d3cf24ceb14e7c757a5dd69efd3936b9",
+      "bytes": 1856
+    },
+    {
+      "path": "tables/denial_reason_summary.csv",
+      "sha256": "e8b9ad31aa381c95e478bfe3bdaee0c6be4fa1fdd351a2f69c191d026bc6334e",
+      "bytes": 375,
+      "row_count": 7
+    },
+    {
+      "path": "tables/mongodb_e2e_summary.csv",
+      "sha256": "1e569b0a99d3ca38c369a90fb3eb6a5aab3d4f337d9cc9511118df2232740ffe",
+      "bytes": 429,
+      "row_count": 1
+    },
+    {
+      "path": "tables/performance.csv",
+      "sha256": "2615fe8ace9c0b0bfa7da9c75dbb5ad528675b6d7b89ca11578e822d4d781658",
+      "bytes": 1743,
+      "row_count": 12
+    },
+    {
+      "path": "tables/saga_bridge_summary.csv",
+      "sha256": "14926a94e15a36c7eebc735976907e26ccdbaf858d6ccd331dd1da585d97a768",
+      "bytes": 704,
+      "row_count": 2
+    },
+    {
+      "path": "tables/scalability_policy_rules.csv",
+      "sha256": "65aea3ad2626a7388da2a0a6ea2178b76c3536d477ce710e9b7edbc2d3f239ae",
+      "bytes": 603,
+      "row_count": 3
+    },
+    {
+      "path": "tables/security_matrix.csv",
+      "sha256": "8e77cce5a1ed235ed12c7998d276f9f65a07ec4d5b391dbe606165f1a8d201f0",
+      "bytes": 2274,
+      "row_count": 8
+    },
+    {
+      "path": "tables/task_latency_breakdown.csv",
+      "sha256": "97c7a3f329c4b7466bbe27a0179a5822acd7ee8dbc7241625882e669c269bd42",
+      "bytes": 279,
+      "row_count": 4
+    },
+    {
+      "path": "tables/task_results.csv",
+      "sha256": "3380821a7822ff3aa8aa5b5689c33b9e9e8c8ef33bd6f56173a06c75828597ef",
+      "bytes": 625,
+      "row_count": 4
+    },
+    {
+      "path": "tables/task_scalability.csv",
+      "sha256": "49fa5774dffe9dc2bf8e223dbf457f8bd2a6b986af8f7f7479e99bc97820e585",
+      "bytes": 525,
+      "row_count": 9
+    },
+    {
+      "path": "tables/task_summary.csv",
+      "sha256": "f06308e574c371bb913ef8123451169551209b0a4dbcbd4ab6b5de8cf34a6a8e",
+      "bytes": 110,
+      "row_count": 5
+    }
+  ]
+}

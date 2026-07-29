@@ -84,12 +84,16 @@
   audit identifier for allow and policy-deny decisions.
 - Publication-facing attacks, tasks, full-service performance/scalability, and
   the SAGA bridge cross `ProviderService`; modeled microbenchmarks are labeled.
-- Accepted release: `20260729T121720Z-e77ba61e`.
+- Accepted release: `20260729T123951Z-23c9fbf1`.
+- Clean release-input commit:
+  `6109b3eb6318a9714ee29b65da2340be5a6abcdf`.
 - Source fingerprint:
-  `1b5a64e3c8abaf27e3d5156309ba638c3f5312bcc08a25adde361a4d8f3c5fc1`.
+  `fc8c5a40159d622cca1830dc0f25582d2f76a32a4e146e7f19fbefc80e8af195`.
 - Release gates: 7/7 blocking attacks, 1/1 active ToyPRE limitation probe, 4/4
   tasks, 12/12 performance rows, 3/3 ProVerif models with four verified
   queries, 2/2 SAGA bridge cases, and live Mongo E2E.
+- Release-input cleanliness gate: pass; unrelated workspace materials remain
+  outside the release input set and are recorded separately.
 - Independent release verifier: pass.
 - Focused verification: 22/22.
 - Full regression with MongoDB 8.3.4: 89/89, no skips.
