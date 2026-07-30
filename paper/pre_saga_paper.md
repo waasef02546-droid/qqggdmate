@@ -168,9 +168,10 @@ policy-only 和 contact-only 测量保留为显式 microbenchmark/modeled baseli
 
 权威运行 ID、来源指纹和环境由当前
 `project/results/release-manifest.json` 指定。性能配置为 10、100、1000 条策略，
-每种 50 次；任务扩展性每个点 20 次。发布时源树为 dirty 状态，但记录了 Git HEAD、
-状态摘要哈希和 128 个输入文件的组合 fingerprint。该事实降低了外部复现的便利性，
-但没有被隐藏。
+每种 50 次；任务扩展性每个点 20 次。权威 manifest 要求声明的 release inputs
+相对当前 Git HEAD 保持 clean，并记录这些输入文件的组合 fingerprint；工作区中
+不属于 release source set 的历史资料可以继续存在，但其状态摘要会被单独记录。
+具体 Git HEAD、输入文件数与 fingerprint 以同一 manifest 为准。
 
 ### 5.2 攻击
 

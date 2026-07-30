@@ -42,6 +42,8 @@
 
 ## Submission stop condition
 
-Do not submit while concrete Provider confidentiality is unsupported or while
-the only authoritative run records a dirty source tree. Passing prototype
-tests and ProVerif abstract models is not a substitute for those conditions.
+Do not submit before the exact concrete dependency and adapter receive
+independent review, a second-host clean-checkout reproduction is recorded, and
+the selected venue's artifact and licensing requirements are satisfied.
+Passing prototype tests, one clean local release, and ProVerif abstract models
+is not a substitute for those conditions.
