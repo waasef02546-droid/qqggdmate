@@ -11,6 +11,10 @@ from dataclasses import dataclass
 from typing import Protocol
 
 
+class PREBackendError(Exception):
+    """Stable base exception for PRE backend failures."""
+
+
 @dataclass(frozen=True)
 class KeyPair:
     public_key: bytes
@@ -36,7 +40,15 @@ class PREBackend(Protocol):
     def generate_rekey(self, owner_private_key: bytes, requester_public_key: bytes, context: bytes) -> bytes:
         ...
 
-    def transform(self, encrypted_dek: bytes, rekey: bytes) -> bytes:
+    def transform(
+        self,
+        encrypted_dek: bytes,
+        rekey: bytes,
+        *,
+        context: bytes | None = None,
+        requester_public_key: bytes | None = None,
+    ) -> bytes:
+        """Transform a wrapped DEK under server-supplied binding inputs."""
         ...
 
     def rewrap_dek(

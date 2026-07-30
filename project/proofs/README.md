@@ -45,4 +45,5 @@ The model does not cover:
 - plaintext leakage after legitimate requester decryption;
 - metadata privacy against Provider;
 - implementation memory safety;
-- security of the toy PRE backend.
+- concrete security of `nucypher-core`, the Umbral adapter, or the retained
+  toy/stub fixtures.

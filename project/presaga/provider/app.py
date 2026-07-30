@@ -174,7 +174,7 @@ class PREProviderApp:
         management_principal_id: str = "local-trusted-manager",
     ):
         self.backend = backend
-        self._registry = AgentRegistry()
+        self._registry = AgentRegistry(key_algorithm=backend.name)
         self.audit = AuditLogger()
         self.saga_adapter = SagaCompatibleAdapter(issuer_secret)
         self.token_service = TokenService(issuer_secret, self._registry)

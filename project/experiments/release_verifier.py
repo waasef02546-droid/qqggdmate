@@ -21,16 +21,21 @@ SOURCE_PATHS = (
     "project/scripts",
     "project/tests",
     "project/pyproject.toml",
+    "project/README.md",
     "project/docs/traceability_matrix.md",
+    "docs/adr/0008-concrete-umbral-pre-backend.md",
     "docs/claims-evidence-matrix.md",
     "paper/README.md",
     "paper/pre_saga_paper.md",
+    "paper/protocol_spec.md",
+    "paper/submission_checklist.md",
     "saga_reproduction/saga_e2e_terminal_output.txt",
     "saga_reproduction/saga_multi_agent_terminal_output.txt",
 )
 EXPECTED_GATES = {
     "blocking_attacks",
     "prototype_limitation_probe",
+    "concrete_provider_recovery_probe",
     "task_success",
     "performance_rows",
     "proverif_queries",
@@ -220,6 +225,20 @@ def _verify_semantics(
     errors: list[str],
 ) -> None:
     required = manifest.get("config", {}).get("values", {}).get("required", {})
+    environment = manifest.get("environment", {})
+    dependencies = environment.get("dependencies", {})
+    backend = environment.get("crypto_backend", {})
+    if dependencies.get("nucypher-core") != "0.15.0":
+        errors.append("crypto_dependency_version_mismatch")
+    if backend != {
+        "name": "umbral-pre-v1",
+        "dependency_distribution": "nucypher-core",
+        "dependency_version": "0.15.0",
+        "adapter_format_version": 1,
+        "threshold": 1,
+        "shares": 1,
+    }:
+        errors.append("crypto_backend_profile_mismatch")
 
     attacks = _read_csv(release_root, "tables/security_matrix.csv", errors)
     blocking = [row for row in attacks if _as_bool(row.get("expected_blocked"))]
@@ -238,11 +257,21 @@ def _verify_semantics(
     if not all(
         not _as_bool(row.get("blocked"))
         and _as_bool(row.get("success"))
-        and row.get("path_kind") == "provider_service_with_toy_pre"
-        and row.get("reason") == "toy_backend_public_material_recovers_dek"
         for row in limitations
     ):
         errors.append("limitation_probe_semantics_failed")
+    provider_recovery = [
+        row
+        for row in attacks
+        if row.get("attack") == "provider_plaintext_probe"
+        and _as_bool(row.get("expected_blocked"))
+        and _as_bool(row.get("blocked"))
+        and _as_bool(row.get("success"))
+        and row.get("path_kind") == "provider_service"
+        and row.get("reason") == "provider_public_material_recovery_blocked"
+    ]
+    if len(provider_recovery) != 1:
+        errors.append("concrete_provider_recovery_probe_failed")
 
     tasks = _read_csv(release_root, "tables/task_results.csv", errors)
     if len(tasks) != required.get("successful_tasks") or not all(
@@ -284,7 +313,7 @@ def _verify_semantics(
         and row.get("path_kind") == "provider_service"
     ]
     if len(service_rows) != len(rule_counts) or not all(
-        not _as_bool(row.get("cryptographic_provider_confidentiality_established"))
+        _as_bool(row.get("cryptographic_provider_confidentiality_established"))
         for row in service_rows
     ):
         errors.append("performance_provider_boundary_mismatch")

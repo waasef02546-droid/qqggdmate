@@ -7,16 +7,19 @@
 - [x] Attack, task, performance, formal, SAGA bridge, and Mongo artifacts share
   one manifest and source fingerprint.
 - [x] ProVerif output is checked by query result, not only exit code.
-- [x] The ToyPRE public-material DEK recovery limitation is stated in the
-  abstract, threat boundary, results, and conclusion.
-- [x] Live-Mongo full regression passes (89/89).
+- [x] ToyPRE public-material recovery remains an explicit defect fixture and
+  no publication-facing path selects it.
+- [x] A concrete versioned Umbral backend verifies KFrags/CFrags and blocks the
+  active data-plane public-material recovery probe while requester decryption
+  succeeds.
+- [x] Live-Mongo full regression passes (101/101).
 - [x] The authoritative manuscript and historical planning drafts are clearly
   separated.
 
 ## Required before submission
 
-- [ ] Replace ToyPRE/HPKE stubs with a reviewed concrete backend and make the
-  active recovery probe fail for a cryptographic reason.
+- [ ] Obtain independent review of the exact `nucypher-core==0.15.0` dependency
+  and adapter; current integration is concrete but not independently audited.
 - [ ] Run clean-checkout reproduction on another host and record setup time,
   failures, dependency lock, and artifact comparison.
 - [ ] Add fair external baselines; current contact-only/plaintext paths are
@@ -42,4 +45,3 @@
 Do not submit while concrete Provider confidentiality is unsupported or while
 the only authoritative run records a dirty source tree. Passing prototype
 tests and ProVerif abstract models is not a substitute for those conditions.
-

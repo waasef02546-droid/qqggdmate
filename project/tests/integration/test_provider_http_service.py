@@ -140,7 +140,7 @@ class ProviderHttpServiceTest(unittest.TestCase):
         self.assertEqual(1, issued["data_token"]["owner_registration_version"])
         self.assertTrue(issued["data_token"]["owner_registration_id"].startswith("areg-"))
         self.assertEqual(
-            "prototype-pre-public-key",
+            "hpke-kem-stub",
             issued["data_token"]["owner_key_algorithm"],
         )
         self.assertEqual(64, len(issued["data_token"]["owner_public_key_fingerprint"]))

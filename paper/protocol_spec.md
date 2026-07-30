@@ -174,7 +174,7 @@ metadata:
 ciphertext_ref: "store://alice/calendar/cal-2026-07-15-001.ct"
 encrypted_dek_ref: "store://alice/calendar/cal-2026-07-15-001.edek"
 dek_alg: "AES-256-GCM"
-envelope_alg: "HPKE-or-PRE-adapter"
+envelope_alg: "umbral-pre-v1"
 ```
 
 Required fields:
@@ -235,27 +235,33 @@ context_i = H(owner_aid || record_id || data_class || version || dek_alg)
 Provider / PRE Proxy uses a transform context:
 
 ```text
-RK_o_to_r_i = PREKeyGen(sk_o or delegated material, pk_r, policy_context)
+RK_o_to_r_i = UmbralKFrag(sk_o, pk_r, signer, threshold=1, shares=1)
 ```
 
 For implementation modularity, PRE-SAGA treats this as an abstract backend interface:
 
 ```text
-Transform(EDEK_o_i, rk_or_context, policy_context) -> EDEK_r_i
+Transform(EDEK_o_i, signed_kfrag, owner_wrap_context, trusted_pk_r) -> EDEK_r_i
 ```
 
-The backend may be:
-
-- toy PRE for tests;
-- HPKE/KEM wrapping adapter;
-- real PRE library adapter;
-- server-mediated envelope conversion baseline.
+The authoritative release backend is `umbral-pre-v1`, implemented over
+`nucypher-core==0.15.0`. ToyPRE and HPKE/KEM-like stubs are permitted only as
+explicit defect/protocol fixtures and must not appear in publication-facing
+experiments or the default service.
 
 The protocol requires the interface to preserve the following boundary:
 
 ```text
-Provider/PRE Proxy does not output or observe plaintext DEK_i.
+The data-plane Provider/PRE Proxy does not receive either private key or
+plaintext DEK_i and returns only a verified CFrag envelope.
 ```
+
+The adapter embeds the exact owner-wrap context digest inside the encrypted
+MessageKit plaintext and repeats its suite, version, kind, owner key, and
+requester key bindings in fail-closed outer envelopes. Invalid crypto material
+is rejected before token consumption. The KFrag is still owner/requester
+key-pair scoped rather than record/purpose/token scoped; Provider/requester
+collusion with a retained fragment is outside this property.
 
 ## 5. Data Sharing Policy Schema
 

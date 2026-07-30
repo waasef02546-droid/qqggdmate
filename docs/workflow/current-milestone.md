@@ -2,129 +2,141 @@
 
 ## Active work package
 
-- ID: `REL-001`
-- Title: Authoritative experiment provenance and paper-grade release gate
-- State: `accepted`
-- Authorization date: `2026-07-29`
-- Objective: make the published PRE-SAGA experiment tables, figures, formal outputs, SAGA bridge,
-  and Mongo E2E traceable to one current source state and one authoritative Provider decision path,
-  then verify them with a tamper-evident release manifest.
-- Authorized scope:
-  - move data-token issuance audit ownership into the authoritative Provider domain path;
-  - remove experiment-only policy decisions and duplicate policy evaluation from PRE-SAGA flows;
-  - add a staged release runner and independent manifest verifier;
-  - execute fresh attack, task, performance, formal, bridge, and live-Mongo evidence;
-  - synchronize traceability, claims, paper results, limitations, and reproducibility guidance.
+- ID: `CRYPTO-001`
+- Title: Concrete Umbral PRE backend and malicious-Provider recovery gate
+- State: `release_input_ready`
+- Authorization date: `2026-07-31`
+- Objective: replace publication-facing ToyPRE/HPKE stubs with a concrete Umbral proxy
+  re-encryption adapter, preserve the existing server-enforced authorization chain, and require
+  the data-plane Provider recovery probe to fail while the intended requester still decrypts.
 - Primary implementation paths:
-  - `project/presaga/provider/app.py`
-  - `project/presaga/provider/server.py`
+  - `project/presaga/crypto/`
+  - `project/presaga/provider/`
   - `project/experiments/`
-  - `project/scripts/`
-  - `project/results/`
+  - `project/tests/`
+  - `project/proofs/`
   - `project/docs/traceability_matrix.md`
+  - `docs/claims-evidence-matrix.md`
   - `paper/`
-- Non-goals: production PRE/HPKE; RAFT, sharding, or multi-Provider linearizability; real cloud/on-
-  device LLM or geolocation experiments; full SAGA OTK/DH/ACT runtime integration; or claiming
-  parity with every evaluation dimension of arXiv:2504.21034v2.
+- Construction decision: use the Umbral primitives exposed by `nucypher-core==0.15.0`
+  (`MessageKit`, signed/verified key fragments, capsule re-encryption, and verified capsule
+  fragments). Do not relabel an owner-mediated X25519/AEAD key-sharing composition as PRE.
+- Trust boundary: the malicious-Provider recovery gate covers the data-token and re-encryption
+  data plane. Owner key generation and rekey generation remain owner-side. Existing key rotation
+  runs through the separately trusted management plane and may materialize a DEK inside that
+  trusted process boundary; this package does not establish HSM/KMS isolation.
+- Non-goals:
+  - claiming production security, independent cryptographic audit, side-channel resistance,
+    secure-memory zeroization, HSM/KMS custody, or upstream maintenance guarantees;
+  - silently migrating existing ToyPRE/HPKE ciphertexts;
+  - proving the Rust implementation equivalent to the ProVerif abstraction;
+  - changing Contact/data-policy semantics or distributed Provider behavior.
 
 ## Selected orchestration mode
 
-- Mode: primary-agent implementation with three bounded read-only audits.
-- Rule: subagents inspect experiment provenance, paper-claim consistency, and clean-environment
-  reproducibility independently. The primary agent owns architecture, all writes, integration,
-  test selection, and final claim decisions.
+- Mode: primary-agent integration with three bounded parallel read-only audits.
+- The primary agent owns construction choice, production edits, integration, verification
+  selection, claims, and release evidence.
+- Audits cover backend/dependency suitability, call-graph migration, and independent evidence and
+  claim review. No overlapping writes are permitted.
 
 ## Acceptance criteria
 
-- Every allowed or denied call to the Provider domain's data-token issuance path records one
-  `data_token_issuance` audit event and returns its audit identifier.
-- The HTTP service persists that domain audit without creating a duplicate event.
-- Published PRE-SAGA attacks obtain policy denial from `PREProviderApp.request_data_token` or
-  token consumption from `PREProviderApp.request_re_encryption`; they do not synthesize a
-  publication result by invoking `DataPolicyEvaluator` and manually appending an audit.
-- Full-flow performance and scalability measurements do not evaluate the same data policy once in
-  the experiment and again inside the Provider.
-- One release command writes into staging, enforces attack/task/proof/bridge/Mongo gates, publishes
-  only a passing artifact set, and writes source/config/artifact hashes in a release manifest.
-- An independent verifier accepts the fresh manifest and rejects missing, modified, or failed-gate
-  evidence.
-- Focused positive, denial, persistence, artifact-tamper, and boundary tests pass. One full
-  regression is justified because Provider audit behavior and the combined experiment entry point
-  are cross-cutting.
-- Claims and paper wording remain explicitly prototype-bounded and distinguish this local evidence
-  from SAGA's real LLM, geographic, RAFT, and sharding evaluation.
+- A versioned `UmbralPREBackend` performs owner wrap, signed 1-of-1 rekey generation, proxy
+  transform, original-owner decrypt, and intended-requester decrypt using
+  `nucypher-core==0.15.0`.
+- Ciphertext, rekey, and transformed packages are fail-closed and bind the owner key, requester
+  key, and exact owner-wrap context; wrong keys, wrong context, truncation, substitution, and
+  tampering return no plaintext.
+- The Provider transform verifies the expected requester and stored-object context before
+  returning transformed material. Cryptographic failures are denied and audited without leaking
+  plaintext or an uncaught implementation exception.
+- The HTTP service default and every authoritative publication experiment use
+  `UmbralPREBackend`; ToyPRE and HPKE stubs remain only as explicitly labelled defect/protocol
+  fixtures.
+- The malicious-Provider probe receives the Provider-visible owner wrap, public keys, context,
+  rekey, transformed material, service state, and audit metadata; it cannot recover the DEK, while
+  the registered requester succeeds.
+- The historical ToyPRE public-material recovery stays covered by a focused regression, but is no
+  longer accepted as the active release backend.
+- Trusted-management-plane rotation still succeeds with the concrete backend and is described as
+  trusted decrypt-and-rewrap, not proxy transformation.
+- Focused positive, negative, boundary, service, rotation, attack, and release-schema checks pass.
+  One full regression and a fresh authoritative release are required because the backend,
+  ciphertext format, service default, experiments, and evidence schema are cross-cutting.
 
 ## Evidence obligations
 
-- Record the pre-change provenance gaps and the final decision in ADR 0007.
-- Preserve every failed test or release run in the ledger and link the causal correction.
-- Run the release with real ProVerif 2.05 and isolated MongoDB 8.3.4 when locally available.
-- Record exact artifact hashes, source-tree fingerprint, environment, gate results, and verifier
-  outcome.
-- Update claims `C-002` and `C-004` only to the level justified by the fresh manifest.
-- Keep performance results descriptive; timing variation is not a security proof.
+- Record the construction, package formats, key custody, upstream version/license/maintenance
+  limits, migration behavior, and threat boundary in ADR 0008.
+- Invert the active Provider recovery release gate from expected ToyPRE compromise to expected
+  concrete-backend resistance, and keep requester usability in the same probe.
+- Update traceability and claims so concrete evidence is `prototype-bounded`, not production
+  cryptographic assurance.
+- Keep the ProVerif result explicitly abstract; change and rerun it only if the modeled protocol
+  events or queries change.
+- Record every verification command, result, code state, environment, and rerun reason in the
+  test ledger.
+- Produce a fresh manifest from a clean release-input commit and independently verify it before
+  acceptance.
 
 ## Risks
 
-- The worktree contains user and prior-work-package edits, so a source fingerprint is stronger than
-  an ambiguous branch name but remains uncommitted until a deliberate Git baseline is created.
-- Timing outputs vary across machines and runs. Correctness gates and artifact schema are
-  deterministic; latency values are not.
-- ProVerif models cover bounded token/DEK/rekey properties and do not model persistent rotation,
-  repository fencing, Mongo failure, or the full implementation.
-- The SAGA bridge consumes recorded SAGA reproduction evidence and is not direct runtime
-  interoperability.
-- Mongo evidence is a single-host local run and does not establish distributed transactions,
-  failover, RAFT, or sharding.
-- Toy PRE/HPKE and static management authentication remain non-production.
+- `nucypher-core` is an alpha Python binding to a Rust implementation and is GPLv3; dependency and
+  redistribution implications must remain visible.
+- Upstream `pyUmbral` is inactive. The selected package exposes working Umbral primitives but this
+  repository has not independently audited their implementation.
+- Versioned Umbral packages are incompatible with legacy ToyPRE/HPKE wraps. Unknown or legacy
+  formats must fail closed; migration requires an explicitly trusted unwrap-and-rewrap operation.
+- The management and data planes are logically separated but can be deployed in one process.
+  Compromise of a co-located trusted management plane is outside the data-plane confidentiality
+  claim.
+- The worktree contains unrelated user and historical files. Only CRYPTO-001 release inputs may be
+  staged or committed.
 
 ## Verification evidence
 
-- Data-token issuance auditing is owned by the Provider domain and returns one
-  audit identifier for allow and policy-deny decisions.
-- Publication-facing attacks, tasks, full-service performance/scalability, and
-  the SAGA bridge cross `ProviderService`; modeled microbenchmarks are labeled.
-- Accepted release: `20260729T123951Z-23c9fbf1`.
-- Clean release-input commit:
-  `6109b3eb6318a9714ee29b65da2340be5a6abcdf`.
-- Accepted evidence commit:
-  `b91e501`.
-- Source fingerprint:
-  `fc8c5a40159d622cca1830dc0f25582d2f76a32a4e146e7f19fbefc80e8af195`.
-- Release gates: 7/7 blocking attacks, 1/1 active ToyPRE limitation probe, 4/4
-  tasks, 12/12 performance rows, 3/3 ProVerif models with four verified
-  queries, 2/2 SAGA bridge cases, and live Mongo E2E.
-- Release-input cleanliness gate: pass; unrelated workspace materials remain
-  outside the release input set and are recorded separately.
-- Independent release verifier: pass.
-- Focused verification: 22/22.
-- Full regression with MongoDB 8.3.4: 89/89, no skips.
-- Acceptance review:
-  `docs/verification/reviews/REL-001-release-acceptance.md`.
-- Claim correction: ToyPRE public-material DEK recovery is reproduced;
-  concrete Provider confidentiality remains unsupported.
+- Local API compatibility smoke on Python 3.12:
+  `NUCYPHER_CORE_UMBRAL_SMOKE: PASS` for MessageKit owner decrypt, signed key-fragment
+  serialization/verification, capsule re-encryption, capsule-fragment verification, and requester
+  decrypt.
+- Backend unit verification: 9/9 passed for owner/requester round trips, public-material recovery,
+  context/owner/requester mismatch, malformed and tampered envelopes/KFrag/CFrag, wrong private
+  keys, explicit DEK size, and trusted-management rewrap.
+- Focused Provider, storage, registration, rotation, attack, task, performance, bridge,
+  traceability, and release-verifier checks passed after two evidenced compatibility corrections:
+  algorithm-domain fingerprinting of rotation candidates and the expected HTTP algorithm label.
+- Invalid Umbral crypto material is denied and audited without consuming the token; a subsequent
+  valid transform with the same one-use token succeeds.
+- Live MongoDB 8.3.4 focused verification: 5/5 passed with no skips against an isolated database
+  on `127.0.0.1:27018`.
+- Full live-Mongo regression: 101/101 passed with no skips.
+- Release preflight staging `20260730T190452Z-b76cb299` passed all eight scientific/evidence
+  gates: 8/8 blocking attacks (including the concrete recovery probe), 0 active toy limitation
+  paths, 4/4 tasks, 12/12 performance rows, 3/3 ProVerif models/four true queries, 2/2 SAGA bridge
+  cases, and live Mongo E2E. It was correctly rejected only by `release_inputs_clean` before the
+  deliberate source commit.
+- Remaining acceptance sequence: create the clean release-input commit, run the authoritative
+  release once, independently verify the published manifest, record the ledger and acceptance
+  review, then commit the evidence closure.
 
 ## Previous accepted work packages
 
+- `REL-001`: accepted on `2026-07-29`; authoritative experiment provenance, release manifest,
+  independent verifier, real ProVerif, live Mongo, and honest ToyPRE limitation evidence.
 - `CORE-005`: accepted on `2026-07-29`; revisioned JSON/Mongo repository contract, restart recovery,
-  service-driven Mongo E2E, and stale-writer fencing established.
-- `FE-001`: accepted on `2026-07-29`; local PRE-SAGA demonstration console and loopback Provider
-  proxy established without changing scientific claims.
-- `CORE-004`: accepted on `2026-07-29`; persistent rotation history, JSON restart recovery,
-  terminal cleanup, and live Mongo per-document CAS established.
+  service-driven Mongo E2E, and stale-writer fencing.
+- `FE-001`: accepted on `2026-07-29`; local demonstration console and loopback Provider proxy.
+- `CORE-004`: accepted on `2026-07-29`; persistent rotation history, restart recovery, terminal
+  cleanup, and live Mongo per-document CAS.
 - `CORE-003`: accepted on `2026-07-28`; registration-bound owner-wrap provenance and authenticated
-  prepare/rewrap/commit or abort lifecycle established.
+  prepare/rewrap/commit-or-abort lifecycle.
 - `CORE-002`: accepted on `2026-07-28`; authenticated AID-to-key binding, versioned registry, and
-  management/data-plane separation established.
-- `CFG-002`: accepted on `2026-07-28`; repository normalization and canonical engineering layout
-  established.
+  management/data-plane separation.
+- `CFG-002`: accepted on `2026-07-28`; repository normalization and canonical engineering layout.
 - `CORE-001`: accepted on `2026-07-26`; server-enforced Contact-to-data-token-to-re-encryption
-  binding established.
+  binding.
 
 ## Proposed next work package
 
-- Candidate ID: `CRYPTO-001`
-- Candidate topic: replace ToyPRE with a reviewed concrete backend and define a
-  malicious-Provider recovery gate that the real backend must block.
-- State: `awaiting_user_choice`
-- Rule: do not begin this candidate automatically.
+- None until `CRYPTO-001` passes its acceptance review.

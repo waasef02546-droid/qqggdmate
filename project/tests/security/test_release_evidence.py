@@ -29,12 +29,23 @@ class ReleaseEvidenceTest(unittest.TestCase):
                     "file_count": source_count,
                 },
                 "git": {"release_inputs_dirty": False},
+                "environment": {
+                    "dependencies": {"nucypher-core": "0.15.0"},
+                    "crypto_backend": {
+                        "name": "umbral-pre-v1",
+                        "dependency_distribution": "nucypher-core",
+                        "dependency_version": "0.15.0",
+                        "adapter_format_version": 1,
+                        "threshold": 1,
+                        "shares": 1,
+                    },
+                },
                 "config": {
                     "values": {
                         "performance": {"policy_rule_counts": [10]},
                         "required": {
-                            "blocking_attacks": 7,
-                            "limitation_probes": 1,
+                            "blocking_attacks": 8,
+                            "limitation_probes": 0,
                             "successful_tasks": 4,
                             "proverif_models": 3,
                             "saga_bridge_cases": 2,
@@ -47,6 +58,7 @@ class ReleaseEvidenceTest(unittest.TestCase):
                     for name in (
                         "blocking_attacks",
                         "prototype_limitation_probe",
+                        "concrete_provider_recovery_probe",
                         "task_success",
                         "performance_rows",
                         "proverif_queries",
@@ -95,12 +107,12 @@ class ReleaseEvidenceTest(unittest.TestCase):
         ]
         attacks.append(
             {
-                "attack": "toy-limitation",
-                "expected_blocked": False,
-                "blocked": False,
+                "attack": "provider_plaintext_probe",
+                "expected_blocked": True,
+                "blocked": True,
                 "success": True,
-                "reason": "toy_backend_public_material_recovers_dek",
-                "path_kind": "provider_service_with_toy_pre",
+                "reason": "provider_public_material_recovery_blocked",
+                "path_kind": "provider_service",
             }
         )
         self._write_csv(tables / "security_matrix.csv", attacks)
@@ -130,7 +142,7 @@ class ReleaseEvidenceTest(unittest.TestCase):
             ("saga_contact_only", "modeled_contact_baseline", ""),
             ("presaga_policy_only", "policy_microbenchmark", ""),
             ("plaintext_token_server", "modeled_plaintext_baseline", False),
-            ("presaga", "provider_service", False),
+            ("presaga", "provider_service", True),
         ):
             performance.append(
                 {

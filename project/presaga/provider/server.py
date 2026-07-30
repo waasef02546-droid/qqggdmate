@@ -24,8 +24,8 @@ from urllib.parse import parse_qs, urlparse
 from pymongo import MongoClient
 
 from presaga.crypto import envelope
-from presaga.crypto.hpke_kem_stub import HPKEKEMStub
 from presaga.crypto.pre_interface import PREBackend
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import (
     AuditEvent,
     ContactToken,
@@ -557,7 +557,7 @@ def create_server(
 ) -> ProviderHTTPServer:
     if not management_token:
         raise ValueError("management_token is required")
-    selected_backend = backend or HPKEKEMStub()
+    selected_backend = backend or UmbralPREBackend()
     app = PREProviderApp(selected_backend)
     mongo_client = None
     if mongo_uri:

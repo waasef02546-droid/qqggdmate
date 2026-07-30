@@ -5,6 +5,12 @@ import unittest
 from pathlib import Path
 
 from experiments.attacks.compromised_requester_exfiltration import run_attack as run_compromised_requester_exfiltration
+from experiments.attacks.common import (
+    allowed_request,
+    issue_allowed_token,
+    make_environment,
+    rekey_for_requester,
+)
 from experiments.attacks.metadata_linkage_probe import run_attack as run_metadata_linkage_probe
 from experiments.attacks.purpose_mismatch import run_attack as run_purpose_mismatch
 from experiments.attacks.provider_plaintext_probe import run_attack as run_provider_plaintext_probe
@@ -16,6 +22,26 @@ from experiments.attacks.unauthorized_data_class import run_attack as run_unauth
 
 
 class AttackScriptTest(unittest.TestCase):
+    def test_invalid_umbral_rekey_is_audited_and_does_not_consume_token(self):
+        env = make_environment()
+        request = allowed_request(env)
+        token = issue_allowed_token(env)
+
+        denied = env.provider.request_re_encryption(token, request, b"malformed")
+        self.assertEqual("deny", denied.decision)
+        self.assertEqual("crypto_artifact_invalid", denied.reason)
+        self.assertTrue(denied.audit_id.startswith("audit-"))
+        self.assertEqual(1, token.remaining_uses)
+
+        allowed = env.provider.request_re_encryption(
+            token,
+            request,
+            rekey_for_requester(env),
+        )
+        self.assertEqual("allow", allowed.decision)
+        self.assertIsNotNone(allowed.transformed_encrypted_dek)
+        self.assertEqual(0, token.remaining_uses)
+
     def test_stage3_attacks_are_blocked_after_contact_is_allowed(self):
         results = [
             run_unauthorized_data_class(),
@@ -39,14 +65,18 @@ class AttackScriptTest(unittest.TestCase):
         limitation_probes = [
             result for result in results if not result.expected_blocked
         ]
-        self.assertEqual(7, len(blocking_attacks))
+        self.assertEqual(8, len(blocking_attacks))
         self.assertTrue(all(result.blocked for result in blocking_attacks))
-        self.assertEqual(1, len(limitation_probes))
-        self.assertEqual(
-            "toy_backend_public_material_recovers_dek",
-            limitation_probes[0].reason,
+        self.assertEqual(0, len(limitation_probes))
+        provider_probe = next(
+            result
+            for result in results
+            if result.attack == "provider_plaintext_probe"
         )
-        self.assertFalse(limitation_probes[0].blocked)
+        self.assertEqual(
+            "provider_public_material_recovery_blocked",
+            provider_probe.reason,
+        )
 
     def test_security_matrix_contains_stage_p2_attacks(self):
         with tempfile.TemporaryDirectory() as temp_dir:

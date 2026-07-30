@@ -20,6 +20,8 @@ from typing import Callable
 
 import yaml
 
+from presaga.crypto.umbral_pre import UmbralPREBackend
+
 from experiments.attacks.run_all import run_all as run_attacks
 from experiments.e2e.mongodb_e2e import run_mongodb_e2e
 from experiments.e2e.saga_bridge import run_saga_bridge
@@ -171,9 +173,10 @@ def run_release(
         "stages": stages,
         "gates": gates,
         "limitations": [
-            "ToyPRE and HPKEKEMStub are deterministic prototype backends, not production cryptography.",
-            "The active limitation probe recovers the ToyPRE DEK from public material; cryptographic Provider confidentiality is not established.",
-            "Provider plaintext visibility booleans are control-flow instrumentation, not a confidentiality proof.",
+            "The release backend is the prototype Umbral adapter over nucypher-core 0.15.0 (Alpha, GPLv3); it has not been independently audited and is not production cryptography.",
+            "The active malicious-Provider probe blocks public-material DEK recovery and confirms requester decryption, but it is empirical evidence rather than a reduction, side-channel analysis, or whole-process guarantee.",
+            "Umbral KFrags are owner/requester key-pair scoped. Provider/requester collusion and retained KFrag reuse across same-owner capsules remain outside the established claim.",
+            "Trusted management-plane rotation may materialize a DEK and owner private key inside that trusted boundary; HSM/KMS isolation is not established.",
             "The SAGA bridge consumes recorded SAGA evidence and does not run a live SAGA network.",
             "MongoDB evidence is single-node local persistence and does not establish distributed transactions, RAFT, or sharding.",
             "ProVerif models cover their explicit symbolic queries only and do not verify the complete Python implementation.",
@@ -292,15 +295,26 @@ def _evaluate_gates(
         _gate(
             "prototype_limitation_probe",
             len(limitations) == required["limitation_probes"]
-            and all(
-                not result.blocked
-                and result.success
-                and result.path_kind == "provider_service_with_toy_pre"
-                and result.reason
-                == "toy_backend_public_material_recovers_dek"
-                for result in limitations
-            ),
+            and all(not result.blocked and result.success for result in limitations),
             f"{len(limitations)} active probe(s)",
+        ),
+        _gate(
+            "concrete_provider_recovery_probe",
+            len(
+                [
+                    result
+                    for result in attack_results
+                    if result.attack == "provider_plaintext_probe"
+                    and result.expected_blocked
+                    and result.blocked
+                    and result.success
+                    and result.path_kind == "provider_service"
+                    and result.reason
+                    == "provider_public_material_recovery_blocked"
+                ]
+            )
+            == 1,
+            "Umbral public-material recovery blocked and requester decrypt verified",
         ),
         _gate(
             "task_success",
@@ -318,7 +332,7 @@ def _evaluate_gates(
                     if row.baseline == "presaga"
                     and row.path_kind == "provider_service"
                     and row.cryptographic_provider_confidentiality_established
-                    is False
+                    is True
                 ]
             )
             == len(config["performance"]["policy_rule_counts"]),
@@ -416,7 +430,7 @@ def _git_metadata() -> dict:
 
 def _environment_metadata(mongo_uri: str | None) -> dict:
     dependencies = {}
-    for distribution in ("cryptography", "pymongo", "PyYAML"):
+    for distribution in ("cryptography", "nucypher-core", "pymongo", "PyYAML"):
         try:
             dependencies[distribution] = importlib.metadata.version(distribution)
         except importlib.metadata.PackageNotFoundError:
@@ -441,6 +455,14 @@ def _environment_metadata(mongo_uri: str | None) -> dict:
         "python_executable": sys.executable,
         "platform": platform.platform(),
         "dependencies": dependencies,
+        "crypto_backend": {
+            "name": UmbralPREBackend.name,
+            "dependency_distribution": UmbralPREBackend.dependency_distribution,
+            "dependency_version": UmbralPREBackend.dependency_version,
+            "adapter_format_version": UmbralPREBackend.adapter_format_version,
+            "threshold": UmbralPREBackend.threshold,
+            "shares": UmbralPREBackend.shares,
+        },
         "proverif": proverif_metadata,
         "mongodb": _mongodb_metadata(mongo_uri),
     }

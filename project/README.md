@@ -7,23 +7,33 @@ registration, data scope, purpose, version, validity window, and usage budget.
 
 ## Evidence boundary
 
-The implementation uses AES-256-GCM for record envelope encryption. The bundled
-`toy_pre` and `hpke-kem-stub` transform backends are deterministic protocol
-stubs, not production PRE/HPKE. The active release probe demonstrates that
-ToyPRE allows DEK recovery from public material. Therefore:
+The implementation uses AES-256-GCM for record envelope encryption and a
+versioned 1-of-1 Umbral PRE adapter over `nucypher-core==0.15.0` for the
+publication-facing DEK transform. `toy_pre` and `hpke-kem-stub` remain only as
+explicit protocol/defect fixtures. The active release probe gives the complete
+data-plane Provider view to a public-material recovery attempt and requires
+both failed recovery and successful intended-requester decryption. Therefore:
 
-- the service control flow does not explicitly pass plaintext data or a
-  plaintext DEK into the transform;
-- the current concrete backend does **not** establish cryptographic Provider
-  confidentiality;
-- audit visibility fields are instrumentation, not a security proof.
+- the bounded data-plane transform does not receive either private key,
+  plaintext data, or a plaintext DEK;
+- the tested concrete backend resists the repository's active public-material
+  recovery probe;
+- this is empirical prototype evidence, not a security reduction,
+  side-channel analysis, independent audit, or whole-process guarantee.
+
+The dependency is Alpha and GPLv3. Umbral KFrags are owner/requester key-pair
+scoped, so retained-fragment reuse under Provider/requester collusion is not
+excluded by the context checks. Trusted management-plane rotation performs a
+decrypt-and-fresh-encrypt operation and is outside the malicious data-plane
+Provider claim. See ADR 0008 and the traceability matrix before citing C-003.
 
 See `results/release-manifest.json` and
 `docs/traceability_matrix.md` before citing a result.
 
 ## Install and test
 
-The supported Python version is 3.10 or newer.
+The tested Python version is 3.12. A platform-compatible native
+`nucypher-core==0.15.0` wheel is required.
 
 ```powershell
 cd project
@@ -41,8 +51,9 @@ python -m unittest discover -s tests -v
 
 ## Run the Provider service
 
-The dependency-free HTTP adapter uses `PREProviderApp` as its domain layer. A
-JSON file is the default local persistence backend:
+The HTTP adapter uses `PREProviderApp` as its domain layer and the concrete
+Umbral adapter by default. A JSON file is the default local persistence
+backend:
 
 ```powershell
 $env:PRESAGA_MANAGEMENT_TOKEN = "replace-with-a-local-secret"
@@ -104,8 +115,10 @@ Unlisted result files are historical or auxiliary.
 
 The release covers:
 
-- seven expected-blocked data-layer attacks;
-- one expected-success ToyPRE limitation probe;
+- eight expected-blocked data-layer attacks, including the concrete
+  malicious-Provider public-material recovery probe;
+- zero active toy-backend release paths; ToyPRE recovery remains a unit-level
+  defect characterization;
 - four policy-aware tool tasks;
 - policy and full-service latency/scalability measurements;
 - three ProVerif models with explicit true-query counting;

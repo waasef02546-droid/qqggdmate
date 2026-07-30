@@ -9,6 +9,21 @@ from presaga.crypto.toy_pre import ToyPRE
 
 
 class EnvelopeEncryptionTest(unittest.TestCase):
+    def test_toy_pre_public_material_recovery_remains_a_defect_fixture(self):
+        """Keep the historical ToyPRE compromise reproducible and labelled."""
+        backend = ToyPRE()
+        owner = backend.generate_keypair()
+        context = b"toy-defect-characterization"
+        dek = envelope.generate_dek()
+        owner_wrapped = backend.wrap_dek(dek, owner.public_key, context)
+
+        recovered = backend.wrap_dek(
+            owner_wrapped,
+            owner.public_key,
+            context,
+        )
+        self.assertEqual(dek, recovered)
+
     def test_round_trip_and_portable_format(self):
         dek = envelope.generate_dek()
         sealed = envelope.encrypt(b"calendar availability", dek, b"alice|cal-1|v1")

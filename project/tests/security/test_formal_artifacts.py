@@ -35,7 +35,7 @@ class FormalArtifactTest(unittest.TestCase):
         content = (PROOFS / "README.md").read_text(encoding="utf-8")
         self.assertIn("not a proof of a new proxy re-encryption primitive", content)
         self.assertIn("metadata privacy", content)
-        self.assertIn("toy PRE backend", content)
+        self.assertIn("concrete security of `nucypher-core`", content)
 
 
 if __name__ == "__main__":

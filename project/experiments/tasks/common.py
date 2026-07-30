@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from presaga.crypto.toy_pre import ToyPRE
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import (
     DataAccessRequest,
     DataRecord,
@@ -53,7 +53,7 @@ def run_authorized_task(
 ) -> TaskResult:
     started = time.perf_counter()
     seed = load_seed(seed_file)
-    backend = ToyPRE()
+    backend = UmbralPREBackend()
     owner = backend.generate_keypair()
     requester = backend.generate_keypair()
 
@@ -196,7 +196,7 @@ def run_authorized_task(
     )
 
 
-def _store_for_data_class(backend: ToyPRE, registry, data_class: str) -> PolicyAwareStore:
+def _store_for_data_class(backend: UmbralPREBackend, registry, data_class: str) -> PolicyAwareStore:
     stores: dict[str, type[PolicyAwareStore]] = {
         "calendar": CalendarStore,
         "mail": MailStore,

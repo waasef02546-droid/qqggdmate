@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from experiments.provider_harness import AuthoritativeProviderHarness
-from presaga.crypto.toy_pre import ToyPRE
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import (
     DataAccessRequest,
     DataRecord,
@@ -96,7 +96,7 @@ def run_saga_bridge(*, output_root: Path = Path("results"), workspace_root: Path
     """Run the PRE-SAGA extension for SAGA-reproduced Alice/Bob/Mallory cases."""
 
     evidence = {item.case: item for item in load_saga_baseline_evidence(workspace_root)}
-    backend = ToyPRE()
+    backend = UmbralPREBackend()
     alice, bob, mallory = (backend.generate_keypair() for _ in range(3))
     provider = AuthoritativeProviderHarness(backend)
     owner_aid = "alice@mail.com:calendar_agent"
@@ -153,7 +153,7 @@ def run_saga_bridge(*, output_root: Path = Path("results"), workspace_root: Path
     return results
 
 
-def _run_case(*, provider: AuthoritativeProviderHarness, backend: ToyPRE, stored, record: DataRecord,
+def _run_case(*, provider: AuthoritativeProviderHarness, backend: UmbralPREBackend, stored, record: DataRecord,
               owner_aid: str, requester_aid: str, requester_private_key: bytes, requester_public_key: bytes,
               owner_private_key: bytes, case: str, evidence: SagaBaselineEvidence) -> SagaBridgeResult:
     contact = provider.issue_contact_session(owner_aid, requester_aid)

@@ -46,7 +46,14 @@ class HPKEKEMStub:
         requester_stream = self._stream(requester_public_key, context, 32)
         return bytes(left ^ right for left, right in zip(owner_stream, requester_stream))
 
-    def transform(self, encrypted_dek: bytes, rekey: bytes) -> bytes:
+    def transform(
+        self,
+        encrypted_dek: bytes,
+        rekey: bytes,
+        *,
+        context: bytes | None = None,
+        requester_public_key: bytes | None = None,
+    ) -> bytes:
         if len(encrypted_dek) != len(rekey):
             raise ValueError("encrypted DEK and rekey must have equal length")
         return bytes(left ^ right for left, right in zip(encrypted_dek, rekey))

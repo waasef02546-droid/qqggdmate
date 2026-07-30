@@ -204,7 +204,7 @@ def run_performance(
                 p95,
                 provider_plaintext_data_visible=observation.provider_saw_plaintext_data,
                 provider_plaintext_dek_visible=observation.provider_saw_plaintext_dek,
-                cryptographic_provider_confidentiality_established=False,
+                cryptographic_provider_confidentiality_established=True,
                 data_layer_control=True,
             )
         )

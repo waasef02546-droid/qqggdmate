@@ -54,7 +54,14 @@ class ToyPRE:
         requester_mask = self._mask(requester_public_key, context, 32)
         return self._xor(owner_mask, requester_mask)
 
-    def transform(self, encrypted_dek: bytes, rekey: bytes) -> bytes:
+    def transform(
+        self,
+        encrypted_dek: bytes,
+        rekey: bytes,
+        *,
+        context: bytes | None = None,
+        requester_public_key: bytes | None = None,
+    ) -> bytes:
         if len(encrypted_dek) != len(rekey):
             raise ValueError("encrypted DEK and rekey must have equal length")
         return self._xor(encrypted_dek, rekey)

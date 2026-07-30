@@ -24,7 +24,7 @@ from pathlib import Path
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
-from presaga.crypto.toy_pre import ToyPRE
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataAccessRequest, DataRecord, DataScope, DataSharingPolicy, Limits, RequesterSelector, Validity, VersionConstraints
 from presaga.provider.app import PREProviderApp
 from presaga.provider.json_repository import to_jsonable
@@ -79,7 +79,7 @@ def run_mongodb_e2e(
         )
     repo = MongoProviderRepository(db)
 
-    backend = ToyPRE()
+    backend = UmbralPREBackend()
     alice = backend.generate_keypair()
     bob = backend.generate_keypair()
     mallory = backend.generate_keypair()

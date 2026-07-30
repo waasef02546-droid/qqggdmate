@@ -97,7 +97,14 @@ class PreparedReplacement:
 class AgentRegistry:
     """Single-process registry with atomic create/replace/revoke operations."""
 
-    def __init__(self):
+    def __init__(self, *, key_algorithm: str = "prototype-pre-public-key"):
+        if (
+            not isinstance(key_algorithm, str)
+            or not key_algorithm
+            or len(key_algorithm) > 128
+        ):
+            raise RegistrationError("key_algorithm_invalid")
+        self._key_algorithm = key_algorithm
         self._agents: dict[str, AgentRecord] = {}
         self._prepared: dict[str, PreparedReplacement] = {}
         self._rotations: dict[str, PreparedReplacement] = {}
@@ -142,13 +149,17 @@ class AgentRegistry:
             record = AgentRecord(
                 aid=canonical_aid,
                 public_key=key,
-                public_key_fingerprint=key_fingerprint(key),
+                public_key_fingerprint=key_fingerprint(
+                    key,
+                    key_algorithm=self._key_algorithm,
+                ),
                 registration_version=1,
                 status="active",
                 registered_by=principal,
                 registration_id=f"areg-{secrets.token_hex(12)}",
                 created_at=timestamp,
                 updated_at=timestamp,
+                key_algorithm=self._key_algorithm,
             )
             self._agents[canonical_aid] = record
             return record
@@ -208,7 +219,10 @@ class AgentRegistry:
             candidate = replace(
                 current,
                 public_key=key,
-                public_key_fingerprint=key_fingerprint(key),
+                public_key_fingerprint=key_fingerprint(
+                    key,
+                    key_algorithm=current.key_algorithm,
+                ),
                 registration_version=current.registration_version + 1,
                 updated_at=now or datetime.now(timezone.utc),
             )
@@ -511,13 +525,17 @@ class AgentRegistry:
         record = AgentRecord(
             aid=canonical_aid,
             public_key=key,
-            public_key_fingerprint=key_fingerprint(key),
+            public_key_fingerprint=key_fingerprint(
+                key,
+                key_algorithm="legacy-unverified",
+            ),
             registration_version=1,
             status="legacy_unverified",
             registered_by="legacy-import",
             registration_id=f"legacy-{secrets.token_hex(12)}",
             created_at=timestamp,
             updated_at=timestamp,
+            key_algorithm="legacy-unverified",
         )
         self.restore(record)
         return record

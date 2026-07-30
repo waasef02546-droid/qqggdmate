@@ -16,11 +16,29 @@ MATRIX = ROOT / "docs" / "traceability_matrix.md"
 
 
 class TraceabilityMatrixTest(unittest.TestCase):
+    def test_authoritative_paths_select_the_pinned_umbral_backend(self):
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn('"nucypher-core==0.15.0"', pyproject)
+
+        paths = (
+            ROOT / "presaga" / "provider" / "server.py",
+            ROOT / "experiments" / "attacks" / "common.py",
+            ROOT / "experiments" / "tasks" / "common.py",
+            ROOT / "experiments" / "e2e" / "saga_bridge.py",
+            ROOT / "experiments" / "e2e" / "mongodb_e2e.py",
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                content = path.read_text(encoding="utf-8")
+                self.assertIn("UmbralPREBackend", content)
+                self.assertNotIn("ToyPRE()", content)
+                self.assertNotIn("HPKEKEMStub()", content)
+
     def test_matrix_covers_required_security_claims(self):
         content = MATRIX.read_text(encoding="utf-8")
         for claim in (
             "T1 data-token authenticity",
-            "T2 DEK secrecy from Provider",
+            "T2 DEK secrecy from the data-plane Provider",
             "T3 re-encryption authentication",
             "T4 policy denial after contact authorization",
             "T5 replay prevention",
@@ -81,7 +99,7 @@ class TraceabilityMatrixTest(unittest.TestCase):
         content = MATRIX.read_text(encoding="utf-8")
         normalized = " ".join(content.split())
         for boundary in (
-            "not a proof that the toy PRE backend is a secure concrete PRE construction",
+            "not a proof that the selected concrete dependency or adapter is production-secure",
             "does not prevent a legitimate requester from leaking already decrypted plaintext",
             "distributed replay resistance",
         ):

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from presaga.crypto.pre_interface import PREBackend
+from presaga.crypto.pre_interface import PREBackend, PREBackendError
 from presaga.protocol.schemas import ContactToken, DataAccessRequest, DataToken
 from presaga.provider.audit import AuditLogger
 from presaga.provider.registry import AgentRegistry, RegistrationError
@@ -75,6 +75,28 @@ class PREProxy:
         )
         if stored_error is not None:
             return self._deny(token, request, stored_error)
+        try:
+            requester_registration = self.registry.resolve_active(request.requester_aid)
+            expected_context = trusted_store.wrap_context(
+                trusted_stored.record,
+                owner_wrap.provenance,
+            )
+            # Validate and precompute the public proxy operation before
+            # consuming a one-use token. A concurrent loser discards this
+            # fragment after the atomic consumption check below.
+            transformed = self.backend.transform(
+                owner_wrap.encrypted_dek,
+                rekey,
+                context=expected_context,
+                requester_public_key=requester_registration.public_key,
+            )
+        except (PREBackendError, RegistrationError):
+            return self._deny(token, request, "crypto_artifact_invalid")
+        except (TypeError, ValueError):
+            # Third-party parser and verification errors are deliberately
+            # collapsed into one stable denial reason.
+            return self._deny(token, request, "crypto_artifact_invalid")
+
         token_decision = self.token_service.validate_and_consume(
             token,
             request,
@@ -84,9 +106,6 @@ class PREProxy:
         if token_decision.effect != "allow":
             return self._deny(token, request, token_decision.reason)
 
-        # The store selected this wrapper from the active authoritative owner
-        # registration. Never transform a caller-supplied naked wrapped DEK.
-        transformed = self.backend.transform(owner_wrap.encrypted_dek, rekey)
         event = self.audit.record(
             event_type="pre_transform",
             decision="allow",

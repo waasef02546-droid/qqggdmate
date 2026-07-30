@@ -5,6 +5,7 @@ description = "PRE-SAGA stage 2 prototype for policy-bound encrypted data sharin
 requires-python = ">=3.10"
 dependencies = [
   "cryptography>=41.0",
+  "nucypher-core==0.15.0",
   "pymongo>=4.0",
   "PyYAML>=6.0",
 ]

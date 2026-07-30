@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from presaga.crypto.toy_pre import ToyPRE
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import (
     ContactToken,
     DataAccessRequest,
@@ -55,7 +55,7 @@ class AttackResult:
 @dataclass
 class AttackEnvironment:
     provider: AuthoritativeProviderHarness
-    backend: ToyPRE
+    backend: UmbralPREBackend
     owner_keypair: object
     requester_keypair: object
     intruder_keypair: object
@@ -67,7 +67,7 @@ class AttackEnvironment:
 
 
 def make_environment(*, max_uses: int = 1) -> AttackEnvironment:
-    backend = ToyPRE()
+    backend = UmbralPREBackend()
     owner = backend.generate_keypair()
     requester = backend.generate_keypair()
     intruder = backend.generate_keypair()
