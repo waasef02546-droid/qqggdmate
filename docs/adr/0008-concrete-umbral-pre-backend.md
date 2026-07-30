@@ -57,14 +57,16 @@ Provider claim is possible.
 
 The concrete acceptance gate is deliberately narrow:
 
-- the data-plane Provider receives the authoritative owner wrap, all registered public material,
-  the context, valid delegation material, the transformed result, service state, and audit
-  metadata;
-- without either private key it must not recover the 32-byte DEK using the exposed adapter API;
+- the probe snapshots the data-plane Provider's registered public material, policy/token state,
+  encrypted objects, complete audit metadata, context, delegation material, and transformed
+  result;
+- without either private key, the snapshot must contain no raw/base64/hex DEK and direct use of a
+  public key with the exposed unwrap API must fail;
 - the registered requester must decrypt the same transformed result successfully.
 
-This is empirical, prototype-bounded evidence. It is not a reduction, an independent audit, a
-side-channel claim, or production assurance.
+This is an exposed-state/public-API regression and prototype-bounded evidence. It is not
+cryptanalysis, memory forensics, a reduction, an independent audit, a side-channel claim, or
+production assurance.
 
 Umbral KFrags are scoped to a delegating/receiving key pair, not to a PRE-SAGA record, purpose, or
 token. The adapter binds a context in its envelopes and plaintext checks, so the normal Provider

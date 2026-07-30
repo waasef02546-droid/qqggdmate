@@ -60,6 +60,7 @@ class ToyPRE:
         rekey: bytes,
         *,
         context: bytes | None = None,
+        owner_public_key: bytes | None = None,
         requester_public_key: bytes | None = None,
     ) -> bytes:
         if len(encrypted_dek) != len(rekey):

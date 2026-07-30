@@ -1,8 +1,8 @@
 """Proxy re-encryption backend interface.
 
-The bundled implementations are intentionally non-production stubs.  This
-interface is the seam where a reviewed PRE or HPKE-based key-sharing adapter
-must be integrated before any real deployment.
+The interface supports both explicitly insecure test doubles and the bounded
+Umbral prototype adapter.  No bundled backend is a production deployment
+claim; callers must supply authoritative binding inputs to concrete adapters.
 """
 
 from __future__ import annotations
@@ -46,6 +46,7 @@ class PREBackend(Protocol):
         rekey: bytes,
         *,
         context: bytes | None = None,
+        owner_public_key: bytes | None = None,
         requester_public_key: bytes | None = None,
     ) -> bytes:
         """Transform a wrapped DEK under server-supplied binding inputs."""

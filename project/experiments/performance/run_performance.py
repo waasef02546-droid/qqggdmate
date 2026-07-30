@@ -40,7 +40,7 @@ class PerformanceRow:
     p95_latency_ms: float
     provider_plaintext_data_visible: bool
     provider_plaintext_dek_visible: bool
-    cryptographic_provider_confidentiality_established: bool | None
+    provider_recovery_gate_linked: bool | None
     data_layer_control: bool
 
 
@@ -134,7 +134,7 @@ def run_performance(
                 p95,
                 provider_plaintext_data_visible=False,
                 provider_plaintext_dek_visible=False,
-                cryptographic_provider_confidentiality_established=None,
+                provider_recovery_gate_linked=None,
                 data_layer_control=False,
             )
         )
@@ -157,7 +157,7 @@ def run_performance(
                 p95,
                 provider_plaintext_data_visible=False,
                 provider_plaintext_dek_visible=False,
-                cryptographic_provider_confidentiality_established=None,
+                provider_recovery_gate_linked=None,
                 data_layer_control=True,
             )
         )
@@ -179,7 +179,7 @@ def run_performance(
                 p95,
                 provider_plaintext_data_visible=True,
                 provider_plaintext_dek_visible=True,
-                cryptographic_provider_confidentiality_established=False,
+                provider_recovery_gate_linked=False,
                 data_layer_control=True,
             )
         )
@@ -204,7 +204,7 @@ def run_performance(
                 p95,
                 provider_plaintext_data_visible=observation.provider_saw_plaintext_data,
                 provider_plaintext_dek_visible=observation.provider_saw_plaintext_dek,
-                cryptographic_provider_confidentiality_established=True,
+                provider_recovery_gate_linked=True,
                 data_layer_control=True,
             )
         )

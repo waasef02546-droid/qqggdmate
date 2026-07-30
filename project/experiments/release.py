@@ -331,8 +331,7 @@ def _evaluate_gates(
                     for row in performance_rows
                     if row.baseline == "presaga"
                     and row.path_kind == "provider_service"
-                    and row.cryptographic_provider_confidentiality_established
-                    is True
+                    and row.provider_recovery_gate_linked is True
                 ]
             )
             == len(config["performance"]["policy_rule_counts"]),

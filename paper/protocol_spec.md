@@ -379,31 +379,25 @@ Requester agent sends:
 request_id: "req-20260715-0001"
 owner_aid: "alice@mail.com:calendar_agent"
 requester_aid: "bob@mail.com:scheduler_agent"
-record_query:
-  data_class: "calendar"
-  data_subclass: "availability"
-  record_ids: ["cal-2026-07-15-001"]
+record_id: "cal-2026-07-15-001"
+data_class: "calendar"
+data_subclass: "availability"
 purpose: "schedule_meeting"
-requested_operation: "decrypt_dek"
-contact_token_ref: "saga-token-or-session-id"
-nonce: "base64-random"
+version: 3
+requester_public_key: "pk_r"  # optional; if present, must match the active registration
 timestamp: "2026-07-15T10:00:00Z"
-requester_signature: "sig(request_fields)"
 ```
 
-The request signature covers:
+This is the current `DataAccessRequest` schema. The Contact token is supplied as a
+separate Provider API input and is not embedded in the request. The Provider
+resolves active owner and requester registrations and rejects an optional
+`requester_public_key` that differs from the requester's registered key.
 
-```text
-request_id
-owner_aid
-requester_aid
-record_query
-purpose
-requested_operation
-contact_token_ref
-nonce
-timestamp
-```
+The current prototype does **not** carry a request nonce or
+`requester_signature`, and therefore does not prove live possession of the
+requester's private key. A future signed-request extension may add a nonce and
+signature over a canonical encoding of the request fields plus the Contact
+session reference; such fields and verification are not implemented here.
 
 ## 7. PRE-SAGA Data Token
 
@@ -465,21 +459,27 @@ transform_request:
   timestamp: "2026-07-15T10:00:03Z"
 ```
 
-Validation steps:
+Validation and consumption steps:
 
-1. Verify token signature.
-2. Verify token is not expired.
-3. Verify `remaining_uses > 0`.
-4. Verify requester identity matches token.
-5. Verify owner identity matches token.
-6. Verify record id is in allowed scope.
-7. Verify data class and subclass are allowed.
-8. Verify purpose matches.
-9. Verify data version is within bounds.
-10. Verify requester public key hash matches token.
-11. Decrement `remaining_uses`.
-12. Execute PRE transform.
-13. Write audit record.
+1. Require and validate the Contact token for the request's owner and requester.
+2. Validate the data-token signature, expiry, positive remaining use count,
+   Contact-session binding, identities, record scope, data class and subclass,
+   purpose, version, and registered requester-key binding without consuming it.
+3. Resolve the authoritative stored object and owner-wrap provenance rather than
+   trusting caller-supplied encrypted-object metadata.
+4. Resolve the active owner and requester registrations and derive the exact
+   authoritative owner-wrap context.
+5. Parse and cryptographically verify the MessageKit, signed KFrag, key
+   bindings, and context, then precompute the CFrag envelope.
+6. Atomically call `validate_and_consume`, which revalidates the token and
+   decrements `remaining_uses` only for the winning request.
+7. If a concurrent request loses that atomic check, discard its precomputed
+   CFrag and return the denial without exposing it.
+8. Write the allow audit record and return the precomputed result.
+
+Malformed or invalid cryptographic artifacts fail closed as
+`crypto_artifact_invalid`, produce a denial audit event, and do not consume the
+data token.
 
 Output:
 
@@ -514,14 +514,25 @@ transform_response:
 ### 9.3 Data Authorization and PRE Transform
 
 1. Requester sends data access request.
-2. Provider verifies contact session and requester signature.
+2. Provider resolves active owner and requester registrations, checks any
+   supplied requester public key against the active registration, and validates
+   the separately supplied Contact session.
 3. Provider evaluates Data Sharing Policy.
-4. Provider issues a data token or internal transform authorization.
-5. Provider / PRE Proxy validates token binding.
-6. Provider / PRE Proxy transforms `EDEK_o_i` into `EDEK_r_i`.
+4. Provider issues a data token bound to that request, active requester
+   registration, policy decision, and Contact session.
+5. Provider / PRE Proxy revalidates the Contact session and all token/request
+   bindings without consumption, then resolves the authoritative stored object,
+   registrations, and wrap context.
+6. Provider / PRE Proxy verifies the cryptographic artifacts and precomputes
+   `EDEK_r_i`, then atomically revalidates and consumes the token. A concurrent
+   loser discards its precomputed output.
 7. Requester receives ciphertext reference and transformed encrypted DEK.
 8. Requester decrypts `EDEK_r_i` locally and then decrypts the ciphertext.
-9. Provider writes an audit event.
+9. Provider writes an allow or deny audit event. Cryptographic rejection occurs
+   before consumption.
+
+The current authentication step does not verify a requester-signed
+`DataAccessRequest`; live private-key possession remains a future extension.
 
 ## 10. Audit Log Schema
 
@@ -574,9 +585,12 @@ purpose_mismatch
 token_expired
 token_exhausted
 version_out_of_bounds
-request_signature_invalid
 requester_key_mismatch
+crypto_artifact_invalid
 ```
+
+`request_signature_invalid` is reserved for a future signed-request extension;
+it is not emitted by the current runtime.
 
 ## 11. Revocation and Freshness
 

@@ -1,8 +1,12 @@
-"""Attack: try to recover a DEK from the complete data-plane Provider view."""
+"""Bounded regression probe over Provider-visible state and PRE artifacts."""
 
 from __future__ import annotations
 
+import base64
+import json
+
 from presaga.crypto.pre_interface import PREBackendError
+from presaga.provider.json_repository import to_jsonable
 
 from experiments.attacks.common import (
     allowed_request,
@@ -40,11 +44,12 @@ def run_attack():
             context,
         )
 
-        # The attack has the complete data-plane Provider view but neither
-        # private key. Public keys are deliberately tried in every available
-        # decrypt position, and every opaque artifact is scanned for an
-        # accidental literal DEK leak. Failure here is a bounded active probe,
-        # not a cryptographic proof or side-channel claim.
+        # Model a malicious data-plane process that can inspect the service's
+        # current registrations, policies, tokens, encrypted objects, audit
+        # metadata, and ephemeral PRE artifacts, but not either private key.
+        # This is an exposed-state/public-API regression probe: it detects
+        # literal DEK leakage and direct public-key misuse, not cryptanalysis,
+        # memory forensics, side channels, or management-plane compromise.
         recovered_candidates: list[bytes] = []
         for artifact in (owner_wrap.encrypted_dek, result.transformed_encrypted_dek):
             for public_key in (
@@ -58,6 +63,27 @@ def run_attack():
                     )
                 except (PREBackendError, TypeError, ValueError):
                     pass
+        provider_state = {
+            "schema_version": 3,
+            "agents": env.provider.app.management.registrations(),
+            "contact_rulebooks": env.provider.service.contact_rulebooks,
+            "data_policies": env.provider.app._data_policies,
+            "contact_tokens": env.provider.service.contact_tokens,
+            "data_tokens": env.provider.service.data_tokens,
+            "audit_events": env.provider.app.audit_query(),
+            "rotation_journal": env.provider.app.management.rotation_journal(),
+            "encrypted_objects": env.provider.store.snapshot(),
+            "ephemeral_transform_material": {
+                "rekey": rekey,
+                "transformed_encrypted_dek": result.transformed_encrypted_dek,
+                "context": context,
+            },
+        }
+        serialized_provider_state = json.dumps(
+            to_jsonable(provider_state),
+            ensure_ascii=False,
+            sort_keys=True,
+        ).encode("utf-8")
         provider_visible_bytes = (
             owner_wrap.encrypted_dek,
             rekey,
@@ -67,10 +93,19 @@ def run_attack():
             env.intruder_keypair.public_key,  # type: ignore[attr-defined]
             context,
             result.audit_id.encode("utf-8"),
+            serialized_provider_state,
+        )
+        encoded_dek_markers = (
+            base64.b64encode(actual_dek),
+            actual_dek.hex().encode("ascii"),
         )
         public_material_recovery = (
             actual_dek in recovered_candidates
             or any(actual_dek in value for value in provider_visible_bytes)
+            or any(
+                marker in serialized_provider_state
+                for marker in encoded_dek_markers
+            )
         )
         confidentiality_gate = (
             result.decision == "allow"
@@ -79,7 +114,7 @@ def run_attack():
         )
         return {
             "path_kind": "provider_service",
-            "observation_source": "complete_data_plane_provider_view_probe",
+            "observation_source": "provider_exposed_state_regression_probe",
             "baseline_contact_allowed": contact_authorized(env, env.contact_token),
             "expected_blocked": True,
             "blocked": confidentiality_gate,
@@ -90,11 +125,13 @@ def run_attack():
             ),
             "audit_id": result.audit_id,
             "strength_note": (
-                "The concrete Umbral data-plane probe includes the owner wrap, "
-                "public keys, context, KFrag envelope, CFrag output, and audit "
-                "identifier. Public-material recovery failed and the intended "
-                "requester decrypted successfully. This is prototype-bounded "
-                "empirical evidence, not a proof or whole-process claim."
+                "The bounded Umbral regression probe snapshots registrations, "
+                "policies, tokens, encrypted objects, complete audit metadata, "
+                "the owner wrap, public keys, context, KFrag envelope, and "
+                "CFrag output. It finds no raw/base64/hex DEK and public keys "
+                "cannot use the unwrap API, while the intended requester "
+                "decrypts. This is exposed-state empirical evidence, not "
+                "cryptanalysis, memory forensics, or a whole-process proof."
             ),
         }
 

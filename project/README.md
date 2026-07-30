@@ -10,16 +10,19 @@ registration, data scope, purpose, version, validity window, and usage budget.
 The implementation uses AES-256-GCM for record envelope encryption and a
 versioned 1-of-1 Umbral PRE adapter over `nucypher-core==0.15.0` for the
 publication-facing DEK transform. `toy_pre` and `hpke-kem-stub` remain only as
-explicit protocol/defect fixtures. The active release probe gives the complete
-data-plane Provider view to a public-material recovery attempt and requires
-both failed recovery and successful intended-requester decryption. Therefore:
+explicit protocol/defect fixtures. The active release probe snapshots the
+Provider's exposed registrations, policy/token state, encrypted objects, audit
+metadata, and PRE artifacts, then checks for literal DEK leakage and direct
+public-key misuse while requiring successful intended-requester decryption.
+Therefore:
 
 - the bounded data-plane transform does not receive either private key,
   plaintext data, or a plaintext DEK;
 - the tested concrete backend resists the repository's active public-material
   recovery probe;
-- this is empirical prototype evidence, not a security reduction,
-  side-channel analysis, independent audit, or whole-process guarantee.
+- this is an exposed-state/public-API regression, not cryptanalysis, a
+  security reduction, memory/side-channel analysis, independent audit, or
+  whole-process guarantee.
 
 The dependency is Alpha and GPLv3. Umbral KFrags are owner/requester key-pair
 scoped, so retained-fragment reuse under Provider/requester collusion is not

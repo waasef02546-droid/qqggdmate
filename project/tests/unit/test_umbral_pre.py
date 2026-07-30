@@ -34,6 +34,7 @@ class UmbralPREBackendTests(unittest.TestCase):
             self.owner_wrapper,
             self.rekey,
             context=self.context,
+            owner_public_key=self.owner.public_key,
             requester_public_key=self.requester.public_key,
         )
 
@@ -73,6 +74,17 @@ class UmbralPREBackendTests(unittest.TestCase):
             self.backend.transform(
                 self.owner_wrapper,
                 self.rekey,
+                owner_public_key=self.owner.public_key,
+                requester_public_key=self.requester.public_key,
+            )
+        with self.assertRaisesRegex(
+            UmbralValidationError,
+            "transform_owner_key_required",
+        ):
+            self.backend.transform(
+                self.owner_wrapper,
+                self.rekey,
+                context=self.context,
                 requester_public_key=self.requester.public_key,
             )
         with self.assertRaisesRegex(
@@ -83,6 +95,7 @@ class UmbralPREBackendTests(unittest.TestCase):
                 self.owner_wrapper,
                 self.rekey,
                 context=self.context,
+                owner_public_key=self.owner.public_key,
             )
 
     def test_transform_rejects_context_owner_and_requester_mismatches(self) -> None:
@@ -93,22 +106,32 @@ class UmbralPREBackendTests(unittest.TestCase):
             self.requester.public_key,
             self.context,
         )
-        for rekey, context, requester, message in (
+        for rekey, context, owner, requester, message in (
             (
                 self.rekey,
                 b"other-context",
+                self.owner.public_key,
                 self.requester.public_key,
                 "context_mismatch",
             ),
             (
+                self.rekey,
+                self.context,
+                other_owner.public_key,
+                self.requester.public_key,
+                "owner_registration_key_mismatch",
+            ),
+            (
                 wrong_owner_rekey,
                 self.context,
+                self.owner.public_key,
                 self.requester.public_key,
                 "rekey_owner_key_mismatch",
             ),
             (
                 self.rekey,
                 self.context,
+                self.owner.public_key,
                 other_requester.public_key,
                 "rekey_requester_key_mismatch",
             ),
@@ -119,6 +142,7 @@ class UmbralPREBackendTests(unittest.TestCase):
                         self.owner_wrapper,
                         rekey,
                         context=context,
+                        owner_public_key=owner,
                         requester_public_key=requester,
                     )
 
@@ -175,6 +199,7 @@ class UmbralPREBackendTests(unittest.TestCase):
                 self.owner_wrapper,
                 mutations["rekey_payload"],
                 context=self.context,
+                owner_public_key=self.owner.public_key,
                 requester_public_key=self.requester.public_key,
             )
         with self.assertRaises(PREBackendError):

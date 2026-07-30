@@ -148,7 +148,7 @@ class ReleaseEvidenceTest(unittest.TestCase):
                 {
                     "baseline": baseline,
                     "path_kind": path,
-                    "cryptographic_provider_confidentiality_established": confidentiality,
+                    "provider_recovery_gate_linked": confidentiality,
                 }
             )
         self._write_csv(tables / "performance.csv", performance)

@@ -313,7 +313,7 @@ def _verify_semantics(
         and row.get("path_kind") == "provider_service"
     ]
     if len(service_rows) != len(rule_counts) or not all(
-        _as_bool(row.get("cryptographic_provider_confidentiality_established"))
+        _as_bool(row.get("provider_recovery_gate_linked"))
         for row in service_rows
     ):
         errors.append("performance_provider_boundary_mismatch")

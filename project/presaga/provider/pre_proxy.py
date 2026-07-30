@@ -76,6 +76,7 @@ class PREProxy:
         if stored_error is not None:
             return self._deny(token, request, stored_error)
         try:
+            owner_registration = self.registry.resolve_active(request.owner_aid)
             requester_registration = self.registry.resolve_active(request.requester_aid)
             expected_context = trusted_store.wrap_context(
                 trusted_stored.record,
@@ -88,6 +89,7 @@ class PREProxy:
                 owner_wrap.encrypted_dek,
                 rekey,
                 context=expected_context,
+                owner_public_key=owner_registration.public_key,
                 requester_public_key=requester_registration.public_key,
             )
         except (PREBackendError, RegistrationError):

@@ -308,19 +308,28 @@ class UmbralPREBackend:
         rekey: bytes,
         *,
         context: bytes | None = None,
+        owner_public_key: bytes | None = None,
         requester_public_key: bytes | None = None,
     ) -> bytes:
         if context is None:
             raise UmbralValidationError("transform_context_required")
+        if owner_public_key is None:
+            raise UmbralValidationError("transform_owner_key_required")
         if requester_public_key is None:
             raise UmbralValidationError("transform_requester_key_required")
         trusted_digest = _context_digest(context)
+        _parse_public_key(owner_public_key)
         trusted_requester = _parse_public_key(requester_public_key)
 
         _, owner_payload = _unpack(encrypted_dek, _OWNER_WRAPPER)
-        owner_digest, owner_public_key, message_kit_bytes = _decode_fields(owner_payload, 3)
+        owner_digest, wrapped_owner_public_key, message_kit_bytes = _decode_fields(
+            owner_payload,
+            3,
+        )
         self._validate_digest(owner_digest, trusted_digest)
-        owner_key = _parse_public_key(owner_public_key)
+        if wrapped_owner_public_key != owner_public_key:
+            raise UmbralValidationError("owner_registration_key_mismatch")
+        owner_key = _parse_public_key(wrapped_owner_public_key)
         message_kit = _parse_message_kit(message_kit_bytes)
 
         _, rekey_payload = _unpack(rekey, _REKEY)
@@ -332,7 +341,7 @@ class UmbralPREBackend:
             key_frag_bytes,
         ) = _decode_fields(rekey_payload, 5)
         self._validate_digest(rekey_digest, trusted_digest)
-        if rekey_owner_public_key != owner_public_key:
+        if rekey_owner_public_key != wrapped_owner_public_key:
             raise UmbralValidationError("rekey_owner_key_mismatch")
         if rekey_requester_public_key != requester_public_key:
             raise UmbralValidationError("rekey_requester_key_mismatch")
@@ -356,7 +365,7 @@ class UmbralPREBackend:
             _TRANSFORMED_WRAPPER,
             (
                 trusted_digest,
-                owner_public_key,
+                wrapped_owner_public_key,
                 requester_public_key,
                 verifying_public_key,
                 message_kit_bytes,

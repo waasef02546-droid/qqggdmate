@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from experiments.attacks.compromised_requester_exfiltration import run_attack as run_compromised_requester_exfiltration
@@ -22,6 +23,58 @@ from experiments.attacks.unauthorized_data_class import run_attack as run_unauth
 
 
 class AttackScriptTest(unittest.TestCase):
+    def test_substituted_owner_wrapper_is_denied_without_consuming_token(self):
+        env = make_environment()
+        request = allowed_request(env)
+        token = issue_allowed_token(env)
+        authoritative_wrap = env.store.resolve_active_owner_wrap(env.stored)
+        context = env.store.wrap_context(
+            env.stored.record,
+            authoritative_wrap.provenance,
+        )
+
+        attacker_wrapper = env.backend.wrap_dek(
+            bytes(range(32)),
+            env.intruder_keypair.public_key,  # type: ignore[attr-defined]
+            context,
+        )
+        attacker_rekey = env.backend.generate_rekey(
+            env.intruder_keypair.private_key,  # type: ignore[attr-defined]
+            env.requester_keypair.public_key,  # type: ignore[attr-defined]
+            context,
+        )
+        substituted_wrap = replace(
+            authoritative_wrap,
+            encrypted_dek=attacker_wrapper,
+        )
+        substituted_object = replace(
+            env.stored,
+            owner_wraps=(substituted_wrap,),
+        )
+        active_owner = env.provider.app.registry.resolve_active(
+            env.stored.record.owner_aid
+        )
+        self.assertEqual(
+            active_owner.registration_id,
+            substituted_wrap.provenance.registration_id,
+        )
+        self.assertEqual(
+            active_owner.public_key_fingerprint,
+            substituted_wrap.provenance.public_key_fingerprint,
+        )
+        env.store._objects[env.stored.record.record_id] = substituted_object
+
+        denied = env.provider.request_re_encryption(
+            token,
+            request,
+            attacker_rekey,
+        )
+
+        self.assertEqual("deny", denied.decision)
+        self.assertEqual("crypto_artifact_invalid", denied.reason)
+        self.assertTrue(denied.audit_id.startswith("audit-"))
+        self.assertEqual(1, token.remaining_uses)
+
     def test_invalid_umbral_rekey_is_audited_and_does_not_consume_token(self):
         env = make_environment()
         request = allowed_request(env)
