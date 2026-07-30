@@ -9,8 +9,8 @@ performance:
 task_scalability:
   iterations: 20
 required:
-  blocking_attacks: 7
-  limitation_probes: 1
+  blocking_attacks: 8
+  limitation_probes: 0
   successful_tasks: 4
   proverif_models: 3
   saga_bridge_cases: 2

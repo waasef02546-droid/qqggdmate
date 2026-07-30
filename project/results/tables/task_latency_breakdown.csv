@@ -1,5 +1,5 @@
 task,contact_ms,authorization_ms,pre_transform_ms,decrypt_ms,total_latency_ms
-schedule_meeting,0.141,0.239,0.267,1.036,2.678
-expense_report,0.259,0.227,0.258,0.062,1.959
-collaborative_writing,0.25,0.22,0.265,0.05,1.744
-cross_agent_memory_query,0.236,0.226,0.255,0.047,1.627
+schedule_meeting,0.305,0.217,0.926,1.07,5.354
+expense_report,0.241,0.255,0.969,0.966,4.325
+collaborative_writing,0.197,0.182,0.897,0.975,3.91
+cross_agent_memory_query,0.371,0.31,1.066,1.054,5.565

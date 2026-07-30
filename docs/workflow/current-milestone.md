@@ -4,8 +4,9 @@
 
 - ID: `CRYPTO-001`
 - Title: Concrete Umbral PRE backend and malicious-Provider recovery gate
-- State: `release_input_ready`
+- State: `accepted`
 - Authorization date: `2026-07-31`
+- Acceptance date: `2026-07-31`
 - Objective: replace publication-facing ToyPRE/HPKE stubs with a concrete Umbral proxy
   re-encryption adapter, preserve the existing server-enforced authorization chain, and require
   the data-plane Provider recovery probe to fail while the intended requester still decrypts.
@@ -54,9 +55,10 @@
 - The HTTP service default and every authoritative publication experiment use
   `UmbralPREBackend`; ToyPRE and HPKE stubs remain only as explicitly labelled defect/protocol
   fixtures.
-- The malicious-Provider probe receives the Provider-visible owner wrap, public keys, context,
-  rekey, transformed material, service state, and audit metadata; it cannot recover the DEK, while
-  the registered requester succeeds.
+- The malicious-Provider regression snapshots the Provider-visible owner wrap, public keys,
+  context, rekey, transformed material, registrations, policies, tokens, encrypted objects, and
+  complete audit metadata; it finds no raw/base64/hex DEK, rejects direct public-key unwrap misuse,
+  and the registered requester succeeds. It is not cryptanalysis or a whole-process proof.
 - The historical ToyPRE public-material recovery stays covered by a focused regression, but is no
   longer accepted as the active release backend.
 - Trusted-management-plane rotation still succeeds with the concrete backend and is described as
@@ -100,9 +102,9 @@
   `NUCYPHER_CORE_UMBRAL_SMOKE: PASS` for MessageKit owner decrypt, signed key-fragment
   serialization/verification, capsule re-encryption, capsule-fragment verification, and requester
   decrypt.
-- Backend unit verification: 9/9 passed for owner/requester round trips, public-material recovery,
-  context/owner/requester mismatch, malformed and tampered envelopes/KFrag/CFrag, wrong private
-  keys, explicit DEK size, and trusted-management rewrap.
+- Backend unit verification: 9/9 passed for owner/requester round trips, exposed-public-material
+  regression, authoritative-owner/requester/context mismatch, malformed and tampered
+  envelopes/KFrag/CFrag, wrong private keys, explicit DEK size, and trusted-management rewrap.
 - Focused Provider, storage, registration, rotation, attack, task, performance, bridge,
   traceability, and release-verifier checks passed after two evidenced compatibility corrections:
   algorithm-domain fingerprinting of rotation candidates and the expected HTTP algorithm label.
@@ -116,9 +118,25 @@
   paths, 4/4 tasks, 12/12 performance rows, 3/3 ProVerif models/four true queries, 2/2 SAGA bridge
   cases, and live Mongo E2E. It was correctly rejected only by `release_inputs_clean` before the
   deliberate source commit.
-- Remaining acceptance sequence: create the clean release-input commit, run the authoritative
-  release once, independently verify the published manifest, record the ledger and acceptance
-  review, then commit the evidence closure.
+- Initial release-input commits:
+  `9d4b99812b971f04e4fa0baf8790e999d3fd1557` (implementation) and
+  `567e79af7c5b2b86016d9e7c3e2ad2d975a02e3e` (non-self-referential final claims), followed by
+  `99c3b1bdde487c03a14188447e7d0b3235144542` (paper/manifest fact alignment).
+- Final independent audit then required direct wrapper-owner-key comparison with the active owner
+  registration, an exposed-state/public-API probe boundary, non-consuming crypto failure ordering
+  in the protocol specification, removal of an unimplemented request-signature claim, and a
+  performance-to-security-gate linkage field. These corrections are committed at
+  `7c27e7ce8f01922dd5c75190fcdb2d1c57e391c7`; the final evidence wording is committed at
+  `95061e6c1f8d9f04d182475dc365bb8b24575a36`.
+- Post-audit focused verification passed 40/40 tests, including malicious stored-wrapper
+  substitution with unchanged provenance; the denial was audited and did not consume the token.
+  One release-schema test also passed after the final wording-only adjustment.
+- Accepted authoritative run: `20260730T193022Z-41303f6f`.
+- Source fingerprint:
+  `0fd338a39d5ec2ec6ee4ecd376309412f5c13cfc0e434c0b88bd790a3001316e`
+  across 138 declared source files.
+- All nine release gates passed and the independent verifier accepted all 23 artifacts.
+- Acceptance review: `docs/verification/reviews/CRYPTO-001-acceptance.md`.
 
 ## Previous accepted work packages
 
@@ -139,4 +157,8 @@
 
 ## Proposed next work package
 
-- None until `CRYPTO-001` passes its acceptance review.
+- Candidate ID: `KEYCUSTODY-001`
+- Candidate topic: move rotation decrypt-and-fresh-encrypt to an owner/KMS boundary and decide
+  between per-record delegating keys and a label-bound PRE construction for retained-KFrag scope.
+- State: `awaiting_user_choice`
+- Rule: do not begin this candidate automatically.

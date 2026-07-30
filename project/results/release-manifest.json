@@ -1,24 +1,24 @@
 {
   "schema_version": 1,
   "status": "accepted",
-  "run_id": "20260729T123951Z-23c9fbf1",
-  "created_at_utc": "2026-07-29T12:39:53.031960+00:00",
+  "run_id": "20260730T193022Z-41303f6f",
+  "created_at_utc": "2026-07-30T19:30:23.723491+00:00",
   "profile": "full",
   "source": {
-    "fingerprint_sha256": "fc8c5a40159d622cca1830dc0f25582d2f76a32a4e146e7f19fbefc80e8af195",
-    "file_count": 132
+    "fingerprint_sha256": "0fd338a39d5ec2ec6ee4ecd376309412f5c13cfc0e434c0b88bd790a3001316e",
+    "file_count": 138
   },
   "git": {
-    "head": "6109b3eb6318a9714ee29b65da2340be5a6abcdf",
+    "head": "95061e6c1f8d9f04d182475dc365bb8b24575a36",
     "dirty": false,
     "release_inputs_dirty": false,
     "release_inputs_status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "workspace_dirty": true,
-    "workspace_status_sha256": "d56be047e1e3f9b3f326f523e21b19310949694be82640254501b56adf6d638b"
+    "workspace_status_sha256": "04b3d55b668899d9a83b58d9b6f66446dd472ad7904d42dca3cbd65ac09c4fa4"
   },
   "config": {
     "source_path": "project/configs/release.yaml",
-    "sha256": "f38acefbd46de58adbdae84d0e0cbd6e23acae92f60510b895ccf596dfdbce56",
+    "sha256": "538824fedaa0aa6183d1b513ee6bd19cb62758b9e43ac214ee48b04c5ab4964e",
     "values": {
       "schema_version": 1,
       "profile": "full",
@@ -34,8 +34,8 @@
         "iterations": 20
       },
       "required": {
-        "blocking_attacks": 7,
-        "limitation_probes": 1,
+        "blocking_attacks": 8,
+        "limitation_probes": 0,
         "successful_tasks": 4,
         "proverif_models": 3,
         "saga_bridge_cases": 2,
@@ -49,8 +49,17 @@
     "platform": "Windows-11-10.0.26200-SP0",
     "dependencies": {
       "cryptography": "49.0.0",
+      "nucypher-core": "0.15.0",
       "pymongo": "4.17.0",
       "PyYAML": "6.0.3"
+    },
+    "crypto_backend": {
+      "name": "umbral-pre-v1",
+      "dependency_distribution": "nucypher-core",
+      "dependency_version": "0.15.0",
+      "adapter_format_version": 1,
+      "threshold": 1,
+      "shares": 1
     },
     "proverif": {
       "available": true,
@@ -67,49 +76,54 @@
     {
       "name": "attacks",
       "status": "passed",
-      "duration_ms": 20.399
+      "duration_ms": 20.867
     },
     {
       "name": "tasks",
       "status": "passed",
-      "duration_ms": 9.284
+      "duration_ms": 20.159
     },
     {
       "name": "performance",
       "status": "passed",
-      "duration_ms": 255.974
+      "duration_ms": 434.628
     },
     {
       "name": "task_evaluation",
       "status": "passed",
-      "duration_ms": 266.41
+      "duration_ms": 432.142
     },
     {
       "name": "proverif",
       "status": "passed",
-      "duration_ms": 187.295
+      "duration_ms": 134.77
     },
     {
       "name": "saga_bridge",
       "status": "passed",
-      "duration_ms": 4.225
+      "duration_ms": 6.137
     },
     {
       "name": "mongodb_e2e",
       "status": "passed",
-      "duration_ms": 301.807
+      "duration_ms": 171.484
     }
   ],
   "gates": [
     {
       "name": "blocking_attacks",
       "passed": true,
-      "observation": "7/7"
+      "observation": "8/8"
     },
     {
       "name": "prototype_limitation_probe",
       "passed": true,
-      "observation": "1 active probe(s)"
+      "observation": "0 active probe(s)"
+    },
+    {
+      "name": "concrete_provider_recovery_probe",
+      "passed": true,
+      "observation": "Provider exposed-state regression found no DEK, public-key unwrap was rejected, and requester decrypt verified"
     },
     {
       "name": "task_success",
@@ -143,9 +157,10 @@
     }
   ],
   "limitations": [
-    "ToyPRE and HPKEKEMStub are deterministic prototype backends, not production cryptography.",
-    "The active limitation probe recovers the ToyPRE DEK from public material; cryptographic Provider confidentiality is not established.",
-    "Provider plaintext visibility booleans are control-flow instrumentation, not a confidentiality proof.",
+    "The release backend is the prototype Umbral adapter over nucypher-core 0.15.0 (Alpha, GPLv3); it has not been independently audited and is not production cryptography.",
+    "The active malicious-Provider regression finds no raw/base64/hex DEK in the exposed state, rejects direct public-key unwrap misuse, and confirms requester decryption; it is not cryptanalysis, a reduction, memory/side-channel analysis, or a whole-process guarantee.",
+    "Umbral KFrags are owner/requester key-pair scoped. Provider/requester collusion and retained KFrag reuse across same-owner capsules remain outside the established claim.",
+    "Trusted management-plane rotation may materialize a DEK and owner private key inside that trusted boundary; HSM/KMS isolation is not established.",
     "The SAGA bridge consumes recorded SAGA evidence and does not run a live SAGA network.",
     "MongoDB evidence is single-node local persistence and does not establish distributed transactions, RAFT, or sharding.",
     "ProVerif models cover their explicit symbolic queries only and do not verify the complete Python implementation.",
@@ -154,27 +169,27 @@
   "artifacts": [
     {
       "path": "figures/latency_breakdown.svg",
-      "sha256": "f99a4a0fe3a64f852ba64062bd9cdb26dab4c97ce733bd26c90dbc7a41c7b813",
+      "sha256": "36391571f68c09ed4701bfdac29aee0c9db31d51f1567d81cb7e73a429933edd",
       "bytes": 1484
     },
     {
       "path": "figures/scalability_policy_rules.svg",
-      "sha256": "dbdbfe8e2c134ce489dbc536d15f3c6157ea5d61d51604b177eb461358c90b68",
-      "bytes": 1442
+      "sha256": "2428a3b0ac9947786d15d5c29fba4dc0ea83cb79b37d9d780e482531f841ed62",
+      "bytes": 1440
     },
     {
       "path": "figures/task_latency_breakdown.svg",
-      "sha256": "bf371cbf865ca41dffce2e9256d9a70301a1d599ce46f43ccda18fb7e1b8e027",
-      "bytes": 1878
+      "sha256": "d6ab82f4bc2ad8b761a2ee20c4893ec02b8003bdd07c5b66e2e20f2aaa8cd8c8",
+      "bytes": 1875
     },
     {
       "path": "figures/task_scalability.svg",
-      "sha256": "1b858fc9010a268bcc217bfeeaab02936fe07f82e51edb5bdb29d05b14b27536",
-      "bytes": 3426
+      "sha256": "6a18634c65337ef28311f5e65a3a23533bb8855521cc1be692f28522eb5f7fe2",
+      "bytes": 3427
     },
     {
       "path": "mongodb_e2e_report.md",
-      "sha256": "046f4ed96d525813c8df174771ff4ead1134c07a95ab1fbd59df313d2a06c81d",
+      "sha256": "c843c2fa677fd6f3350b0d2fd7c86184d6dcdcbfe979bf80f789334c96299aba",
       "bytes": 1202
     },
     {
@@ -205,13 +220,13 @@
     },
     {
       "path": "reproducibility/release_config.yaml",
-      "sha256": "f38acefbd46de58adbdae84d0e0cbd6e23acae92f60510b895ccf596dfdbce56",
+      "sha256": "538824fedaa0aa6183d1b513ee6bd19cb62758b9e43ac214ee48b04c5ab4964e",
       "bytes": 290
     },
     {
       "path": "reproducibility/release_report.md",
-      "sha256": "0b1901c515b00dcc0d9f9f4ec1815bb3ad432d636eab35f54b75d4b4d7e7b437",
-      "bytes": 1902
+      "sha256": "cd91a7284ba3b91594e39529fbf3b3599ccf5b7671f14ea4d13e4d33da701d4e",
+      "bytes": 2491
     },
     {
       "path": "saga_bridge_report.md",
@@ -220,20 +235,20 @@
     },
     {
       "path": "tables/denial_reason_summary.csv",
-      "sha256": "e8b9ad31aa381c95e478bfe3bdaee0c6be4fa1fdd351a2f69c191d026bc6334e",
-      "bytes": 375,
+      "sha256": "4dd52bce96c21ed9362edf3198f489f36715cffaa272dcfa24ab01adcb59b929",
+      "bytes": 376,
       "row_count": 7
     },
     {
       "path": "tables/mongodb_e2e_summary.csv",
-      "sha256": "1e569b0a99d3ca38c369a90fb3eb6a5aab3d4f337d9cc9511118df2232740ffe",
+      "sha256": "8e01a45a471c28141b185e87c899fdfe958e2c673bc7b9d407fa4ee3fd0b0ed6",
       "bytes": 429,
       "row_count": 1
     },
     {
       "path": "tables/performance.csv",
-      "sha256": "2615fe8ace9c0b0bfa7da9c75dbb5ad528675b6d7b89ca11578e822d4d781658",
-      "bytes": 1743,
+      "sha256": "f897a4dc62e046b8ee68b92073e5cee1ad0fa90837f8a37095bb9fe5d62061a2",
+      "bytes": 1718,
       "row_count": 12
     },
     {
@@ -244,32 +259,32 @@
     },
     {
       "path": "tables/scalability_policy_rules.csv",
-      "sha256": "65aea3ad2626a7388da2a0a6ea2178b76c3536d477ce710e9b7edbc2d3f239ae",
-      "bytes": 603,
+      "sha256": "e80d5a909c3686211c5304aebeddd8a719ef331aa7e15437d78573228a19178d",
+      "bytes": 579,
       "row_count": 3
     },
     {
       "path": "tables/security_matrix.csv",
-      "sha256": "8e77cce5a1ed235ed12c7998d276f9f65a07ec4d5b391dbe606165f1a8d201f0",
-      "bytes": 2274,
+      "sha256": "5d08d0136ffe111f72fbe9848c089d000becd523b56ce782be6199b3cf35d371",
+      "bytes": 2487,
       "row_count": 8
     },
     {
       "path": "tables/task_latency_breakdown.csv",
-      "sha256": "97c7a3f329c4b7466bbe27a0179a5822acd7ee8dbc7241625882e669c269bd42",
+      "sha256": "0c819aa85e64e55ce6fa50631c1961bd4464ada8fa0241e3b88600752f93ab01",
       "bytes": 279,
       "row_count": 4
     },
     {
       "path": "tables/task_results.csv",
-      "sha256": "3380821a7822ff3aa8aa5b5689c33b9e9e8c8ef33bd6f56173a06c75828597ef",
+      "sha256": "51b856261fb7a2b67669b97551fc97178fb50b89a206dc36d2547e51d2cc93ac",
       "bytes": 625,
       "row_count": 4
     },
     {
       "path": "tables/task_scalability.csv",
-      "sha256": "49fa5774dffe9dc2bf8e223dbf457f8bd2a6b986af8f7f7479e99bc97820e585",
-      "bytes": 525,
+      "sha256": "8b01f0129704e4585fd6379214eb00663b47dab3c949bab12441d88cb61af00a",
+      "bytes": 526,
       "row_count": 9
     },
     {

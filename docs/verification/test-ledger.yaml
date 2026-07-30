@@ -911,3 +911,178 @@ entries:
       - paper/pre_saga_paper.md
     rerun_reason: "Final control-only closure after committing the clean input baseline and final evidence set."
     notes: "Ledger parsed, the 24-file control-plane check passed, RELEASE_VERIFY passed, whitespace check had no errors, and the canonical encoding scan passed. Functional tests were not repeated because no release input or core behavior changed after the accepted run."
+  - id: CRYPTO-001-DEPENDENCY-SMOKE
+    work_package: CRYPTO-001
+    target: nucypher_core_umbral_runtime_compatibility
+    command: "install reviewed nucypher_core-0.15.0 CPython 3.12 Windows wheel; exercise MessageKit owner decrypt, signed KFrag serialize/verify, reencrypt, CFrag verify, and requester decrypt"
+    relevant_code_state: "pre-adapter dependency selection"
+    configuration: "Umbral threshold=1, shares=1; exact wheel SHA-256 172b7b9a82c73b4c3c75719c32a84cf2c592789418ebdfb8ee3eba8699a021f9"
+    environment: "Windows 11, Python 3.12.0, nucypher-core 0.15.0"
+    result: "pass"
+    evidence:
+      - docs/adr/0008-concrete-umbral-pre-backend.md
+    rerun_reason: "First compatibility check for the selected native cryptographic dependency."
+    notes: "NUCYPHER_CORE_UMBRAL_SMOKE: PASS. This checks exposed API compatibility, not cryptographic correctness or supply-chain provenance."
+  - id: CRYPTO-001-FOCUSED-CORRECTIONS
+    work_package: CRYPTO-001
+    target: concrete_backend_provider_rotation_and_traceability_integration
+    command: "python -m unittest <backend, crypto envelope, attacks, normal sharing, rotation, HTTP, registry, storage, agent, traceability, formal, release-verifier modules> -v"
+    relevant_code_state: "CRYPTO-001 integration before the clean release-input commit"
+    configuration: "Umbral authoritative experiment paths; Toy/HPKE explicit fixtures; temporary stores"
+    environment: "Windows 11, project directory, Python 3.12.0"
+    result: "pass_after_causal_corrections"
+    evidence:
+      - project/tests/unit/test_umbral_pre.py
+      - project/tests/security/test_attack_scripts.py
+      - project/tests/security/test_traceability.py
+      - project/tests/integration/test_owner_key_rotation.py
+      - project/tests/integration/test_provider_http_service.py
+    rerun_reason: "Impact-selected verification after changing the backend API, Provider consumption order, algorithm identity, rotation rewrap, and authoritative experiments."
+    notes: "The first 25-test run exposed rotation-candidate fingerprinting under the wrong algorithm domain and one stale HTTP algorithm expectation; the nearest five tests passed after correction. A later 62-test run exposed one stale T2 heading guard; all four traceability checks passed after correction. Backend tests were 9/9 and the final focused selections passed."
+  - id: CRYPTO-001-MONGODB-FOCUSED
+    work_package: CRYPTO-001
+    target: concrete_backend_live_mongo_rotation_provider_and_e2e
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest tests.integration.test_mongodb_rotation_cas tests.integration.test_mongodb_provider_service tests.integration.test_mongodb_e2e -v"
+    relevant_code_state: "final concrete backend and Provider integration"
+    configuration: "isolated runtime/crypto001-mongodb data directory; Umbral publication E2E; HPKE rotation fixtures where explicit"
+    environment: "Windows 11, Python 3.12.0, MongoDB 8.3.4 on 127.0.0.1:27018"
+    result: "pass"
+    evidence:
+      - project/tests/integration/test_mongodb_rotation_cas.py
+      - project/tests/integration/test_mongodb_provider_service.py
+      - project/tests/integration/test_mongodb_e2e.py
+    rerun_reason: "Causal rerun after the first launch used an unquoted path with spaces and all five tests skipped; skipped tests were rejected as evidence."
+    notes: "MongoDB ping returned 1.0 and version 8.3.4. The same five tests then passed with no skips."
+  - id: CRYPTO-001-FULL-REGRESSION
+    work_package: CRYPTO-001
+    target: cross_cutting_crypto_provider_storage_experiment_regression
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest discover -s tests -v"
+    relevant_code_state: "final core/runtime behavior before documentation-only release closure"
+    configuration: "complete test discovery; Umbral default/publication profile; explicit Toy/HPKE fixtures; live isolated Mongo"
+    environment: "Windows 11, Python 3.12.0, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/tests
+      - docs/verification/reviews/CRYPTO-001-acceptance.md
+    rerun_reason: "One full regression is required because the crypto API, artifact formats, Provider transform order, service default, rotation, experiments, and release schema are cross-cutting."
+    notes: "101/101 tests passed with no skips. Later changes before the release input commit were claims/protocol wording and release source-inventory expansion; the staged release exercised those release-tool changes, so the full functional suite was not duplicated."
+  - id: CRYPTO-001-RELEASE-PREFLIGHT
+    work_package: CRYPTO-001
+    target: staged_release_gate_preflight
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018"
+    relevant_code_state: "final CRYPTO-001 inputs before the deliberate Git baseline"
+    configuration: "full release profile; unique staging and Mongo database"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "expected_rejection"
+    evidence:
+      - project/tmp/release-staging/20260730T190452Z-b76cb299
+    rerun_reason: "Pre-commit dry run to detect scientific or artifact-pipeline failures without publishing over the accepted result set."
+    notes: "All eight scientific/evidence gates passed. Only release_inputs_clean failed, so the runner rejected staging and preserved the prior accepted result set."
+  - id: CRYPTO-001-SOURCE-BASELINE
+    work_package: CRYPTO-001
+    target: reconstructible_concrete_backend_release_inputs
+    command: "git commit -m 'feat: add concrete Umbral PRE release backend'"
+    relevant_code_state: "35 CRYPTO-001 source, test, protocol, paper, claim, and release-control files"
+    configuration: "branch codex/rel-001-authoritative-release"
+    environment: "local Git repository"
+    result: "pass"
+    evidence:
+      - project/presaga/crypto/umbral_pre.py
+      - project/experiments/release.py
+      - paper/pre_saga_paper.md
+      - docs/adr/0008-concrete-umbral-pre-backend.md
+    rerun_reason: "Required clean source baseline before authoritative evidence generation."
+    notes: "Release inputs committed at 9d4b99812b971f04e4fa0baf8790e999d3fd1557. Unrelated user drafts, frontend/history files, and untracked workspace materials were preserved outside the commit."
+  - id: CRYPTO-001-RELEASE-PASS
+    work_package: CRYPTO-001
+    target: clean_input_authoritative_umbral_release
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018; python scripts/verify_release.py"
+    relevant_code_state: "clean commit 9d4b99812b971f04e4fa0baf8790e999d3fd1557; source fingerprint 0da28338caee7ab685289ea1c4d93819c163f0f83dabe731d584c8aae9890e52"
+    configuration: "full profile; 8 blocking attacks; 0 active toy limitation paths; pinned nucypher-core 0.15.0; exact backend metadata"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass_superseded"
+    evidence:
+      - project/results/release-manifest.json
+      - project/results/reproducibility/release_report.md
+      - project/results/tables/security_matrix.csv
+      - project/results/proofs/proverif_summary.csv
+      - docs/verification/reviews/CRYPTO-001-acceptance.md
+    rerun_reason: "First authoritative run after the initial clean CRYPTO-001 release-input commit."
+    notes: "Run 20260730T190920Z-390efd0b passed all nine gates and independent verification, but was superseded after source-fingerprinted claims and an obsolete paper source-state statement were corrected."
+  - id: CRYPTO-001-FINAL-RELEASE
+    work_package: CRYPTO-001
+    target: final_claim_and_paper_aligned_authoritative_release
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018; python scripts/verify_release.py"
+    relevant_code_state: "clean commit 99c3b1bdde487c03a14188447e7d0b3235144542; source fingerprint f66895063c3f06c88fe81ac1a128cc2539d990106b0014f17dc0fbda519e2155"
+    configuration: "final non-self-referential claims; paper defers exact HEAD/count/fingerprint to the same manifest; unchanged core implementation and full release profile"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/results/release-manifest.json
+      - project/results/reproducibility/release_report.md
+      - docs/verification/reviews/CRYPTO-001-acceptance.md
+      - paper/pre_saga_paper.md
+    rerun_reason: "Required because claims and paper are source-fingerprinted inputs; changing them after a release invalidates the previous manifest even though core behavior is unchanged."
+    notes: "Run 20260730T191643Z-778cf5ae passed all nine gates and independent verification. It binds 23 artifacts to 138 source files at commit 99c3b1b. The 101-test functional suite was not repeated because the superseding commits changed claims/paper wording only; release and verifier directly exercised the affected evidence path."
+  - id: CRYPTO-001-FINAL-AUDIT-FOCUSED
+    work_package: CRYPTO-001
+    target: authoritative_owner_key_binding_probe_boundary_and_evidence_schema
+    command: "python -m unittest tests.unit.test_umbral_pre tests.security.test_attack_scripts tests.security.test_performance_runner tests.security.test_release_evidence -v; PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest tests.integration.test_normal_sharing tests.integration.test_contact_data_binding tests.integration.test_management_data_plane tests.integration.test_provider_http_service tests.integration.test_mongodb_e2e tests.integration.test_saga_bridge tests.security.test_traceability -v"
+    relevant_code_state: "final audit corrections committed at 7c27e7ce8f01922dd5c75190fcdb2d1c57e391c7"
+    configuration: "Umbral authoritative owner/requester registration inputs; exposed-state Provider regression; performance-to-recovery-gate linkage; live isolated Mongo"
+    environment: "Windows 11, Python 3.12.0, MongoDB 8.3.4 on 127.0.0.1:27018"
+    result: "pass"
+    evidence:
+      - project/tests/unit/test_umbral_pre.py
+      - project/tests/security/test_attack_scripts.py
+      - project/tests/security/test_performance_runner.py
+      - project/tests/security/test_release_evidence.py
+      - project/tests/integration/test_mongodb_e2e.py
+      - project/tests/security/test_traceability.py
+    rerun_reason: "Impact-selected verification after the independent audit found a direct owner-registration binding gap plus probe and evidence-schema overclaims."
+    notes: "40/40 tests passed with live Mongo and no skips. The malicious wrapper-substitution test preserves active provenance, uses an attacker wrapper and matching KFrag, and confirms crypto_artifact_invalid with the one-use token unconsumed. The earlier 101/101 full regression was not duplicated because this correction is localized and these focused tests cover every affected production and evidence path."
+  - id: CRYPTO-001-FINAL-WORDING-CHECK
+    work_package: CRYPTO-001
+    target: bounded_provider_probe_manifest_language
+    command: "python -m unittest tests.security.test_release_evidence -v"
+    relevant_code_state: "wording-only release observation and limitation correction committed at 95061e6c1f8d9f04d182475dc365bb8b24575a36"
+    configuration: "synthetic accepted release and artifact-tamper rejection fixture"
+    environment: "Windows 11, project directory, Python 3.12.0"
+    result: "pass"
+    evidence:
+      - project/experiments/release.py
+      - project/tests/security/test_release_evidence.py
+    rerun_reason: "Direct schema verification after narrowing the final manifest language from generic recovery to the exact exposed-state/public-API regression."
+    notes: "1/1 passed. No core code changed, so no functional suite rerun was warranted."
+  - id: CRYPTO-001-FINAL-AUDIT-RELEASE
+    work_package: CRYPTO-001
+    target: post_audit_clean_input_authoritative_release
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m experiments.run_all; python scripts/verify_release.py"
+    relevant_code_state: "clean release inputs at commit 95061e6c1f8d9f04d182475dc365bb8b24575a36; source fingerprint 0fd338a39d5ec2ec6ee4ecd376309412f5c13cfc0e434c0b88bd790a3001316e"
+    configuration: "full profile; exact bounded Provider regression language; 8 blocking attacks; 0 active toy paths; pinned nucypher-core 0.15.0"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/results/release-manifest.json
+      - project/results/reproducibility/release_report.md
+      - project/results/tables/security_matrix.csv
+      - project/results/tables/performance.csv
+      - project/results/proofs/proverif_summary.csv
+      - docs/verification/reviews/CRYPTO-001-acceptance.md
+    rerun_reason: "Required because the five audit corrections and final evidence wording changed release-fingerprinted source inputs and invalidated prior manifests."
+    notes: "Final run 20260730T193022Z-41303f6f passed all nine gates; release_inputs_dirty=false; 23 artifacts bind to 138 source files; independent verification passed. The immediately prior 20260730T192841Z-0d86c817 run also passed but was superseded solely to narrow manifest wording."
+  - id: CRYPTO-001-CONTROL-CLOSURE
+    work_package: CRYPTO-001
+    target: final_repository_workflow_manifest_and_ledger_closure
+    command: "parse test-ledger YAML; run 24-file workflow check; run independent release verifier; assert final manifest run/head/clean gates; git diff --check"
+    relevant_code_state: "release inputs at 95061e6; final evidence run 20260730T193022Z-41303f6f; closure documents updated to the same run"
+    configuration: "CRYPTO-001 accepted milestone, ADR 0008, claims/traceability, final manifest, acceptance review, and 75-entry ledger"
+    environment: "Windows repository root, Python 3.12 with PyYAML"
+    result: "pass"
+    evidence:
+      - docs/workflow/current-milestone.md
+      - docs/verification/reviews/CRYPTO-001-acceptance.md
+      - docs/verification/test-ledger.yaml
+      - project/results/release-manifest.json
+    rerun_reason: "Final control-only closure after the accepted post-audit release and evidence-document synchronization."
+    notes: "Ledger parsed, the 24-file workflow check passed, RELEASE_VERIFY passed, final manifest facts matched run 20260730T193022Z-41303f6f at commit 95061e6 with all nine gates and clean inputs, and whitespace checking had no errors. Functional tests and release generation were not repeated because only closure documents changed."
