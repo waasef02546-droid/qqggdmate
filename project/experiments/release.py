@@ -174,7 +174,7 @@ def run_release(
         "gates": gates,
         "limitations": [
             "The release backend is the prototype Umbral adapter over nucypher-core 0.15.0 (Alpha, GPLv3); it has not been independently audited and is not production cryptography.",
-            "The active malicious-Provider probe blocks public-material DEK recovery and confirms requester decryption, but it is empirical evidence rather than a reduction, side-channel analysis, or whole-process guarantee.",
+            "The active malicious-Provider regression finds no raw/base64/hex DEK in the exposed state, rejects direct public-key unwrap misuse, and confirms requester decryption; it is not cryptanalysis, a reduction, memory/side-channel analysis, or a whole-process guarantee.",
             "Umbral KFrags are owner/requester key-pair scoped. Provider/requester collusion and retained KFrag reuse across same-owner capsules remain outside the established claim.",
             "Trusted management-plane rotation may materialize a DEK and owner private key inside that trusted boundary; HSM/KMS isolation is not established.",
             "The SAGA bridge consumes recorded SAGA evidence and does not run a live SAGA network.",
@@ -314,7 +314,7 @@ def _evaluate_gates(
                 ]
             )
             == 1,
-            "Umbral public-material recovery blocked and requester decrypt verified",
+            "Provider exposed-state regression found no DEK, public-key unwrap was rejected, and requester decrypt verified",
         ),
         _gate(
             "task_success",
