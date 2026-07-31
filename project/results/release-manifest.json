@@ -1,24 +1,24 @@
 {
   "schema_version": 1,
   "status": "accepted",
-  "run_id": "20260730T193022Z-41303f6f",
-  "created_at_utc": "2026-07-30T19:30:23.723491+00:00",
+  "run_id": "20260731T111704Z-c1d0f804",
+  "created_at_utc": "2026-07-31T11:17:05.991424+00:00",
   "profile": "full",
   "source": {
-    "fingerprint_sha256": "0fd338a39d5ec2ec6ee4ecd376309412f5c13cfc0e434c0b88bd790a3001316e",
-    "file_count": 138
+    "fingerprint_sha256": "b63f2e09a6503346f7e62b4e9fe82ce27afa5b0c6651f727b225ee86a5fb2595",
+    "file_count": 145
   },
   "git": {
-    "head": "95061e6c1f8d9f04d182475dc365bb8b24575a36",
+    "head": "5f1cea694249397095672867d087daab4630be36",
     "dirty": false,
     "release_inputs_dirty": false,
     "release_inputs_status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "workspace_dirty": true,
-    "workspace_status_sha256": "04b3d55b668899d9a83b58d9b6f66446dd472ad7904d42dca3cbd65ac09c4fa4"
+    "workspace_status_sha256": "2fb58007018c5c457b2cea40379723aa05d3f4a57a8d7b424f23b5f0f134ec87"
   },
   "config": {
     "source_path": "project/configs/release.yaml",
-    "sha256": "538824fedaa0aa6183d1b513ee6bd19cb62758b9e43ac214ee48b04c5ab4964e",
+    "sha256": "263f397086ac389e3548ebff33ae4d31b3ae4c3019974118ba7469db73094f4a",
     "values": {
       "schema_version": 1,
       "profile": "full",
@@ -39,6 +39,7 @@
         "successful_tasks": 4,
         "proverif_models": 3,
         "saga_bridge_cases": 2,
+        "key_custody_cases": 1,
         "mongodb_e2e": true
       }
     }
@@ -76,37 +77,42 @@
     {
       "name": "attacks",
       "status": "passed",
-      "duration_ms": 20.867
+      "duration_ms": 28.024
     },
     {
       "name": "tasks",
       "status": "passed",
-      "duration_ms": 20.159
+      "duration_ms": 22.922
     },
     {
       "name": "performance",
       "status": "passed",
-      "duration_ms": 434.628
+      "duration_ms": 471.747
     },
     {
       "name": "task_evaluation",
       "status": "passed",
-      "duration_ms": 432.142
+      "duration_ms": 461.881
     },
     {
       "name": "proverif",
       "status": "passed",
-      "duration_ms": 134.77
+      "duration_ms": 145.649
     },
     {
       "name": "saga_bridge",
       "status": "passed",
-      "duration_ms": 6.137
+      "duration_ms": 6.571
+    },
+    {
+      "name": "key_custody",
+      "status": "passed",
+      "duration_ms": 6.031
     },
     {
       "name": "mongodb_e2e",
       "status": "passed",
-      "duration_ms": 171.484
+      "duration_ms": 178.841
     }
   ],
   "gates": [
@@ -146,6 +152,11 @@
       "observation": "2 case(s)"
     },
     {
+      "name": "key_custody_boundary",
+      "passed": true,
+      "observation": "trusted owner-local approval rejects target substitution; signed artifact accepted; replay bounded; legacy private-key input rejected; target decrypt succeeded; no source key or plaintext DEK found in bounded Provider-visible surfaces"
+    },
+    {
       "name": "mongodb_e2e",
       "passed": true,
       "observation": "required"
@@ -160,7 +171,8 @@
     "The release backend is the prototype Umbral adapter over nucypher-core 0.15.0 (Alpha, GPLv3); it has not been independently audited and is not production cryptography.",
     "The active malicious-Provider regression finds no raw/base64/hex DEK in the exposed state, rejects direct public-key unwrap misuse, and confirms requester decryption; it is not cryptanalysis, a reduction, memory/side-channel analysis, or a whole-process guarantee.",
     "Umbral KFrags are owner/requester key-pair scoped. Provider/requester collusion and retained KFrag reuse across same-owner capsules remain outside the established claim.",
-    "Trusted management-plane rotation may materialize a DEK and owner private key inside that trusted boundary; HSM/KMS isolation is not established.",
+    "Owner-key rotation removes the source private key and plaintext DEK from Provider interfaces and persisted/exported Provider state; the owner/KMS process still materializes them, and HSM isolation, memory forensics, side-channel resistance, and a whole-process guarantee are not established.",
+    "The owner/KMS CLI requires an exactly matching owner-local approval file, but the prototype does not sign that file or authenticate its operating-system provenance; a compromised owner host is outside the established boundary.",
     "The SAGA bridge consumes recorded SAGA evidence and does not run a live SAGA network.",
     "MongoDB evidence is single-node local persistence and does not establish distributed transactions, RAFT, or sharding.",
     "ProVerif models cover their explicit symbolic queries only and do not verify the complete Python implementation.",
@@ -169,28 +181,28 @@
   "artifacts": [
     {
       "path": "figures/latency_breakdown.svg",
-      "sha256": "36391571f68c09ed4701bfdac29aee0c9db31d51f1567d81cb7e73a429933edd",
+      "sha256": "61e0752b626ee453fe41be478ee9c39b9785e3413e5846916fc48bc0beb6e316",
       "bytes": 1484
     },
     {
       "path": "figures/scalability_policy_rules.svg",
-      "sha256": "2428a3b0ac9947786d15d5c29fba4dc0ea83cb79b37d9d780e482531f841ed62",
-      "bytes": 1440
+      "sha256": "90ed53afca143df6a1dd5ebf97037812cd39a6d6bd7bc1bc0d9df5129e14e0e6",
+      "bytes": 1442
     },
     {
       "path": "figures/task_latency_breakdown.svg",
-      "sha256": "d6ab82f4bc2ad8b761a2ee20c4893ec02b8003bdd07c5b66e2e20f2aaa8cd8c8",
-      "bytes": 1875
+      "sha256": "62d82aa35682da933cfe1c645b44cd9da245271fc3886592806d12a99b4e52d9",
+      "bytes": 1877
     },
     {
       "path": "figures/task_scalability.svg",
-      "sha256": "6a18634c65337ef28311f5e65a3a23533bb8855521cc1be692f28522eb5f7fe2",
-      "bytes": 3427
+      "sha256": "4bdb8141c6ce15c5332065140ce4ef295fa27f590260cd5c56008c11e35364ae",
+      "bytes": 3425
     },
     {
       "path": "mongodb_e2e_report.md",
-      "sha256": "c843c2fa677fd6f3350b0d2fd7c86184d6dcdcbfe979bf80f789334c96299aba",
-      "bytes": 1202
+      "sha256": "c86a31254e148790a85f28642f2a10b42ea895bf6321f8fda792ea8d9ea31c3e",
+      "bytes": 1203
     },
     {
       "path": "proofs/presaga_dek_secrecy.out.txt",
@@ -220,13 +232,13 @@
     },
     {
       "path": "reproducibility/release_config.yaml",
-      "sha256": "538824fedaa0aa6183d1b513ee6bd19cb62758b9e43ac214ee48b04c5ab4964e",
-      "bytes": 290
+      "sha256": "263f397086ac389e3548ebff33ae4d31b3ae4c3019974118ba7469db73094f4a",
+      "bytes": 313
     },
     {
       "path": "reproducibility/release_report.md",
-      "sha256": "cd91a7284ba3b91594e39529fbf3b3599ccf5b7671f14ea4d13e4d33da701d4e",
-      "bytes": 2491
+      "sha256": "1ba83af11abdc440714a17215861c2c8d842f863626b3de91a18848f3818bd16",
+      "bytes": 3141
     },
     {
       "path": "saga_bridge_report.md",
@@ -240,15 +252,21 @@
       "row_count": 7
     },
     {
+      "path": "tables/key_custody_summary.csv",
+      "sha256": "638640a61326686da65dcb80ad5553f3701896aa86f56a89891f2699316c042a",
+      "bytes": 1110,
+      "row_count": 1
+    },
+    {
       "path": "tables/mongodb_e2e_summary.csv",
-      "sha256": "8e01a45a471c28141b185e87c899fdfe958e2c673bc7b9d407fa4ee3fd0b0ed6",
-      "bytes": 429,
+      "sha256": "4a2c798bcbd07ccc1a59d7a9e3fb9e392802d2efcaaf971851bea7d91b41880a",
+      "bytes": 430,
       "row_count": 1
     },
     {
       "path": "tables/performance.csv",
-      "sha256": "f897a4dc62e046b8ee68b92073e5cee1ad0fa90837f8a37095bb9fe5d62061a2",
-      "bytes": 1718,
+      "sha256": "fc0d2a71851146e0a7a55b9a4552ff8f3361b8f366fcc0d67128098f35a12c06",
+      "bytes": 1719,
       "row_count": 12
     },
     {
@@ -259,32 +277,32 @@
     },
     {
       "path": "tables/scalability_policy_rules.csv",
-      "sha256": "e80d5a909c3686211c5304aebeddd8a719ef331aa7e15437d78573228a19178d",
-      "bytes": 579,
+      "sha256": "1e8602126d9a9d9539877aed9d7bb1d0e4a641e67a02eeac3775df31f95ecc02",
+      "bytes": 582,
       "row_count": 3
     },
     {
       "path": "tables/security_matrix.csv",
-      "sha256": "5d08d0136ffe111f72fbe9848c089d000becd523b56ce782be6199b3cf35d371",
+      "sha256": "04ec64a479fa702ea100070d69fb85b0af78939e9618851ac74034eef832ee1d",
       "bytes": 2487,
       "row_count": 8
     },
     {
       "path": "tables/task_latency_breakdown.csv",
-      "sha256": "0c819aa85e64e55ce6fa50631c1961bd4464ada8fa0241e3b88600752f93ab01",
+      "sha256": "4203ab2b43d47ff48fd2dc1640031f684c3b9c164afd03fa971cff16a7e8fda8",
       "bytes": 279,
       "row_count": 4
     },
     {
       "path": "tables/task_results.csv",
-      "sha256": "51b856261fb7a2b67669b97551fc97178fb50b89a206dc36d2547e51d2cc93ac",
+      "sha256": "276b214f185e90a04c288445af41acdf2e9d289261441740cf11fb6c5a17387d",
       "bytes": 625,
       "row_count": 4
     },
     {
       "path": "tables/task_scalability.csv",
-      "sha256": "8b01f0129704e4585fd6379214eb00663b47dab3c949bab12441d88cb61af00a",
-      "bytes": 526,
+      "sha256": "2fad05c7f14d7db7bdda424934028b5c048f5de76b5992c44bb4cf0c81e36c20",
+      "bytes": 525,
       "row_count": 9
     },
     {

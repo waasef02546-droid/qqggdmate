@@ -1,8 +1,8 @@
 # KEYCUSTODY-001 acceptance checklist
 
 - Work package: `KEYCUSTODY-001`
-- State: `implementation-and-verification`
-- Decision: `pending`
+- State: `accepted`
+- Decision: `ACCEPT`
 - Reviewer rule: a checked item requires an implementation path and repeatable evidence; prose or
   a test without authoritative core behavior is insufficient.
 
@@ -29,8 +29,8 @@
   registration, validates the target Umbral wrapper key/context, then stages with object CAS.
 - [x] Exact artifact replay is idempotent; a different artifact for the same rotation/object
   conflicts.
-- [x] JSON/Mongo journal and object persistence retain only public requests/digests/signatures and
-  encrypted wrappers, never keys or plaintext DEKs.
+- [x] JSON/Mongo object state persists only encrypted wrappers plus public digest/provenance;
+  custody signatures are verified before staging and are not persisted as restart attestations.
 - [x] Legacy `source_private_key_b64` fails closed with no compatibility fallback.
 
 ## C. Verification
@@ -59,14 +59,26 @@
 - [x] ProVerif is rerun only because the authoritative full-release gate requires it; no new
   rotation/custody formal claim is made and current models remain explicitly out of scope.
 - [x] Ledger records commands, environment, code state, failures, causal reruns, and evidence.
-- [ ] Clean source commit, authoritative release, artifact hashes, independent verifier, and
-  independent final audit all pass. Source commit, release, hashes, and verifier pass; final audit
-  is in progress.
+- [x] Clean source commit, authoritative release, artifact hashes, independent verifier, and
+  independent final audit all pass.
+
+## Accepted evidence
+
+- Final source commit: `5f1cea694249397095672867d087daab4630be36`.
+- Authoritative release: `20260731T111704Z-c1d0f804`.
+- Source fingerprint: `b63f2e09a6503346f7e62b4e9fe82ce27afa5b0c6651f727b225ee86a5fb2595` over 145 files.
+- Release result: 10/10 gates, 24 artifacts, `release_inputs_dirty=false`, independent verifier PASS.
+- Verification: 26/26 approval/custody/Mongo/release checks and 117/117 full regression with live
+  Mongo and no skips.
+- Independent reviewer decision: `ACCEPT`; no unmet items. Residual risks are the trusted local
+  approval file, trusted repository on restart, owner/KMS key and DEK memory, static Bearer
+  management authentication, key-pair-scoped KFrags, non-transactional multi-object rotation, and
+  the Alpha/GPL prototype dependency.
 
 ## E. Closure
 
-- [ ] Every applicable item above is checked with evidence links.
-- [ ] Current milestone and residual risks are updated.
-- [ ] No unrelated user files are staged.
+- [x] Every applicable item above is checked with evidence links.
+- [x] Current milestone and residual risks are updated.
+- [x] No unrelated user files are staged.
 - [ ] Final implementation/evidence commit exists; push uses a normal branch update, never force.
-- [ ] `KFRAGSCOPE-001` remains unstarted pending separate authorization.
+- [x] `KFRAGSCOPE-001` remains unstarted pending separate authorization.

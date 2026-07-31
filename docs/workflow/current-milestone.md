@@ -4,7 +4,7 @@
 
 - ID: `KEYCUSTODY-001`
 - Title: Authenticated owner/KMS rewrap boundary
-- State: `acceptance_review`
+- State: `accepted`
 - Authorization date: `2026-07-31`
 - Objective: remove owner source private keys and plaintext DEKs from the Provider rotation
   request/call graph. The Provider must export a deterministic, non-secret rewrap request and
@@ -126,3 +126,15 @@
   KFrag cross-record attack gate.
 - State: `not_authorized`
 - Rule: do not begin until `KEYCUSTODY-001` is accepted and the user authorizes it.
+
+## Acceptance record
+
+- Final source commit: `5f1cea694249397095672867d087daab4630be36`.
+- Authoritative release: `20260731T111704Z-c1d0f804`.
+- Evidence: 26/26 focused approval/custody/Mongo/release checks; 117/117 full regression with live
+  Mongo; 10/10 release gates; 24 manifest artifacts; clean 145-file source fingerprint;
+  independent verifier PASS.
+- Independent final review: `ACCEPT`, no unmet items.
+- Residual boundaries: trusted unsigned owner-local approval input, trusted repository at restart,
+  owner/KMS memory exposure, static management Bearer authentication, retained key-pair-scoped
+  KFrags, non-transactional multi-object rotation, and prototype Umbral dependency status.

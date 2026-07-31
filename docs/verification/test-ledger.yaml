@@ -1205,14 +1205,29 @@ entries:
     relevant_code_state: "clean commit c45a0b594e908bdc2cb3c3337f879f6ace743750; source fingerprint ee8e113e46e9742a54a0a1295cd741a560cfcfe6b40d852223c66fbe6687b349"
     configuration: "full profile; explicit trusted-owner-local approval gate; exact ten-gate and 24-artifact inventory"
     environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
-    result: "pass"
+    result: "pass_superseded"
     evidence:
       - project/results/release-manifest.json
       - project/results/tables/key_custody_summary.csv
       - project/results/reproducibility/release_report.md
       - project/results/proofs/proverif_summary.csv
     rerun_reason: "Required authoritative regeneration after the owner-approval API and semantic release gate changed."
-    notes: "Run 20260731T111445Z-8a035257 passed all ten gates with clean inputs. The manifest binds 24 artifacts to 145 source files; verifier PASS. Custody semantics include unapproved-target rejection, signed artifact verification, exact replay idempotency, conflict/legacy-input denial, target decrypt, and bounded negative secret scans."
+    notes: "Run 20260731T111445Z-8a035257 passed all ten gates with clean inputs and independent verification, but was superseded only because traceability wording and ledger command reproducibility were corrected after the audit; core behavior did not change."
+  - id: KEYCUSTODY-001-FINAL-TRACEABLE-RELEASE
+    work_package: KEYCUSTODY-001
+    target: final_traceability_aligned_owner_custody_release
+    command: "$env:PRESAGA_MONGODB_URI='mongodb://127.0.0.1:27018'; python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018; python scripts/verify_release.py"
+    relevant_code_state: "clean commit 5f1cea694249397095672867d087daab4630be36; source fingerprint b63f2e09a6503346f7e62b4e9fe82ce27afa5b0c6651f727b225ee86a5fb2595"
+    configuration: "full profile; owner-local approval semantics; exact ten-gate and 24-artifact inventory"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/results/release-manifest.json
+      - project/results/tables/key_custody_summary.csv
+      - project/results/reproducibility/release_report.md
+      - project/docs/traceability_matrix.md
+    rerun_reason: "Required because traceability is a release-fingerprinted input; the final wording now records owner approval and trusted-repository recovery boundaries."
+    notes: "Run 20260731T111704Z-c1d0f804 passed all ten gates with release_inputs_dirty=false. The manifest binds 24 artifacts to 145 source files at the exact final source commit; independent verifier PASS. Core behavior and the 117/117 regression were unchanged from the immediately preceding accepted run."
   - id: KEYCUSTODY-001-RELEASE-PREFLIGHT
     work_package: KEYCUSTODY-001
     target: ten_gate_authoritative_release_preflight

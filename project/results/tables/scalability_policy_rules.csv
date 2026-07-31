@@ -1,4 +1,4 @@
 experiment,baseline,path_kind,observation_source,policy_rules,iterations,avg_latency_ms,p95_latency_ms,provider_plaintext_data_visible,provider_plaintext_dek_visible,provider_recovery_gate_linked,data_layer_control
-policy_scalability,presaga_policy_only,policy_microbenchmark,data_policy_decision,10,50,0.006,0.0136,False,False,,True
-policy_scalability,presaga_policy_only,policy_microbenchmark,data_policy_decision,100,50,0.019,0.023,False,False,,True
-policy_scalability,presaga_policy_only,policy_microbenchmark,data_policy_decision,1000,50,0.1931,0.2978,False,False,,True
+policy_scalability,presaga_policy_only,policy_microbenchmark,data_policy_decision,10,50,0.0034,0.0038,False,False,,True
+policy_scalability,presaga_policy_only,policy_microbenchmark,data_policy_decision,100,50,0.0201,0.0249,False,False,,True
+policy_scalability,presaga_policy_only,policy_microbenchmark,data_policy_decision,1000,50,0.1935,0.2427,False,False,,True

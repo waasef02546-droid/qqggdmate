@@ -5,16 +5,16 @@
 <line x1="80" y1="350" x2="940" y2="350" stroke="#374151"/>
 <text x="24" y="230.0" transform="rotate(-90 24 230.0)" text-anchor="middle" font-family="Arial" font-size="13">Total latency (ms)</text>
 <text x="490.0" y="442" text-anchor="middle" font-family="Arial" font-size="13">Task</text>
-<rect x="98" y="90.24" width="192" height="259.76" fill="#0f766e" rx="4"/>
-<text x="194.0" y="82.24" text-anchor="middle" font-family="Arial" font-size="11">5.354</text>
+<rect x="98" y="201.62" width="192" height="148.38" fill="#0f766e" rx="4"/>
+<text x="194.0" y="193.62" text-anchor="middle" font-family="Arial" font-size="11">4.297</text>
 <text x="194.0" y="368" transform="rotate(35 194.0 368)" text-anchor="start" font-family="Arial" font-size="10">schedule_meeting</text>
-<rect x="308" y="140.16" width="192" height="209.84" fill="#0f766e" rx="4"/>
-<text x="404.0" y="132.16" text-anchor="middle" font-family="Arial" font-size="11">4.325</text>
+<rect x="308" y="207.73" width="192" height="142.27" fill="#0f766e" rx="4"/>
+<text x="404.0" y="199.73" text-anchor="middle" font-family="Arial" font-size="11">4.12</text>
 <text x="404.0" y="368" transform="rotate(35 404.0 368)" text-anchor="start" font-family="Arial" font-size="10">expense_report</text>
-<rect x="518" y="160.30" width="192" height="189.70" fill="#0f766e" rx="4"/>
-<text x="614.0" y="152.30" text-anchor="middle" font-family="Arial" font-size="11">3.91</text>
+<rect x="518" y="193.95" width="192" height="156.05" fill="#0f766e" rx="4"/>
+<text x="614.0" y="185.95" text-anchor="middle" font-family="Arial" font-size="11">4.519</text>
 <text x="614.0" y="368" transform="rotate(35 614.0 368)" text-anchor="start" font-family="Arial" font-size="10">collaborative_writing</text>
 <rect x="728" y="80.00" width="192" height="270.00" fill="#0f766e" rx="4"/>
-<text x="824.0" y="72.00" text-anchor="middle" font-family="Arial" font-size="11">5.565</text>
+<text x="824.0" y="72.00" text-anchor="middle" font-family="Arial" font-size="11">7.819</text>
 <text x="824.0" y="368" transform="rotate(35 824.0 368)" text-anchor="start" font-family="Arial" font-size="10">cross_agent_memory_query</text>
 </svg>
