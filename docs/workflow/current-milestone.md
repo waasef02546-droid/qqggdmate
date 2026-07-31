@@ -4,7 +4,7 @@
 
 - ID: `KEYCUSTODY-001`
 - Title: Authenticated owner/KMS rewrap boundary
-- State: `accepted`
+- State: `accepted_local_push_pending`
 - Authorization date: `2026-07-31`
 - Objective: remove owner source private keys and plaintext DEKs from the Provider rotation
   request/call graph. The Provider must export a deterministic, non-secret rewrap request and
@@ -138,3 +138,7 @@
 - Residual boundaries: trusted unsigned owner-local approval input, trusted repository at restart,
   owner/KMS memory exposure, static management Bearer authentication, retained key-pair-scoped
   KFrags, non-transactional multi-object rotation, and prototype Umbral dependency status.
+- Local evidence commit: `ef0c814`. A normal push to
+  `origin/codex/keycustody-001` is pending explicit authorization for uploading this branch's
+  source, paper, and experiment artifacts to the configured GitHub repository; no force push was
+  attempted.

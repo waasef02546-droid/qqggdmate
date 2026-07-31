@@ -1228,6 +1228,19 @@ entries:
       - project/docs/traceability_matrix.md
     rerun_reason: "Required because traceability is a release-fingerprinted input; the final wording now records owner approval and trusted-repository recovery boundaries."
     notes: "Run 20260731T111704Z-c1d0f804 passed all ten gates with release_inputs_dirty=false. The manifest binds 24 artifacts to 145 source files at the exact final source commit; independent verifier PASS. Core behavior and the 117/117 regression were unchanged from the immediately preceding accepted run."
+  - id: KEYCUSTODY-001-REMOTE-PUSH
+    work_package: KEYCUSTODY-001
+    target: publish_accepted_branch_without_history_rewrite
+    command: "git push -u origin codex/keycustody-001"
+    relevant_code_state: "local evidence commit ef0c814 on codex/keycustody-001"
+    configuration: "configured origin https://github.com/waasef02546-droid/qqggdmate.git; normal push; no force"
+    environment: "local Git repository with restricted network/exfiltration approval"
+    result: "blocked_pending_explicit_authorization"
+    evidence:
+      - docs/workflow/current-milestone.md
+      - docs/verification/reviews/KEYCUSTODY-001-acceptance.md
+    rerun_reason: "First normal push attempt after local acceptance and evidence commit."
+    notes: "The approval reviewer rejected upload because the branch contains source code, paper, and experiment artifacts and the configured remote had not been explicitly approved for this exact branch/content. No workaround or force push was attempted."
   - id: KEYCUSTODY-001-RELEASE-PREFLIGHT
     work_package: KEYCUSTODY-001
     target: ten_gate_authoritative_release_preflight
