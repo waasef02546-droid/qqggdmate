@@ -1116,7 +1116,7 @@ entries:
   - id: KEYCUSTODY-001-FOCUSED-CROSS-LAYER
     work_package: KEYCUSTODY-001
     target: provider_registry_storage_http_rotation_recovery_and_release_verifier
-    command: "python -m unittest <55 affected unit/integration/security checks> -q; python -m unittest tests.integration.test_key_custody_experiment tests.security.test_release_evidence -v"
+    command: "$env:PRESAGA_MONGODB_URI='mongodb://127.0.0.1:27018'; python -m unittest tests.unit.test_agent_registry tests.unit.test_encrypted_store_provenance tests.unit.test_key_custody tests.unit.test_provider_repository tests.unit.test_umbral_pre tests.integration.test_contact_data_binding tests.integration.test_management_data_plane tests.integration.test_owner_key_rotation tests.integration.test_provider_http_service tests.integration.test_rotation_recovery tests.integration.test_mongodb_rotation_cas tests.integration.test_mongodb_provider_service tests.security.test_key_custody_boundary -q; python -m unittest tests.integration.test_key_custody_experiment tests.security.test_release_evidence -v"
     relevant_code_state: "final custody interfaces, Provider reconstruction/verification, JSON recovery, and ten-gate release-verifier contract"
     configuration: "Umbral default path; exact artifact idempotency; synthetic release semantic falsification"
     environment: "Windows 11, Python 3.12.0"
@@ -1170,7 +1170,7 @@ entries:
   - id: KEYCUSTODY-001-OWNER-APPROVAL-CORRECTION
     work_package: KEYCUSTODY-001
     target: independent_owner_local_approval_and_target_substitution_denial
-    command: "python -m unittest <custody unit/security/experiment, rotation/recovery, live Mongo, release-verifier modules> -v; python -m unittest discover -s tests -q"
+    command: "$env:PRESAGA_MONGODB_URI='mongodb://127.0.0.1:27018'; python -m unittest tests.unit.test_key_custody tests.security.test_key_custody_boundary tests.integration.test_key_custody_experiment tests.integration.test_owner_key_rotation tests.integration.test_rotation_recovery tests.integration.test_mongodb_rotation_cas tests.integration.test_mongodb_provider_service tests.security.test_release_evidence -v; python -m unittest discover -s tests -q"
     relevant_code_state: "custodian requires explicit OwnerRewrapApproval; CLI requires separate approval JSON; release gate checks target-substitution denial"
     configuration: "approval binds exact request digest, owner, rotation, store, record, revision, source registration, target registration, target fingerprint, and target key"
     environment: "Windows 11, Python 3.12.0, live MongoDB 8.3.4 on 127.0.0.1:27018"
@@ -1183,6 +1183,36 @@ entries:
       - project/tests/security/test_release_evidence.py
     rerun_reason: "Independent acceptance audit found that cryptographic request binding alone did not establish owner-approved target intent."
     notes: "26/26 focused checks passed, including live Mongo and semantic verifier falsification; the final cross-cutting regression passed 117/117 with no skips. The approval file is explicitly a trusted owner-local input without signature or OS-provenance attestation."
+  - id: KEYCUSTODY-001-APPROVAL-SOURCE-BASELINE
+    work_package: KEYCUSTODY-001
+    target: clean_owner_approval_correction_inputs
+    command: "git commit -m 'fix: require explicit owner rewrap approval'"
+    relevant_code_state: "explicit approval protocol/API/CLI, substitution test, release semantics, claims and limitations"
+    configuration: "branch codex/keycustody-001; no unrelated user files staged"
+    environment: "local Git repository"
+    result: "pass"
+    evidence:
+      - project/presaga/crypto/key_custody.py
+      - project/scripts/create_owner_rewrap_artifact.py
+      - project/experiments/e2e/key_custody.py
+      - docs/claims-evidence-matrix.md
+    rerun_reason: "Required new clean source baseline because independent audit changed the custodian production API and release contract."
+    notes: "Correction committed at c45a0b594e908bdc2cb3c3337f879f6ace743750. The previous clean release was retained as superseded evidence."
+  - id: KEYCUSTODY-001-FINAL-RELEASE
+    work_package: KEYCUSTODY-001
+    target: final_owner_approved_custody_authoritative_release
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018; python scripts/verify_release.py"
+    relevant_code_state: "clean commit c45a0b594e908bdc2cb3c3337f879f6ace743750; source fingerprint ee8e113e46e9742a54a0a1295cd741a560cfcfe6b40d852223c66fbe6687b349"
+    configuration: "full profile; explicit trusted-owner-local approval gate; exact ten-gate and 24-artifact inventory"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/results/release-manifest.json
+      - project/results/tables/key_custody_summary.csv
+      - project/results/reproducibility/release_report.md
+      - project/results/proofs/proverif_summary.csv
+    rerun_reason: "Required authoritative regeneration after the owner-approval API and semantic release gate changed."
+    notes: "Run 20260731T111445Z-8a035257 passed all ten gates with clean inputs. The manifest binds 24 artifacts to 145 source files; verifier PASS. Custody semantics include unapproved-target rejection, signed artifact verification, exact replay idempotency, conflict/legacy-input denial, target decrypt, and bounded negative secret scans."
   - id: KEYCUSTODY-001-RELEASE-PREFLIGHT
     work_package: KEYCUSTODY-001
     target: ten_gate_authoritative_release_preflight
