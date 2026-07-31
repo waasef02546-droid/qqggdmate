@@ -364,6 +364,12 @@ def _verify_semantics(
         == "umbral-owner-source-key-signature-v1"
         and custody[0].get("custody_version") == "1"
         and _as_bool(custody[0].get("custody_key_id_matches_authoritative_source"))
+        and _as_bool(custody[0].get("owner_approval_required"))
+        and _as_bool(custody[0].get("unapproved_target_rejected"))
+        and custody[0].get("unapproved_target_reason")
+        == "custody_request_not_approved"
+        and custody[0].get("approval_boundary")
+        == "trusted-owner-local-input-v1"
         and _as_bool(custody[0].get("signed_artifact_verified"))
         and _as_bool(custody[0].get("exact_retry_idempotent"))
         and _as_bool(custody[0].get("conflicting_retry_rejected"))

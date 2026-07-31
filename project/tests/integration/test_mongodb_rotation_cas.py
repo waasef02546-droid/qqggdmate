@@ -6,12 +6,29 @@ import unittest
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-from presaga.crypto.key_custody import UmbralOwnerKeyCustody
+from presaga.crypto.key_custody import OwnerRewrapApproval, UmbralOwnerKeyCustody
 from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataRecord
 from presaga.provider.app import PREProviderApp
 from presaga.provider.mongo_repository import MongoProviderRepository
 from presaga.storage.mongo_encrypted_store import MongoEncryptedStore
+
+
+def _approval(request) -> OwnerRewrapApproval:
+    return OwnerRewrapApproval(
+        request_digest=request.request_digest,
+        owner_aid=request.owner_aid,
+        rotation_id=request.rotation_id,
+        store_id=request.store_id,
+        record_id=request.record_id,
+        expected_object_revision=request.expected_object_revision,
+        source_registration_id=request.source_registration_id,
+        source_registration_version=request.source_registration_version,
+        target_registration_id=request.target_registration_id,
+        target_registration_version=request.target_registration_version,
+        target_public_key_fingerprint=request.target_public_key_fingerprint,
+        target_public_key=request.target_public_key,
+    )
 
 
 class MongoRotationCASTest(unittest.TestCase):
@@ -59,7 +76,7 @@ class MongoRotationCASTest(unittest.TestCase):
                 record_id=stored.record.record_id,
                 expected_object_revision=stored.object_revision,
             )
-            artifact = custody.rewrap(request, owner_v1.private_key)
+            artifact = custody.rewrap(request, owner_v1.private_key, _approval(request))
             staged = app.management.stage_agent_rewrap(
                 owner_aid,
                 expected_version=1,

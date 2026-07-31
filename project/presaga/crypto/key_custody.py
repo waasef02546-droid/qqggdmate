@@ -187,6 +187,111 @@ class OwnerRewrapRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class OwnerRewrapApproval:
+    """Owner-controlled approval for one exact Provider-exported request.
+
+    Creating this object is the policy/intent decision. A custodian must obtain
+    it independently of the Provider request transport before rewrapping.
+    """
+
+    request_digest: bytes
+    owner_aid: str
+    rotation_id: str
+    store_id: str
+    record_id: str
+    expected_object_revision: int
+    source_registration_id: str
+    source_registration_version: int
+    target_registration_id: str
+    target_registration_version: int
+    target_public_key_fingerprint: str
+    target_public_key: bytes
+    schema_version: int = _SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != _SCHEMA_VERSION:
+            raise KeyCustodyError("custody_approval_version_unsupported")
+        if not isinstance(self.request_digest, bytes) or len(self.request_digest) != 32:
+            raise KeyCustodyError("custody_approval_invalid")
+        for value in (
+            self.owner_aid,
+            self.rotation_id,
+            self.store_id,
+            self.record_id,
+            self.source_registration_id,
+            self.target_registration_id,
+            self.target_public_key_fingerprint,
+        ):
+            _text(value)
+        _positive_int(self.expected_object_revision)
+        _positive_int(self.source_registration_version)
+        _positive_int(self.target_registration_version)
+        if not isinstance(self.target_public_key, bytes) or not self.target_public_key:
+            raise KeyCustodyError("custody_approval_invalid")
+
+    def verify(self, request: OwnerRewrapRequest) -> None:
+        if (
+            self.schema_version != request.schema_version
+            or not hmac.compare_digest(self.request_digest, request.request_digest)
+            or self.owner_aid != request.owner_aid
+            or self.rotation_id != request.rotation_id
+            or self.store_id != request.store_id
+            or self.record_id != request.record_id
+            or self.expected_object_revision != request.expected_object_revision
+            or self.source_registration_id != request.source_registration_id
+            or self.source_registration_version != request.source_registration_version
+            or self.target_registration_id != request.target_registration_id
+            or self.target_registration_version != request.target_registration_version
+            or self.target_public_key_fingerprint
+            != request.target_public_key_fingerprint
+            or not hmac.compare_digest(self.target_public_key, request.target_public_key)
+        ):
+            raise KeyCustodyError("custody_request_not_approved")
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "request_digest": _b64(self.request_digest),
+            "owner_aid": self.owner_aid,
+            "rotation_id": self.rotation_id,
+            "store_id": self.store_id,
+            "record_id": self.record_id,
+            "expected_object_revision": self.expected_object_revision,
+            "source_registration_id": self.source_registration_id,
+            "source_registration_version": self.source_registration_version,
+            "target_registration_id": self.target_registration_id,
+            "target_registration_version": self.target_registration_version,
+            "target_public_key_fingerprint": self.target_public_key_fingerprint,
+            "target_public_key": _b64(self.target_public_key),
+        }
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, Any]) -> "OwnerRewrapApproval":
+        if not isinstance(payload, Mapping):
+            raise KeyCustodyError("custody_approval_invalid")
+        try:
+            return cls(
+                request_digest=_unb64(payload["request_digest"]),
+                owner_aid=payload["owner_aid"],
+                rotation_id=payload["rotation_id"],
+                store_id=payload["store_id"],
+                record_id=payload["record_id"],
+                expected_object_revision=payload["expected_object_revision"],
+                source_registration_id=payload["source_registration_id"],
+                source_registration_version=payload["source_registration_version"],
+                target_registration_id=payload["target_registration_id"],
+                target_registration_version=payload["target_registration_version"],
+                target_public_key_fingerprint=payload["target_public_key_fingerprint"],
+                target_public_key=_unb64(payload["target_public_key"]),
+                schema_version=payload["schema_version"],
+            )
+        except KeyCustodyError:
+            raise
+        except Exception as exc:
+            raise KeyCustodyError("custody_approval_invalid") from exc
+
+
+@dataclass(frozen=True, slots=True)
 class OwnerRewrapArtifact:
     request_digest: bytes
     target_encrypted_dek: bytes
@@ -256,9 +361,11 @@ class UmbralOwnerKeyCustody:
         self,
         request: OwnerRewrapRequest,
         source_private_key: bytes,
+        approval: OwnerRewrapApproval,
     ) -> OwnerRewrapArtifact:
         if request.backend != self.backend.name:
             raise KeyCustodyError("custody_backend_mismatch")
+        approval.verify(request)
         try:
             derived_source_key = self.backend.public_key_from_private(source_private_key)
             if not hmac.compare_digest(derived_source_key, request.source_public_key):

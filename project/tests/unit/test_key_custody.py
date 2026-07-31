@@ -10,6 +10,7 @@ from pathlib import Path
 
 from presaga.crypto.key_custody import (
     KeyCustodyError,
+    OwnerRewrapApproval,
     OwnerRewrapArtifact,
     OwnerRewrapRequest,
     UmbralOwnerKeyCustody,
@@ -50,9 +51,27 @@ class KeyCustodyTests(unittest.TestCase):
             target_context=self.target_context,
         )
         self.custody = UmbralOwnerKeyCustody(self.backend)
+        self.approval = OwnerRewrapApproval(
+            request_digest=self.request.request_digest,
+            owner_aid=self.request.owner_aid,
+            rotation_id=self.request.rotation_id,
+            store_id=self.request.store_id,
+            record_id=self.request.record_id,
+            expected_object_revision=self.request.expected_object_revision,
+            source_registration_id=self.request.source_registration_id,
+            source_registration_version=self.request.source_registration_version,
+            target_registration_id=self.request.target_registration_id,
+            target_registration_version=self.request.target_registration_version,
+            target_public_key_fingerprint=self.request.target_public_key_fingerprint,
+            target_public_key=self.request.target_public_key,
+        )
 
     def test_rewrap_and_public_verification_succeed(self) -> None:
-        artifact = self.custody.rewrap(self.request, self.source.private_key)
+        artifact = self.custody.rewrap(
+            self.request,
+            self.source.private_key,
+            self.approval,
+        )
 
         self.assertIsNone(verify_custody_artifact(self.request, artifact, backend=self.backend))
         self.assertEqual(
@@ -65,15 +84,46 @@ class KeyCustodyTests(unittest.TestCase):
         )
         self.assertNotIn(self.source.private_key, artifact.target_encrypted_dek)
         self.assertEqual(self.request, OwnerRewrapRequest.from_payload(self.request.to_payload()))
+        self.assertEqual(
+            self.approval,
+            OwnerRewrapApproval.from_payload(self.approval.to_payload()),
+        )
         self.assertEqual(artifact, OwnerRewrapArtifact.from_payload(artifact.to_payload()))
 
     def test_wrong_source_private_key_is_denied(self) -> None:
         wrong = self.backend.generate_keypair()
         with self.assertRaisesRegex(KeyCustodyError, "custody_source_key_mismatch"):
-            self.custody.rewrap(self.request, wrong.private_key)
+            self.custody.rewrap(self.request, wrong.private_key, self.approval)
+
+    def test_owner_approval_rejects_provider_target_or_scope_substitution(self) -> None:
+        attacker_target = self.backend.generate_keypair()
+        cases = (
+            replace(self.request, record_id="attacker-record"),
+            replace(
+                self.request,
+                target_registration_id="attacker-registration",
+                target_public_key_fingerprint="e" * 64,
+                target_public_key=attacker_target.public_key,
+            ),
+        )
+        for candidate in cases:
+            with self.subTest(record_id=candidate.record_id):
+                with self.assertRaisesRegex(
+                    KeyCustodyError,
+                    "custody_request_not_approved",
+                ):
+                    self.custody.rewrap(
+                        candidate,
+                        self.source.private_key,
+                        self.approval,
+                    )
 
     def test_signature_target_and_digest_tamper_are_denied(self) -> None:
-        artifact = self.custody.rewrap(self.request, self.source.private_key)
+        artifact = self.custody.rewrap(
+            self.request,
+            self.source.private_key,
+            self.approval,
+        )
         valid_but_unsigned_target = self.backend.wrap_dek(
             b"e" * 32, self.target.public_key, self.target_context
         )
@@ -101,7 +151,11 @@ class KeyCustodyTests(unittest.TestCase):
                     verify_custody_artifact(self.request, candidate, backend=self.backend)
 
     def test_cross_request_artifact_is_denied(self) -> None:
-        artifact = self.custody.rewrap(self.request, self.source.private_key)
+        artifact = self.custody.rewrap(
+            self.request,
+            self.source.private_key,
+            self.approval,
+        )
         other = replace(self.request, record_id="record-2")
         with self.assertRaisesRegex(KeyCustodyError, "custody_request_digest_mismatch"):
             verify_custody_artifact(other, artifact, backend=self.backend)
@@ -156,9 +210,14 @@ class KeyCustodyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             request_path = root / "request.json"
+            approval_path = root / "approval.json"
             private_key_path = root / "owner-key.b64"
             request_path.write_text(
                 json.dumps({"request": self.request.to_payload()}),
+                encoding="utf-8",
+            )
+            approval_path.write_text(
+                json.dumps({"approval": self.approval.to_payload()}),
                 encoding="utf-8",
             )
             private_key_path.write_text(
@@ -166,7 +225,11 @@ class KeyCustodyTests(unittest.TestCase):
                 encoding="ascii",
             )
 
-            payload = create_artifact(request_path, private_key_path)
+            payload = create_artifact(
+                request_path,
+                approval_path,
+                private_key_path,
+            )
 
             artifact = OwnerRewrapArtifact.from_payload(payload)
             self.assertIsNone(

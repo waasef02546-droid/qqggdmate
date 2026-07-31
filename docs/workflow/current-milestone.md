@@ -4,7 +4,7 @@
 
 - ID: `KEYCUSTODY-001`
 - Title: Authenticated owner/KMS rewrap boundary
-- State: `in_progress`
+- State: `acceptance_review`
 - Authorization date: `2026-07-31`
 - Objective: remove owner source private keys and plaintext DEKs from the Provider rotation
   request/call graph. The Provider must export a deterministic, non-secret rewrap request and
@@ -34,9 +34,9 @@
 - Core mechanism:
   1. Provider derives a canonical public `OwnerRewrapRequest` from live registry, journal, store,
      provenance, and revision state.
-  2. An owner/KMS-side custodian validates that request, unwraps and freshly rewraps the DEK
-     outside the Provider boundary, and signs the request digest plus target-wrapper digest using
-     the authoritative source owner key under a dedicated domain.
+  2. An owner/KMS-side custodian requires a separately supplied owner-local approval for the exact
+     rotation, record, revision, and target key; it then unwraps and freshly rewraps the DEK
+     outside the Provider boundary and signs the request/target-wrapper digests.
   3. Provider reconstructs the request, verifies the signature against the journal-bound active
      source registration, validates the target Umbral wrapper key/context, and stages it with the
      existing object-revision CAS.
@@ -99,6 +99,10 @@
   production deployment should register a separate KMS attestation key before rotation.
 - The owner/KMS process still materializes the source key and DEK; this package moves that exposure
   out of Provider, not out of all memory.
+- The approval JSON is trusted owner-local input; it is matched exactly but not signed or
+  operating-system-attested by this prototype.
+- Recovery trusts repository integrity and restores a previously verified wrapper/digest; it does
+  not persist and re-verify the custody signature at restart.
 - A copied old KFrag/ciphertext remains usable within its old owner/requester key-pair scope.
 - Multi-object rotation remains a recoverable sequence, not a distributed transaction.
 - Unrelated user drafts and untracked frontend/history material must remain unstaged unless an

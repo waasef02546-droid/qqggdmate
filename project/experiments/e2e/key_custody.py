@@ -14,10 +14,15 @@ from __future__ import annotations
 import base64
 import csv
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
-from presaga.crypto.key_custody import OwnerRewrapRequest, UmbralOwnerKeyCustody
+from presaga.crypto.key_custody import (
+    KeyCustodyError,
+    OwnerRewrapApproval,
+    OwnerRewrapRequest,
+    UmbralOwnerKeyCustody,
+)
 from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataRecord
 from presaga.provider.app import PREProviderApp
@@ -35,6 +40,10 @@ class KeyCustodyProbeResult:
     custody_algorithm: str
     custody_version: int
     custody_key_id_matches_authoritative_source: bool
+    owner_approval_required: bool
+    unapproved_target_rejected: bool
+    unapproved_target_reason: str
+    approval_boundary: str
     signed_artifact_verified: bool
     exact_retry_idempotent: bool
     conflicting_retry_rejected: bool
@@ -117,7 +126,41 @@ def run_key_custody_probe(output_root: Path) -> KeyCustodyProbeResult:
         }
     )
     request = OwnerRewrapRequest.from_payload(request_payload)
-    artifact = custody.rewrap(request, source.private_key)
+    # Model an owner-controlled approval record assembled only after checking
+    # the expected local rotation, record, revision, and target key.
+    approval = OwnerRewrapApproval(
+        request_digest=request.request_digest,
+        owner_aid=owner_aid,
+        rotation_id=rotation_id,
+        store_id=store.store_id,
+        record_id=record.record_id,
+        expected_object_revision=stored.object_revision,
+        source_registration_id=request.source_registration_id,
+        source_registration_version=1,
+        target_registration_id=request.target_registration_id,
+        target_registration_version=2,
+        target_public_key_fingerprint=request.target_public_key_fingerprint,
+        target_public_key=target.public_key,
+    )
+    artifact = custody.rewrap(request, source.private_key, approval)
+    attacker_target = backend.generate_keypair()
+    unapproved_target_reason = ""
+    try:
+        custody.rewrap(
+            replace(
+                request,
+                target_registration_id="attacker-registration",
+                target_public_key_fingerprint="attacker-target-fingerprint",
+                target_public_key=attacker_target.public_key,
+            ),
+            source.private_key,
+            approval,
+        )
+    except KeyCustodyError as error:
+        unapproved_target_reason = error.reason
+    unapproved_target_rejected = (
+        unapproved_target_reason == "custody_request_not_approved"
+    )
     artifact_payload = artifact.to_payload()
     stage_payload = {
         "aid": owner_aid,
@@ -133,7 +176,7 @@ def run_key_custody_probe(output_root: Path) -> KeyCustodyProbeResult:
     signed_artifact_verified = int(first_stage["object_revision"]) == 2
     exact_retry_idempotent = repeated_stage == first_stage
 
-    conflicting = custody.rewrap(request, source.private_key)
+    conflicting = custody.rewrap(request, source.private_key, approval)
     conflicting_retry_reason = ""
     try:
         service.stage_agent_rewrap(
@@ -205,6 +248,7 @@ def run_key_custody_probe(output_root: Path) -> KeyCustodyProbeResult:
         (
             artifact.custody_version == 1,
             artifact.custody_key_id == request.source_registration_id,
+            unapproved_target_rejected,
             signed_artifact_verified,
             exact_retry_idempotent,
             conflicting_retry_rejected,
@@ -223,6 +267,10 @@ def run_key_custody_probe(output_root: Path) -> KeyCustodyProbeResult:
         custody_key_id_matches_authoritative_source=(
             artifact.custody_key_id == request.source_registration_id
         ),
+        owner_approval_required=True,
+        unapproved_target_rejected=unapproved_target_rejected,
+        unapproved_target_reason=unapproved_target_reason,
+        approval_boundary="trusted-owner-local-input-v1",
         signed_artifact_verified=signed_artifact_verified,
         exact_retry_idempotent=exact_retry_idempotent,
         conflicting_retry_rejected=conflicting_retry_rejected,

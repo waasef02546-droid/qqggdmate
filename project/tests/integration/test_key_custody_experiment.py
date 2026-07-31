@@ -17,6 +17,12 @@ class KeyCustodyExperimentTest(unittest.TestCase):
             self.assertTrue(result.signed_artifact_verified)
             self.assertEqual(1, result.custody_version)
             self.assertTrue(result.custody_key_id_matches_authoritative_source)
+            self.assertTrue(result.owner_approval_required)
+            self.assertTrue(result.unapproved_target_rejected)
+            self.assertEqual(
+                "custody_request_not_approved",
+                result.unapproved_target_reason,
+            )
             self.assertTrue(result.exact_retry_idempotent)
             self.assertTrue(result.conflicting_retry_rejected)
             self.assertEqual("custody_artifact_conflict", result.conflicting_retry_reason)
@@ -37,6 +43,8 @@ class KeyCustodyExperimentTest(unittest.TestCase):
             expected_boolean_text = {
                 "signed_artifact_verified": "True",
                 "custody_key_id_matches_authoritative_source": "True",
+                "owner_approval_required": "True",
+                "unapproved_target_rejected": "True",
                 "exact_retry_idempotent": "True",
                 "conflicting_retry_rejected": "True",
                 "legacy_private_key_input_rejected": "True",

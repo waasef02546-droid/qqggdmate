@@ -1148,12 +1148,41 @@ entries:
     relevant_code_state: "final KEYCUSTODY-001 core, persistence, experiment, verifier, and owner-side helper before clean source commit"
     configuration: "complete test discovery; Umbral authoritative path; explicit toy/HPKE fixtures; live isolated Mongo"
     environment: "Windows 11, Python 3.12.0, MongoDB 8.3.4 on 127.0.0.1:27018"
-    result: "pass"
+    result: "pass_superseded"
     evidence:
       - project/tests
       - docs/verification/reviews/KEYCUSTODY-001-acceptance.md
     rerun_reason: "One full regression is required because the custody change crosses crypto interfaces, Provider HTTP/management/registry, JSON/Mongo owner-wrap state, rotation recovery, experiments, and release schema."
-    notes: "115/115 tests passed with live Mongo and no skips. An earlier 114-test pass preceded the final owner-side file-helper test; this final run supersedes it."
+    notes: "The run reached 116/116 after adding missing/partial custody-response evidence, but was superseded when independent review required a distinct owner-local approval input and changed the production custodian API."
+  - id: KEYCUSTODY-001-CUSTODY-FAILURE-BOUNDARY
+    work_package: KEYCUSTODY-001
+    target: missing_and_partial_owner_kms_response_failure_behavior
+    command: "python -m unittest tests.security.test_key_custody_boundary -v; PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest discover -s tests -q"
+    relevant_code_state: "unchanged production implementation plus explicit unavailable/partial-artifact negative test"
+    configuration: "missing artifact and schema-only partial artifact; unchanged prepared rotation and source wrap"
+    environment: "Windows 11, Python 3.12.0, live MongoDB 8.3.4 on 127.0.0.1:27018"
+    result: "pass"
+    evidence:
+      - project/tests/security/test_key_custody_boundary.py
+      - project/tests
+    rerun_reason: "Acceptance self-review found that unavailable/partial custody responses were implied by the interface but not explicitly retained as negative evidence."
+    notes: "5/5 boundary tests and 116/116 full tests passed. Missing or partial artifacts left object revision 1 and commit blocked; production code did not change."
+  - id: KEYCUSTODY-001-OWNER-APPROVAL-CORRECTION
+    work_package: KEYCUSTODY-001
+    target: independent_owner_local_approval_and_target_substitution_denial
+    command: "python -m unittest <custody unit/security/experiment, rotation/recovery, live Mongo, release-verifier modules> -v; python -m unittest discover -s tests -q"
+    relevant_code_state: "custodian requires explicit OwnerRewrapApproval; CLI requires separate approval JSON; release gate checks target-substitution denial"
+    configuration: "approval binds exact request digest, owner, rotation, store, record, revision, source registration, target registration, target fingerprint, and target key"
+    environment: "Windows 11, Python 3.12.0, live MongoDB 8.3.4 on 127.0.0.1:27018"
+    result: "pass"
+    evidence:
+      - project/presaga/crypto/key_custody.py
+      - project/scripts/create_owner_rewrap_artifact.py
+      - project/tests/unit/test_key_custody.py
+      - project/experiments/e2e/key_custody.py
+      - project/tests/security/test_release_evidence.py
+    rerun_reason: "Independent acceptance audit found that cryptographic request binding alone did not establish owner-approved target intent."
+    notes: "26/26 focused checks passed, including live Mongo and semantic verifier falsification; the final cross-cutting regression passed 117/117 with no skips. The approval file is explicitly a trusted owner-local input without signature or OS-provenance attestation."
   - id: KEYCUSTODY-001-RELEASE-PREFLIGHT
     work_package: KEYCUSTODY-001
     target: ten_gate_authoritative_release_preflight
@@ -1166,3 +1195,33 @@ entries:
       - project/tmp/release-staging/20260731T105855Z-f9b394f3
     rerun_reason: "Pre-commit dry run required to distinguish scientific/semantic failures from the intentional dirty-input gate."
     notes: "All scientific, custody, experiment, Mongo, and proof gates passed. Independent staged verification rejected only release_inputs_clean, as expected; the prior accepted result set was not published over."
+  - id: KEYCUSTODY-001-SOURCE-BASELINE
+    work_package: KEYCUSTODY-001
+    target: reconstructible_authenticated_custody_release_inputs
+    command: "git commit -m 'feat: add authenticated owner key custody boundary'"
+    relevant_code_state: "32 core, persistence, test, experiment, release, protocol, claim, and workflow files"
+    configuration: "branch codex/keycustody-001; explicit staging list excluding unrelated user files"
+    environment: "local Git repository"
+    result: "pass"
+    evidence:
+      - project/presaga/crypto/key_custody.py
+      - project/experiments/e2e/key_custody.py
+      - docs/adr/0009-authenticated-owner-key-custody.md
+      - paper/pre_saga_paper.md
+    rerun_reason: "Required clean, reconstructible source baseline before authoritative evidence generation."
+    notes: "Release inputs committed at 9c688e733d3a4c881bb263f26388481906ca46c8. User-modified paper drafts, untracked frontend, and unrelated historical materials remained unstaged."
+  - id: KEYCUSTODY-001-AUTHORITATIVE-RELEASE
+    work_package: KEYCUSTODY-001
+    target: clean_input_ten_gate_owner_custody_release
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018; python scripts/verify_release.py"
+    relevant_code_state: "clean release inputs at commit 9c688e733d3a4c881bb263f26388481906ca46c8; source fingerprint dc45a4e879417023d3bb20840cf656ec6e584631100daf23af9ac042705422e9"
+    configuration: "full profile; one semantic custody case; eight blocking attacks; exact ten-gate and 24-artifact inventory"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "pass_superseded"
+    evidence:
+      - project/results/release-manifest.json
+      - project/results/tables/key_custody_summary.csv
+      - project/results/reproducibility/release_report.md
+      - project/results/proofs/proverif_summary.csv
+    rerun_reason: "Required final release after the clean KEYCUSTODY-001 source commit; the previous accepted manifest did not contain the custody gate or artifact."
+    notes: "Run 20260731T110022Z-8efdb27f passed all ten gates with release_inputs_dirty=false and bound 24 artifacts to 145 source files, but was superseded after acceptance self-review added an explicit missing/partial custody-response test. The verifier passed against its recorded clean source; no custody formal claim was added."

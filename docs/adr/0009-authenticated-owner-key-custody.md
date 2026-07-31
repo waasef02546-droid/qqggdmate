@@ -25,7 +25,10 @@ rotation-journal, encrypted-object, and object-revision state. Its canonical dig
 - a digest of the authoritative source owner wrapper; and
 - digests of the source and target owner-wrap contexts.
 
-The request contains no private key or plaintext DEK. An owner/KMS-side custodian verifies the
+The request contains no private key or plaintext DEK. An owner/KMS-side custodian first requires a
+separate owner-controlled approval that exactly names the rotation, store, record, revision,
+source registration, target registration, target fingerprint/key, and complete request digest.
+It rejects a request whose record or target was substituted. The custodian then verifies the
 source private key against the request's authoritative source public key, validates the source
 wrapper, decrypts and freshly encrypts the DEK locally, validates the target wrapper, and signs a
 domain-separated message containing the request digest and target-wrapper digest. The artifact
@@ -49,6 +52,11 @@ possession relative to the registered source key in the tested prototype, but it
 preferred production key separation. A deployment-grade design should register a dedicated KMS
 attestation key, protect it in an HSM/KMS, authenticate the Provider-to-KMS channel, and define
 authorization/audit policy inside that service.
+
+The prototype CLI treats the approval JSON as a trusted owner-local input. It does not sign that
+file, authenticate its operating-system provenance, or stop a compromised owner host from
+replacing both request and approval. The established result is therefore that the custodian
+requires and exactly compares an explicit local approval; it is not remote approval attestation.
 
 The custodian still materializes the source private key and plaintext DEK in its own memory. This
 decision removes those values from Provider APIs and Provider-owned state; it does not establish

@@ -11,13 +11,14 @@ SAGA-compatible Contact 授权之后增加 Data Sharing Policy、绑定到具体
 会话和注册密钥版本的 DataToken，以及受策略约束的加密数据密钥转换。当前原型把
 contact、policy、token、trusted object lookup、re-encryption consumption 和 audit
 纳入同一服务端路径，并实现 JSON/Mongo 持久化、密钥轮换恢复与过期写入者隔离。
-轮换期间，Provider 导出不含秘密的确定性请求，并只接受 owner/KMS 在 Provider 外部
-生成且绑定精确对象状态的签名重包 artifact；旧的私钥输入被拒绝。
+轮换期间，Provider 导出不含秘密的确定性请求；owner/KMS 必须另有一份精确匹配预期
+rotation、record、revision 和 target key 的本地批准，随后在 Provider 外部生成签名
+重包 artifact；旧的私钥输入被拒绝。
 
 我们建立了一个带来源、配置、环境和逐文件哈希的分阶段发布流程。一次完整本地运行
 通过了 8 个预期阻断攻击、4 个工具任务、12 行性能比较、9 行扩展性测试、3 个
 ProVerif 模型中的 4 个查询、2 个 SAGA 证据桥接案例以及 MongoDB E2E；随后完整
-回归 115/115 通过。结果支持“可联系不等于可获得数据令牌或转换结果”这一原型行为。
+回归 117/117 通过。结果支持“可联系不等于可获得数据令牌或转换结果”这一原型行为。
 
 CRYPTO-001 以 `nucypher-core==0.15.0` 的 Umbral 原语[2]替换权威实验中的 ToyPRE：
 owner 生成经签名的 1-of-1 KFrag，Provider 验证 owner、requester 与 owner-wrap
@@ -139,8 +140,9 @@ aggregate 另有 `state_revision`；旧 Provider CAS 失败后进入
 
 KEYCUSTODY-001 将 stage 前的重包分成两个边界。Provider 从活动源注册、候选注册、
 rotation journal、对象 provenance、源 wrapper、源/目标 context 和对象 revision
-重建规范化请求；owner/KMS 验证源密钥后在本地解包和重新加密，并对请求摘要与目标
-wrapper 摘要签名。Provider 只用活动源注册公钥验签并验证目标 Umbral wrapper，再做
+重建规范化请求；owner/KMS 先把请求与独立的 owner-local approval 逐字段比较，拒绝
+Provider 选择的未批准 record/target，然后验证源密钥、在本地解包和重新加密，并对
+请求摘要与目标 wrapper 摘要签名。Provider 只用活动源注册公钥验签并验证目标 Umbral wrapper，再做
 对象 CAS。完全相同的 artifact 可安全重试，不同 artifact、跨对象/轮换替换、篡改和
 过期 revision 均在写入前失败。该机制不解决复制 KFrag 的密钥对级授权范围。
 
@@ -234,13 +236,14 @@ plaintext。该实验不是 live SAGA interoperability。
 
 ### 5.6 Owner/KMS 轮换边界
 
-独立的一行 custody 证据必须同时满足：签名 artifact 经权威源注册验证；完全相同的
+独立的一行 custody 证据必须同时满足：owner-local approval 拒绝 target 替换；签名 artifact 经权威源注册验证；完全相同的
 stage 重试幂等；另一份有效但不同的目标 wrapper 被判为冲突；旧
 `source_private_key_b64` 字段以稳定原因失败；commit 后目标私钥可恢复 DEK 和记录；
 在 request、artifact、对象、journal、audit、结果及错误等限定 Provider 可见面中，
 源私钥和明文 DEK 的 raw/base64/hex 形式均未出现。独立 verifier 直接检查这些字段，
 而不是仅信任 gate 名称或测试数量。该扫描不包含调用方刻意发送的秘密 payload，且
-不是进程内存取证。
+不是进程内存取证。approval 文件作为可信 owner 本地输入；原型未签名该文件，也不
+证明其操作系统来源或抵抗 owner 主机失陷。
 
 ### 5.7 形式化与回归
 
@@ -250,7 +253,7 @@ token acceptance、抽象 DEK secrecy/policy implication 和 rekey authenticatio
 特别是，抽象 DEK secrecy 不证明 `nucypher-core`、适配器、KFrag 生命周期或
 Provider/requester 串谋安全。
 
-发布前完整测试在 live Mongo 环境中 115/115 通过。测试支持实现行为，但不替代独立
+发布前完整测试在 live Mongo 环境中 117/117 通过。测试支持实现行为，但不替代独立
 密码分析或跨主机复现。
 
 ## 6 结论有效性与局限

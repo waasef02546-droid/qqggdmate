@@ -184,6 +184,7 @@ def run_release(
             "The active malicious-Provider regression finds no raw/base64/hex DEK in the exposed state, rejects direct public-key unwrap misuse, and confirms requester decryption; it is not cryptanalysis, a reduction, memory/side-channel analysis, or a whole-process guarantee.",
             "Umbral KFrags are owner/requester key-pair scoped. Provider/requester collusion and retained KFrag reuse across same-owner capsules remain outside the established claim.",
             "Owner-key rotation removes the source private key and plaintext DEK from Provider interfaces and persisted/exported Provider state; the owner/KMS process still materializes them, and HSM isolation, memory forensics, side-channel resistance, and a whole-process guarantee are not established.",
+            "The owner/KMS CLI requires an exactly matching owner-local approval file, but the prototype does not sign that file or authenticate its operating-system provenance; a compromised owner host is outside the established boundary.",
             "The SAGA bridge consumes recorded SAGA evidence and does not run a live SAGA network.",
             "MongoDB evidence is single-node local persistence and does not establish distributed transactions, RAFT, or sharding.",
             "ProVerif models cover their explicit symbolic queries only and do not verify the complete Python implementation.",
@@ -377,6 +378,12 @@ def _evaluate_gates(
             == "umbral-owner-source-key-signature-v1"
             and key_custody_result.custody_version == 1
             and key_custody_result.custody_key_id_matches_authoritative_source
+            and key_custody_result.owner_approval_required
+            and key_custody_result.unapproved_target_rejected
+            and key_custody_result.unapproved_target_reason
+            == "custody_request_not_approved"
+            and key_custody_result.approval_boundary
+            == "trusted-owner-local-input-v1"
             and key_custody_result.signed_artifact_verified
             and key_custody_result.exact_retry_idempotent
             and key_custody_result.conflicting_retry_rejected
@@ -391,7 +398,7 @@ def _evaluate_gates(
             and key_custody_result.provider_secret_encodings_checked
             == "raw|base64|hex"
             and key_custody_result.success,
-            "signed artifact accepted; replay bounded; legacy private-key input rejected; target decrypt succeeded; no source key or plaintext DEK found in bounded Provider-visible surfaces",
+            "trusted owner-local approval rejects target substitution; signed artifact accepted; replay bounded; legacy private-key input rejected; target decrypt succeeded; no source key or plaintext DEK found in bounded Provider-visible surfaces",
         ),
         _gate(
             "mongodb_e2e",

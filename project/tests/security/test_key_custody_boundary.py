@@ -5,7 +5,11 @@ import inspect
 import json
 import unittest
 
-from presaga.crypto.key_custody import UmbralOwnerKeyCustody
+from presaga.crypto.key_custody import (
+    KeyCustodyError,
+    OwnerRewrapApproval,
+    UmbralOwnerKeyCustody,
+)
 from presaga.crypto.pre_interface import PREBackend
 from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataRecord
@@ -64,6 +68,23 @@ class KeyCustodyBoundaryTest(unittest.TestCase):
             expected_object_revision=revision,
         )
 
+    @staticmethod
+    def _approval(request) -> OwnerRewrapApproval:
+        return OwnerRewrapApproval(
+            request_digest=request.request_digest,
+            owner_aid=request.owner_aid,
+            rotation_id=request.rotation_id,
+            store_id=request.store_id,
+            record_id=request.record_id,
+            expected_object_revision=request.expected_object_revision,
+            source_registration_id=request.source_registration_id,
+            source_registration_version=request.source_registration_version,
+            target_registration_id=request.target_registration_id,
+            target_registration_version=request.target_registration_version,
+            target_public_key_fingerprint=request.target_public_key_fingerprint,
+            target_public_key=request.target_public_key,
+        )
+
     def test_provider_rotation_chain_has_no_private_key_parameter(self) -> None:
         callables = (
             TrustedManagementPlane.stage_agent_rewrap,
@@ -94,13 +115,22 @@ class KeyCustodyBoundaryTest(unittest.TestCase):
 
     def test_signed_artifact_stages_idempotently_and_conflicting_retry_fails(self) -> None:
         request = self._request()
-        artifact = self.custody.rewrap(request, self.owner_v1.private_key)
+        approval = self._approval(request)
+        artifact = self.custody.rewrap(
+            request,
+            self.owner_v1.private_key,
+            approval,
+        )
         staged = self._stage(artifact)
         repeated = self._stage(artifact)
         self.assertEqual(2, staged.object_revision)
         self.assertEqual(staged, repeated)
 
-        conflicting = self.custody.rewrap(request, self.owner_v1.private_key)
+        conflicting = self.custody.rewrap(
+            request,
+            self.owner_v1.private_key,
+            approval,
+        )
         self.assertNotEqual(
             artifact.target_encrypted_dek,
             conflicting.target_encrypted_dek,
@@ -131,6 +161,29 @@ class KeyCustodyBoundaryTest(unittest.TestCase):
             self.store.decrypt_with_dek(self.store.get(self.record.record_id), dek),
         )
 
+    def test_missing_or_partial_custody_response_fails_without_mutation(self) -> None:
+        base_payload = {
+            "aid": self.owner_aid,
+            "record_id": self.record.record_id,
+            "expected_version": 1,
+            "rotation_id": self.prepared.rotation_id,
+            "expected_object_revision": 1,
+        }
+        with self.assertRaises(KeyError):
+            self.service.stage_agent_rewrap(base_payload)
+        with self.assertRaisesRegex(KeyCustodyError, "custody_payload_invalid"):
+            self.service.stage_agent_rewrap(
+                {**base_payload, "artifact": {"schema_version": 1}}
+            )
+
+        self.assertEqual(1, self.store.get(self.record.record_id).object_revision)
+        with self.assertRaisesRegex(RegistrationError, "owner_rewrap_incomplete"):
+            self.app.management.commit_agent_replacement(
+                self.owner_aid,
+                expected_version=1,
+                rotation_id=self.prepared.rotation_id,
+            )
+
     def test_cross_record_artifact_is_denied_without_mutation(self) -> None:
         second = self.store.put(
             DataRecord(
@@ -157,6 +210,7 @@ class KeyCustodyBoundaryTest(unittest.TestCase):
         first_artifact = self.custody.rewrap(
             first_request,
             self.owner_v1.private_key,
+            self._approval(first_request),
         )
         with self.assertRaisesRegex(
             RegistrationError,
@@ -173,7 +227,11 @@ class KeyCustodyBoundaryTest(unittest.TestCase):
 
     def test_provider_visible_material_contains_no_source_key_or_dek(self) -> None:
         request = self._request()
-        artifact = self.custody.rewrap(request, self.owner_v1.private_key)
+        artifact = self.custody.rewrap(
+            request,
+            self.owner_v1.private_key,
+            self._approval(request),
+        )
         self._stage(artifact)
         source_wrap = self.stored.owner_wraps[0]
         source_context = self.store.wrap_context(

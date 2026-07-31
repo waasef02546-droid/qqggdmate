@@ -16,7 +16,7 @@
   exactly bound, signed owner/KMS artifact with idempotent exact replay.
 - [x] The release verifier checks custody semantics and secret-scan results,
   rather than trusting a gate name or test count.
-- [x] Live-Mongo full regression passes (115/115).
+- [x] Live-Mongo full regression passes (117/117).
 - [x] The authoritative manuscript and historical planning drafts are clearly
   separated.
 

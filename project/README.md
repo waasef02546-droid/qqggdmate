@@ -110,20 +110,25 @@ production identity or authorization mechanism.
 ### Create the owner-side rotation artifact
 
 Save the exported request JSON and the source owner's base64 private key in a
-file readable only by the owner/KMS process. Create an artifact outside the
-Provider process, then submit the generated `artifact` object to the rewrap
-endpoint:
+file readable only by the owner/KMS process. The custodian also requires a
+separate approval JSON created by an owner-controlled policy or operator after
+checking the expected rotation, store, record, revision, and target key. Create
+an artifact outside the Provider process, then submit the generated `artifact`
+object to the rewrap endpoint:
 
 ```powershell
 python scripts/create_owner_rewrap_artifact.py `
   --request rewrap-request.json `
+  --approval owner-approved-rewrap.json `
   --source-private-key-file owner-private-key.b64 `
   --output rewrap-artifact.json
 ```
 
 The private key is deliberately not accepted as a command-line value and is
-never written to the artifact. This helper is prototype owner-side tooling,
-not an HSM/KMS integration.
+never written to the artifact. The approval file is assumed to come from a
+trusted local owner control; this prototype does not sign that local file or
+establish its operating-system provenance. This helper is not an HSM/KMS
+integration.
 
 ## Run the authoritative release
 

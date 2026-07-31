@@ -14,52 +14,54 @@
   are explicit in the current milestone.
 - [x] KFrag scope is separated: per-record-version keys are selected for a later package;
   label-bound PRE is not claimed.
-- [ ] Custody protocol ADR records canonical fields, signature domain, key source, key-use
+- [x] Custody protocol ADR records canonical fields, signature domain, key source, key-use
   compromise, replay/idempotency, recovery, migration, and trust limitations.
 
 ## B. Core implementation
 
-- [ ] Provider HTTP, management, registry, store, and generic backend interfaces contain no
+- [x] Provider HTTP, management, registry, store, and generic backend interfaces contain no
   `source_private_key` rotation input and no Provider-side decrypt-and-rewrap call.
-- [ ] Provider exports a deterministic, versioned, non-secret rewrap request derived from live
+- [x] Provider exports a deterministic, versioned, non-secret rewrap request derived from live
   authoritative state.
-- [ ] Owner/KMS validates source and intended target fields, rewraps locally, and signs a canonical
-  artifact using the authoritative source owner key under a dedicated domain.
-- [ ] Provider reconstructs the request, verifies its digest/signature against the source
+- [x] Owner/KMS requires an exact owner-local approval for rotation, record, revision, source and
+  target fields; target substitution is denied before local rewrap/signing.
+- [x] Provider reconstructs the request, verifies its digest/signature against the source
   registration, validates the target Umbral wrapper key/context, then stages with object CAS.
-- [ ] Exact artifact replay is idempotent; a different artifact for the same rotation/object
+- [x] Exact artifact replay is idempotent; a different artifact for the same rotation/object
   conflicts.
-- [ ] JSON/Mongo journal and object persistence retain only public requests/digests/signatures and
+- [x] JSON/Mongo journal and object persistence retain only public requests/digests/signatures and
   encrypted wrappers, never keys or plaintext DEKs.
-- [ ] Legacy `source_private_key_b64` fails closed with no compatibility fallback.
+- [x] Legacy `source_private_key_b64` fails closed with no compatibility fallback.
 
 ## C. Verification
 
-- [ ] Positive Umbral prepare → export → owner/KMS → stage → commit → cleanup → target decrypt.
-- [ ] Wrong owner key fails in custody before an artifact exists.
-- [ ] Forged signature, altered target wrapper, wrong target key/context, cross-record,
+- [x] Positive Umbral prepare → export → owner/KMS → stage → commit → cleanup → target decrypt.
+- [x] Wrong owner key fails in custody before an artifact exists.
+- [x] Forged signature, altered target wrapper, wrong target key/context, cross-record,
   cross-rotation, stale revision, and malformed artifact are denied before mutation.
-- [ ] Exact retry after simulated lost response is safe; conflicting retry is rejected.
-- [ ] Partial multi-object staging blocks commit; abort/cleanup preserves source wraps.
-- [ ] Token issued before owner rotation is denied after commit without consumption.
-- [ ] Provider service state, journal, audit, exception text, and generated evidence pass a
+- [x] Exact retry after simulated lost response is safe; conflicting retry is rejected.
+- [x] Partial multi-object staging blocks commit; abort/cleanup preserves source wraps.
+- [x] Token issued before owner rotation is denied after commit without consumption.
+- [x] Provider service state, journal, audit, exception text, and generated evidence pass a
   raw/base64/hex source-key and DEK leakage scan.
-- [ ] JSON restart before stage and after stage remains recoverable.
-- [ ] Live Mongo object/journal CAS, restart recovery, duplicate receipt, and stale-writer tests
+- [x] JSON restart before stage and after stage remains recoverable.
+- [x] Live Mongo object/journal CAS, restart recovery, duplicate receipt, and stale-writer tests
   pass without skips.
-- [ ] One impact-justified full regression passes after all focused checks.
+- [x] One impact-justified full regression passes after all focused checks.
 
 ## D. Experiment, claims, and reproducibility
 
-- [ ] Release adds a semantic key-custody gate rather than relying only on test counts.
-- [ ] Claims C-003/C-006/C-007/C-008, traceability, protocol, ADR, and paper agree with code.
-- [ ] Limitations explicitly retain co-located-process, KFrag-copy, KMS-memory, static-Bearer,
-  non-transactional multi-object, and upstream Alpha/GPL boundaries.
-- [ ] ProVerif is not rerun unless a modeled event/query changes; current models remain explicitly
-  out of scope for rotation/custody.
-- [ ] Ledger records commands, environment, code state, failures, causal reruns, and evidence.
+- [x] Release adds a semantic key-custody gate rather than relying only on test counts.
+- [x] Claims C-003/C-006/C-007/C-008, traceability, protocol, ADR, and paper agree with code.
+- [x] Limitations explicitly retain trusted local-approval input, KFrag-copy, KMS-memory,
+  static-Bearer, non-transactional multi-object, trusted-repository recovery, and upstream
+  Alpha/GPL boundaries.
+- [x] ProVerif is rerun only because the authoritative full-release gate requires it; no new
+  rotation/custody formal claim is made and current models remain explicitly out of scope.
+- [x] Ledger records commands, environment, code state, failures, causal reruns, and evidence.
 - [ ] Clean source commit, authoritative release, artifact hashes, independent verifier, and
-  independent final audit all pass.
+  independent final audit all pass. Source commit, release, hashes, and verifier pass; final audit
+  is in progress.
 
 ## E. Closure
 

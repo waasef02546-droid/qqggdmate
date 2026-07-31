@@ -6,7 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from presaga.crypto.key_custody import OwnerRewrapRequest, UmbralOwnerKeyCustody
+from presaga.crypto.key_custody import (
+    OwnerRewrapApproval,
+    OwnerRewrapRequest,
+    UmbralOwnerKeyCustody,
+)
 from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataRecord
 from presaga.provider.app import PREProviderApp
@@ -14,6 +18,23 @@ from presaga.provider.json_repository import JsonProviderRepository
 from presaga.provider.registry import RegistrationError
 from presaga.provider.server import ProviderService
 from presaga.storage.encrypted_store import EncryptedStore
+
+
+def _approval(request: OwnerRewrapRequest) -> OwnerRewrapApproval:
+    return OwnerRewrapApproval(
+        request_digest=request.request_digest,
+        owner_aid=request.owner_aid,
+        rotation_id=request.rotation_id,
+        store_id=request.store_id,
+        record_id=request.record_id,
+        expected_object_revision=request.expected_object_revision,
+        source_registration_id=request.source_registration_id,
+        source_registration_version=request.source_registration_version,
+        target_registration_id=request.target_registration_id,
+        target_registration_version=request.target_registration_version,
+        target_public_key_fingerprint=request.target_public_key_fingerprint,
+        target_public_key=request.target_public_key,
+    )
 
 
 class RotationRecoveryIntegrationTest(unittest.TestCase):
@@ -77,7 +98,11 @@ class RotationRecoveryIntegrationTest(unittest.TestCase):
         request = OwnerRewrapRequest.from_payload(
             service.export_agent_rewrap_request(stage_context)
         )
-        artifact = self.custody.rewrap(request, self.owner_v1.private_key)
+        artifact = self.custody.rewrap(
+            request,
+            self.owner_v1.private_key,
+            _approval(request),
+        )
         service.stage_agent_rewrap(
             {**stage_context, "artifact": artifact.to_payload()}
         )

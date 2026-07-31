@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from presaga.crypto.key_custody import UmbralOwnerKeyCustody
+from presaga.crypto.key_custody import OwnerRewrapApproval, UmbralOwnerKeyCustody
 from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import (
     DataAccessRequest,
@@ -18,6 +18,23 @@ from presaga.protocol.schemas import (
 from presaga.provider.app import PREProviderApp
 from presaga.provider.registry import RegistrationError
 from presaga.storage.encrypted_store import EncryptedStore
+
+
+def _approval(request) -> OwnerRewrapApproval:
+    return OwnerRewrapApproval(
+        request_digest=request.request_digest,
+        owner_aid=request.owner_aid,
+        rotation_id=request.rotation_id,
+        store_id=request.store_id,
+        record_id=request.record_id,
+        expected_object_revision=request.expected_object_revision,
+        source_registration_id=request.source_registration_id,
+        source_registration_version=request.source_registration_version,
+        target_registration_id=request.target_registration_id,
+        target_registration_version=request.target_registration_version,
+        target_public_key_fingerprint=request.target_public_key_fingerprint,
+        target_public_key=request.target_public_key,
+    )
 
 
 class OwnerKeyRotationIntegrationTest(unittest.TestCase):
@@ -59,7 +76,7 @@ class OwnerKeyRotationIntegrationTest(unittest.TestCase):
             record_id=record_id,
             expected_object_revision=revision,
         )
-        return self.custody.rewrap(request, private_key)
+        return self.custody.rewrap(request, private_key, _approval(request))
 
     def _stage(self, prepared, record_id: str, private_key: bytes, revision: int):
         artifact = self._artifact(prepared, record_id, private_key, revision)

@@ -12,7 +12,11 @@ from uuid import uuid4
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-from presaga.crypto.key_custody import OwnerRewrapRequest, UmbralOwnerKeyCustody
+from presaga.crypto.key_custody import (
+    OwnerRewrapApproval,
+    OwnerRewrapRequest,
+    UmbralOwnerKeyCustody,
+)
 from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataRecord
 from presaga.provider.app import PREProviderApp
@@ -20,6 +24,23 @@ from presaga.provider.mongo_repository import MongoProviderRepository
 from presaga.provider.repository import RepositoryConflict, RepositoryUnavailable
 from presaga.provider.server import ProviderService, create_server
 from presaga.storage.mongo_encrypted_store import MongoEncryptedStore
+
+
+def _approval(request: OwnerRewrapRequest) -> OwnerRewrapApproval:
+    return OwnerRewrapApproval(
+        request_digest=request.request_digest,
+        owner_aid=request.owner_aid,
+        rotation_id=request.rotation_id,
+        store_id=request.store_id,
+        record_id=request.record_id,
+        expected_object_revision=request.expected_object_revision,
+        source_registration_id=request.source_registration_id,
+        source_registration_version=request.source_registration_version,
+        target_registration_id=request.target_registration_id,
+        target_registration_version=request.target_registration_version,
+        target_public_key_fingerprint=request.target_public_key_fingerprint,
+        target_public_key=request.target_public_key,
+    )
 
 
 class MongoProviderServiceIntegrationTest(unittest.TestCase):
@@ -165,7 +186,11 @@ class MongoProviderServiceIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(HTTPStatus.OK, status)
         request = OwnerRewrapRequest.from_payload(request_response["request"])
-        artifact = self.custody.rewrap(request, owner_v1.private_key)
+        artifact = self.custody.rewrap(
+            request,
+            owner_v1.private_key,
+            _approval(request),
+        )
         status, _ = self._request(
             server,
             "/v1/management/agent-rotation-rewraps",
