@@ -23,6 +23,7 @@ import yaml
 from presaga.crypto.umbral_pre import UmbralPREBackend
 
 from experiments.attacks.run_all import run_all as run_attacks
+from experiments.e2e.key_custody import run_key_custody_probe
 from experiments.e2e.mongodb_e2e import run_mongodb_e2e
 from experiments.e2e.saga_bridge import run_saga_bridge
 from experiments.evaluation.run_p3_evaluation import run_p3_evaluation
@@ -109,6 +110,11 @@ def run_release(
             workspace_root=WORKSPACE_ROOT,
         ),
     )
+    key_custody_result = _stage(
+        stages,
+        "key_custody",
+        lambda: run_key_custody_probe(staging),
+    )
 
     mongo_result = None
     if config["required"]["mongodb_e2e"]:
@@ -138,6 +144,7 @@ def run_release(
         performance_rows=performance_rows,
         proof_results=proof_results,
         bridge_results=bridge_results,
+        key_custody_result=key_custody_result,
         mongo_result=mongo_result,
     )
     source_hash, source_count = source_fingerprint(WORKSPACE_ROOT)
@@ -176,7 +183,7 @@ def run_release(
             "The release backend is the prototype Umbral adapter over nucypher-core 0.15.0 (Alpha, GPLv3); it has not been independently audited and is not production cryptography.",
             "The active malicious-Provider regression finds no raw/base64/hex DEK in the exposed state, rejects direct public-key unwrap misuse, and confirms requester decryption; it is not cryptanalysis, a reduction, memory/side-channel analysis, or a whole-process guarantee.",
             "Umbral KFrags are owner/requester key-pair scoped. Provider/requester collusion and retained KFrag reuse across same-owner capsules remain outside the established claim.",
-            "Trusted management-plane rotation may materialize a DEK and owner private key inside that trusted boundary; HSM/KMS isolation is not established.",
+            "Owner-key rotation removes the source private key and plaintext DEK from Provider interfaces and persisted/exported Provider state; the owner/KMS process still materializes them, and HSM isolation, memory forensics, side-channel resistance, and a whole-process guarantee are not established.",
             "The SAGA bridge consumes recorded SAGA evidence and does not run a live SAGA network.",
             "MongoDB evidence is single-node local persistence and does not establish distributed transactions, RAFT, or sharding.",
             "ProVerif models cover their explicit symbolic queries only and do not verify the complete Python implementation.",
@@ -230,6 +237,8 @@ def _validate_config(config: dict) -> None:
     counts = config["performance"]["policy_rule_counts"]
     if not counts or any(int(value) < 1 for value in counts):
         raise ValueError("performance.policy_rule_counts must be positive")
+    if config.get("required", {}).get("key_custody_cases") != 1:
+        raise ValueError("required.key_custody_cases must be exactly 1")
 
 
 def _run_id() -> str:
@@ -270,6 +279,7 @@ def _evaluate_gates(
     performance_rows,
     proof_results,
     bridge_results,
+    key_custody_result,
     mongo_result,
 ) -> list[dict]:
     required = config["required"]
@@ -357,6 +367,31 @@ def _evaluate_gates(
             and not bridge_results[1].plaintext_released
             and bridge_results[1].data_layer_decision == "deny",
             f"{len(bridge_results)} case(s)",
+        ),
+        _gate(
+            "key_custody_boundary",
+            required.get("key_custody_cases") == 1
+            and key_custody_result.backend == UmbralPREBackend.name
+            and key_custody_result.request_schema_version == 1
+            and key_custody_result.custody_algorithm
+            == "umbral-owner-source-key-signature-v1"
+            and key_custody_result.custody_version == 1
+            and key_custody_result.custody_key_id_matches_authoritative_source
+            and key_custody_result.signed_artifact_verified
+            and key_custody_result.exact_retry_idempotent
+            and key_custody_result.conflicting_retry_rejected
+            and key_custody_result.conflicting_retry_reason
+            == "custody_artifact_conflict"
+            and key_custody_result.legacy_private_key_input_rejected
+            and key_custody_result.legacy_rejection_reason
+            == "source_private_key_forbidden"
+            and key_custody_result.target_decrypt_succeeded
+            and not key_custody_result.provider_received_source_private_key
+            and not key_custody_result.provider_saw_plaintext_dek
+            and key_custody_result.provider_secret_encodings_checked
+            == "raw|base64|hex"
+            and key_custody_result.success,
+            "signed artifact accepted; replay bounded; legacy private-key input rejected; target decrypt succeeded; no source key or plaintext DEK found in bounded Provider-visible surfaces",
         ),
         _gate(
             "mongodb_e2e",

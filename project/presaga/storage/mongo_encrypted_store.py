@@ -14,6 +14,7 @@ from presaga.crypto import envelope
 from presaga.crypto.pre_interface import PREBackend
 from presaga.protocol.schemas import DataRecord
 from presaga.provider.registry import AgentRecord, AgentRegistry
+from presaga.crypto.key_custody import OwnerRewrapArtifact, OwnerRewrapRequest
 from presaga.storage.encrypted_store import (
     STORAGE_SCHEMA_VERSION,
     EncryptedStore,
@@ -118,7 +119,7 @@ class MongoEncryptedStore(EncryptedStore):
         self,
         record_id: str,
         target_registration: AgentRecord,
-        source_private_key: bytes,
+        artifact: OwnerRewrapArtifact,
         rotation_id: str,
         expected_object_revision: int,
     ) -> StoredObject:
@@ -129,7 +130,7 @@ class MongoEncryptedStore(EncryptedStore):
             staged = self._stage_owner_rewrap_object(
                 stored,
                 target_registration=target_registration,
-                source_private_key=source_private_key,
+                artifact=artifact,
                 rotation_id=rotation_id,
                 expected_object_revision=expected_object_revision,
             )
@@ -147,6 +148,27 @@ class MongoEncryptedStore(EncryptedStore):
             if result.matched_count != 1:
                 raise StorageProvenanceError("owner_object_revision_conflict")
             return staged
+
+    def build_owner_rewrap_request(
+        self,
+        record_id: str,
+        target_registration: AgentRecord,
+        rotation_id: str,
+        expected_object_revision: int,
+    ) -> OwnerRewrapRequest:
+        stored = self.get(record_id)
+        request = self._build_owner_rewrap_request(
+            stored,
+            target_registration=target_registration,
+            rotation_id=rotation_id,
+            expected_object_revision=expected_object_revision,
+        )
+        if stored.object_revision not in {
+            expected_object_revision,
+            expected_object_revision + 1,
+        }:
+            raise StorageProvenanceError("owner_object_revision_conflict")
+        return request
 
     def cleanup_owner_rotation(
         self,
@@ -198,6 +220,11 @@ class MongoEncryptedStore(EncryptedStore):
                     "encrypted_dek_b64": _b64(wrapped.encrypted_dek),
                     "provenance": asdict(wrapped.provenance),
                     "rotation_id": wrapped.rotation_id,
+                    "custody_request_digest_b64": (
+                        _b64(wrapped.custody_request_digest)
+                        if wrapped.custody_request_digest is not None
+                        else None
+                    ),
                 }
                 for wrapped in stored.owner_wraps
             ],
@@ -216,6 +243,11 @@ class MongoEncryptedStore(EncryptedStore):
                     encrypted_dek=_unb64(raw["encrypted_dek_b64"]),
                     provenance=OwnerKeyProvenance(**raw["provenance"]),
                     rotation_id=raw.get("rotation_id"),
+                    custody_request_digest=(
+                        _unb64(raw["custody_request_digest_b64"])
+                        if raw.get("custody_request_digest_b64") is not None
+                        else None
+                    ),
                 )
                 for raw in document["owner_wraps"]
             )

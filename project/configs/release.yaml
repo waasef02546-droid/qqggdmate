@@ -14,4 +14,5 @@ required:
   successful_tasks: 4
   proverif_models: 3
   saga_bridge_cases: 2
+  key_custody_cases: 1
   mongodb_e2e: true

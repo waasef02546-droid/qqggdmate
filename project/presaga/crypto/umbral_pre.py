@@ -385,6 +385,23 @@ class UmbralPREBackend:
         dek = self.unwrap_dek(encrypted_dek, source_private_key, source_context)
         return self.wrap_dek(dek, target_public_key, target_context)
 
+    def validate_owner_wrapper(
+        self,
+        encrypted_dek: bytes,
+        expected_public_key: bytes,
+        context: bytes,
+    ) -> None:
+        """Validate a public owner wrapper without decrypting its MessageKit."""
+        trusted_digest = _context_digest(context)
+        _parse_public_key(expected_public_key)
+        _, payload = _unpack(encrypted_dek, _OWNER_WRAPPER)
+        envelope_digest, owner_public_key, message_kit_bytes = _decode_fields(payload, 3)
+        self._validate_digest(envelope_digest, trusted_digest)
+        _parse_public_key(owner_public_key)
+        if owner_public_key != expected_public_key:
+            raise UmbralValidationError("owner_registration_key_mismatch")
+        _parse_message_kit(message_kit_bytes)
+
     @staticmethod
     def _validate_digest(actual: bytes, expected: bytes) -> None:
         if len(actual) != _CONTEXT_DIGEST_SIZE:

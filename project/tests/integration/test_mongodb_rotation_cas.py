@@ -6,7 +6,8 @@ import unittest
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-from presaga.crypto.hpke_kem_stub import HPKEKEMStub
+from presaga.crypto.key_custody import UmbralOwnerKeyCustody
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataRecord
 from presaga.provider.app import PREProviderApp
 from presaga.provider.mongo_repository import MongoProviderRepository
@@ -25,7 +26,8 @@ class MongoRotationCASTest(unittest.TestCase):
         client.drop_database(db_name)
         try:
             db = client[db_name]
-            backend = HPKEKEMStub()
+            backend = UmbralPREBackend()
+            custody = UmbralOwnerKeyCustody(backend)
             app = PREProviderApp(backend)
             owner_v1 = backend.generate_keypair()
             owner_v2 = backend.generate_keypair()
@@ -49,13 +51,22 @@ class MongoRotationCASTest(unittest.TestCase):
                 expected_version=1,
             )
             repository.save_rotation(prepared)
+            request = app.management.build_agent_rewrap_request(
+                owner_aid,
+                expected_version=1,
+                rotation_id=prepared.rotation_id,
+                store=store,
+                record_id=stored.record.record_id,
+                expected_object_revision=stored.object_revision,
+            )
+            artifact = custody.rewrap(request, owner_v1.private_key)
             staged = app.management.stage_agent_rewrap(
                 owner_aid,
                 expected_version=1,
                 rotation_id=prepared.rotation_id,
                 store=store,
                 record_id=stored.record.record_id,
-                source_private_key=owner_v1.private_key,
+                artifact=artifact,
                 expected_object_revision=stored.object_revision,
             )
             stale = store.collection.replace_one(

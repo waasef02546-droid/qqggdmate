@@ -8,6 +8,11 @@ from threading import RLock
 from typing import Literal
 
 from presaga.crypto import envelope
+from presaga.crypto.key_custody import (
+    OwnerRewrapArtifact,
+    OwnerRewrapRequest,
+    verify_custody_artifact,
+)
 from presaga.crypto.key_rotation import data_context, owner_wrap_context
 from presaga.crypto.pre_interface import PREBackend
 from presaga.protocol.schemas import DataRecord
@@ -57,6 +62,7 @@ class OwnerWrappedDEK:
     encrypted_dek: bytes
     provenance: OwnerKeyProvenance
     rotation_id: str | None = None
+    custody_request_digest: bytes | None = None
 
 
 @dataclass(frozen=True)
@@ -166,7 +172,7 @@ class EncryptedStore:
         self,
         record_id: str,
         target_registration: AgentRecord,
-        source_private_key: bytes,
+        artifact: OwnerRewrapArtifact,
         rotation_id: str,
         expected_object_revision: int,
     ) -> StoredObject:
@@ -177,12 +183,37 @@ class EncryptedStore:
             staged = self._stage_owner_rewrap_object(
                 stored,
                 target_registration=target_registration,
-                source_private_key=source_private_key,
+                artifact=artifact,
                 rotation_id=rotation_id,
                 expected_object_revision=expected_object_revision,
             )
             self._objects[record_id] = staged
             return staged
+
+    def build_owner_rewrap_request(
+        self,
+        record_id: str,
+        target_registration: AgentRecord,
+        rotation_id: str,
+        expected_object_revision: int,
+    ) -> OwnerRewrapRequest:
+        """Export a deterministic request containing public rotation material only."""
+        if not isinstance(rotation_id, str) or not rotation_id:
+            raise StorageProvenanceError("rotation_id_invalid")
+        with self._lock:
+            stored = self.get(record_id)
+            request = self._build_owner_rewrap_request(
+                stored,
+                target_registration=target_registration,
+                rotation_id=rotation_id,
+                expected_object_revision=expected_object_revision,
+            )
+            if stored.object_revision not in {
+                expected_object_revision,
+                expected_object_revision + 1,
+            }:
+                raise StorageProvenanceError("owner_object_revision_conflict")
+            return request
 
     def cleanup_owner_rotation(
         self,
@@ -230,49 +261,96 @@ class EncryptedStore:
         stored: StoredObject,
         *,
         target_registration: AgentRecord,
-        source_private_key: bytes,
+        artifact: OwnerRewrapArtifact,
         rotation_id: str,
         expected_object_revision: int,
     ) -> StoredObject:
-        self._validate_stored_object(stored)
-        source_registration = self.registry.resolve_active(stored.record.owner_aid)
-        source = OwnerKeyProvenance.from_registration(source_registration)
+        request = self._build_owner_rewrap_request(
+            stored,
+            target_registration=target_registration,
+            rotation_id=rotation_id,
+            expected_object_revision=expected_object_revision,
+        )
+        try:
+            verify_custody_artifact(request, artifact, backend=self.backend)
+        except Exception as error:
+            reason = getattr(error, "reason", str(error))
+            stable = reason if isinstance(reason, str) and reason.startswith("custody_") else (
+                "custody_artifact_invalid"
+            )
+            raise StorageProvenanceError(stable) from error
+
         target = OwnerKeyProvenance.from_registration(target_registration)
-        self._validate_rotation(source_registration, source, target_registration, target)
 
         existing_rotation = [
             wrapped for wrapped in stored.owner_wraps if wrapped.rotation_id == rotation_id
         ]
         if existing_rotation:
-            if len(existing_rotation) == 1 and existing_rotation[0].provenance == target:
+            if (
+                len(existing_rotation) == 1
+                and existing_rotation[0].provenance == target
+                and existing_rotation[0].encrypted_dek == artifact.target_encrypted_dek
+                and existing_rotation[0].custody_request_digest
+                == artifact.request_digest
+            ):
                 return stored
-            raise StorageProvenanceError("owner_rotation_conflict")
+            raise StorageProvenanceError("custody_artifact_conflict")
         if stored.object_revision != expected_object_revision:
             raise StorageProvenanceError("owner_object_revision_conflict")
-
-        source_matches = [
-            wrapped for wrapped in stored.owner_wraps if wrapped.provenance == source
-        ]
-        if len(source_matches) != 1:
-            reason = "owner_provenance_mismatch"
-            raise StorageProvenanceError(reason)
-        derived_public_key = self.backend.public_key_from_private(source_private_key)
-        if not hmac.compare_digest(derived_public_key, source_registration.public_key):
-            raise StorageProvenanceError("source_private_key_mismatch")
-
-        source_wrapped = source_matches[0]
-        target_encrypted_dek = self.backend.rewrap_dek(
-            source_wrapped.encrypted_dek,
-            source_private_key,
-            target_registration.public_key,
-            self.wrap_context(stored.record, source),
-            self.wrap_context(stored.record, target),
+        target_wrapped = OwnerWrappedDEK(
+            artifact.target_encrypted_dek,
+            target,
+            rotation_id,
+            artifact.request_digest,
         )
-        target_wrapped = OwnerWrappedDEK(target_encrypted_dek, target, rotation_id)
         return replace(
             stored,
             owner_wraps=stored.owner_wraps + (target_wrapped,),
             object_revision=stored.object_revision + 1,
+        )
+
+    def _build_owner_rewrap_request(
+        self,
+        stored: StoredObject,
+        *,
+        target_registration: AgentRecord,
+        rotation_id: str,
+        expected_object_revision: int,
+    ) -> OwnerRewrapRequest:
+        self._validate_stored_object(stored)
+        source_registration = self.registry.resolve_active(stored.record.owner_aid)
+        source = OwnerKeyProvenance.from_registration(source_registration)
+        target = OwnerKeyProvenance.from_registration(target_registration)
+        self._validate_rotation(
+            source_registration,
+            source,
+            target_registration,
+            target,
+        )
+        source_matches = [
+            wrapped for wrapped in stored.owner_wraps if wrapped.provenance == source
+        ]
+        if len(source_matches) != 1:
+            raise StorageProvenanceError("owner_provenance_mismatch")
+        source_wrapped = source_matches[0]
+        return OwnerRewrapRequest(
+            backend=self.backend.name,
+            rotation_id=rotation_id,
+            owner_aid=stored.record.owner_aid,
+            store_id=self.store_id,
+            record_id=stored.record.record_id,
+            expected_object_revision=expected_object_revision,
+            source_registration_id=source_registration.registration_id,
+            source_registration_version=source_registration.registration_version,
+            source_public_key_fingerprint=source_registration.public_key_fingerprint,
+            source_public_key=source_registration.public_key,
+            target_registration_id=target_registration.registration_id,
+            target_registration_version=target_registration.registration_version,
+            target_public_key_fingerprint=target_registration.public_key_fingerprint,
+            target_public_key=target_registration.public_key,
+            source_encrypted_dek=source_wrapped.encrypted_dek,
+            source_context=self.wrap_context(stored.record, source),
+            target_context=self.wrap_context(stored.record, target),
         )
 
     def _cleanup_owner_rotation_object(
@@ -383,6 +461,11 @@ class EncryptedStore:
         if stored.object_revision < 1 or not stored.owner_wraps:
             raise StorageProvenanceError("owner_provenance_invalid")
         for wrapped in stored.owner_wraps:
+            digest = wrapped.custody_request_digest
+            if digest is not None and (not isinstance(digest, bytes) or len(digest) != 32):
+                raise StorageProvenanceError("owner_provenance_invalid")
+            if wrapped.rotation_id is None and digest is not None:
+                raise StorageProvenanceError("owner_provenance_invalid")
             if (
                 not isinstance(wrapped.encrypted_dek, bytes)
                 or not wrapped.encrypted_dek

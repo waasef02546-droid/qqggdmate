@@ -6,7 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from presaga.crypto.hpke_kem_stub import HPKEKEMStub
+from presaga.crypto.key_custody import OwnerRewrapRequest, UmbralOwnerKeyCustody
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataRecord
 from presaga.provider.app import PREProviderApp
 from presaga.provider.json_repository import JsonProviderRepository
@@ -19,7 +20,8 @@ class RotationRecoveryIntegrationTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory()
         self.state_file = Path(self.tempdir.name) / "provider-state.json"
-        self.backend = HPKEKEMStub()
+        self.backend = UmbralPREBackend()
+        self.custody = UmbralOwnerKeyCustody(self.backend)
         self.owner_v1 = self.backend.generate_keypair()
         self.owner_v2 = self.backend.generate_keypair()
         self.owner_aid = "alice@example.com:calendar"
@@ -65,15 +67,19 @@ class RotationRecoveryIntegrationTest(unittest.TestCase):
             }
         )
         rotation_id = prepared["rotation_id"]
+        stage_context = {
+            "aid": self.owner_aid,
+            "record_id": stored.record.record_id,
+            "expected_version": 1,
+            "rotation_id": rotation_id,
+            "expected_object_revision": 1,
+        }
+        request = OwnerRewrapRequest.from_payload(
+            service.export_agent_rewrap_request(stage_context)
+        )
+        artifact = self.custody.rewrap(request, self.owner_v1.private_key)
         service.stage_agent_rewrap(
-            {
-                "aid": self.owner_aid,
-                "record_id": stored.record.record_id,
-                "source_private_key_b64": _b64(self.owner_v1.private_key),
-                "expected_version": 1,
-                "rotation_id": rotation_id,
-                "expected_object_revision": 1,
-            }
+            {**stage_context, "artifact": artifact.to_payload()}
         )
         return service, store, rotation_id
 

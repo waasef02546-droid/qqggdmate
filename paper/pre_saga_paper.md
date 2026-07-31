@@ -1,6 +1,6 @@
 # PRE-SAGA：在智能体接触授权之后实施可验证的数据级授权
 
-> 状态：CRYPTO-001 证据对齐工作稿（2026-07-31）。本文只引用
+> 状态：KEYCUSTODY-001 证据对齐工作稿（2026-07-31）。本文只引用
 > `project/results/release-manifest.json` 所列的当前权威结果。它不是最终投稿版。
 
 ## 摘要
@@ -11,11 +11,13 @@ SAGA-compatible Contact 授权之后增加 Data Sharing Policy、绑定到具体
 会话和注册密钥版本的 DataToken，以及受策略约束的加密数据密钥转换。当前原型把
 contact、policy、token、trusted object lookup、re-encryption consumption 和 audit
 纳入同一服务端路径，并实现 JSON/Mongo 持久化、密钥轮换恢复与过期写入者隔离。
+轮换期间，Provider 导出不含秘密的确定性请求，并只接受 owner/KMS 在 Provider 外部
+生成且绑定精确对象状态的签名重包 artifact；旧的私钥输入被拒绝。
 
 我们建立了一个带来源、配置、环境和逐文件哈希的分阶段发布流程。一次完整本地运行
 通过了 8 个预期阻断攻击、4 个工具任务、12 行性能比较、9 行扩展性测试、3 个
 ProVerif 模型中的 4 个查询、2 个 SAGA 证据桥接案例以及 MongoDB E2E；随后完整
-回归 101/101 通过。结果支持“可联系不等于可获得数据令牌或转换结果”这一原型行为。
+回归 115/115 通过。结果支持“可联系不等于可获得数据令牌或转换结果”这一原型行为。
 
 CRYPTO-001 以 `nucypher-core==0.15.0` 的 Umbral 原语[2]替换权威实验中的 ToyPRE：
 owner 生成经签名的 1-of-1 KFrag，Provider 验证 owner、requester 与 owner-wrap
@@ -50,6 +52,8 @@ PRE-SAGA 研究的问题是：
 4. 集成版本化 Umbral 1-of-1 PRE 后端，并以同时要求“Provider 公开材料恢复失败”
    和“预期 requester 解密成功”的主动探针约束具体实现；ToyPRE 仅保留为历史缺陷
    回归。
+5. 把 owner 私钥和明文 DEK 从 Provider 轮换接口与持久化/导出状态中移出，以规范化
+   请求、owner 侧签名 artifact、对象 CAS、幂等重试和语义发布门禁约束该边界。
 
 本文不提出新的 PRE 算法，也不声称达到 SAGA 原文在真实 LLM、地域、RAFT 或分片
 实验上的覆盖度。
@@ -97,7 +101,8 @@ election、线性一致性或分布式事务。
 公钥和 context 摘要，并对未知、旧版、截断和篡改输入失败关闭。该依赖标记为 Alpha
 且采用 GPLv3，本项目未独立审计其 Rust 实现。KFrag 是 owner/requester 密钥对级，
 不是 record/purpose/token 级；Provider 与合法 requester 串谋并保留 KFrag 的情形
-不在当前机密性主张内。可信管理面轮换还会在其边界内执行解密再重新加密。
+不在当前机密性主张内。轮换解密已迁移到 owner/KMS 侧，但该进程仍会短暂持有源私钥
+和 DEK，且当前用同一 Umbral 源密钥生成域分离签名；这不是 HSM 或安全内存保证。
 
 ## 3 设计
 
@@ -132,6 +137,13 @@ Owner 轮换采用 prepare、stage/rewrap、commit 或 abort、cleanup 状态机
 aggregate 另有 `state_revision`；旧 Provider CAS 失败后进入
 `repository_recovery_required`，避免继续写入。
 
+KEYCUSTODY-001 将 stage 前的重包分成两个边界。Provider 从活动源注册、候选注册、
+rotation journal、对象 provenance、源 wrapper、源/目标 context 和对象 revision
+重建规范化请求；owner/KMS 验证源密钥后在本地解包和重新加密，并对请求摘要与目标
+wrapper 摘要签名。Provider 只用活动源注册公钥验签并验证目标 Umbral wrapper，再做
+对象 CAS。完全相同的 artifact 可安全重试，不同 artifact、跨对象/轮换替换、篡改和
+过期 revision 均在写入前失败。该机制不解决复制 KFrag 的密钥对级授权范围。
+
 ### 3.3 证据发布
 
 统一发布器先写入唯一 staging 目录，运行所有阶段，生成 source fingerprint、
@@ -146,6 +158,8 @@ release config hash、Git HEAD/dirty 摘要、Python/依赖/ProVerif/Mongo 版�
 - ProviderService 性能行和具体 Umbral 恢复探针边界；
 - ProVerif 查询数；
 - Bob allow/Mallory deny 的 SAGA bridge；
+- owner/KMS custody artifact 的签名、幂等/冲突重试、旧私钥输入拒绝、目标解密和
+  Provider 可见状态秘密扫描；
 - Mongo normal/attack/persistence 结果。
 
 只有 verifier 接受 staging 后才发布。各文件以临时文件替换，manifest 最后写入；
@@ -218,7 +232,17 @@ SAGA bridge 使用仓库中的两份已记录终端证据。Bob 的 contact allo
 并释放 projection；Mallory 的 contact 也 allow，但 data policy deny，未释放
 plaintext。该实验不是 live SAGA interoperability。
 
-### 5.6 形式化与回归
+### 5.6 Owner/KMS 轮换边界
+
+独立的一行 custody 证据必须同时满足：签名 artifact 经权威源注册验证；完全相同的
+stage 重试幂等；另一份有效但不同的目标 wrapper 被判为冲突；旧
+`source_private_key_b64` 字段以稳定原因失败；commit 后目标私钥可恢复 DEK 和记录；
+在 request、artifact、对象、journal、audit、结果及错误等限定 Provider 可见面中，
+源私钥和明文 DEK 的 raw/base64/hex 形式均未出现。独立 verifier 直接检查这些字段，
+而不是仅信任 gate 名称或测试数量。该扫描不包含调用方刻意发送的秘密 payload，且
+不是进程内存取证。
+
+### 5.7 形式化与回归
 
 三个 ProVerif 模型均由 2.05 实际执行，分别验证 1、2、1 个 true queries。模型支持
 token acceptance、抽象 DEK secrecy/policy implication 和 rekey authentication。
@@ -226,7 +250,7 @@ token acceptance、抽象 DEK secrecy/policy implication 和 rekey authenticatio
 特别是，抽象 DEK secrecy 不证明 `nucypher-core`、适配器、KFrag 生命周期或
 Provider/requester 串谋安全。
 
-发布前完整测试在 live Mongo 环境中 101/101 通过。测试支持实现行为，但不替代独立
+发布前完整测试在 live Mongo 环境中 115/115 通过。测试支持实现行为，但不替代独立
 密码分析或跨主机复现。
 
 ## 6 结论有效性与局限
@@ -238,20 +262,22 @@ Provider/requester 串谋安全。
   服务端绑定；
 - 所有当前发布实验来自同一可校验源状态；
 - JSON/Mongo 中的已测恢复和 CAS 冲突路径失败关闭。
+- owner 私钥和明文 DEK 不再是 Provider 轮换 API 或持久化/导出状态的一部分，签名
+  artifact 的精确绑定、幂等重试和冲突拒绝由实现与语义 gate 共同约束。
 
 当前证据不支持：
 
 - `nucypher-core` 或适配器的生产安全、独立审计或供应链可复现构建；
-- 可信管理面受损、Provider/requester 串谋、侧信道、元数据隐私；
+- owner/KMS 进程受损、Provider/requester 串谋、侧信道、元数据隐私；
 - 合法 requester 解密后的防外泄；
 - 多 Provider 线性一致性、RAFT、sharding 或跨文档事务；
 - 与 SAGA live runtime 的完整互操作；
 - 与 SAGA 原文真实 LLM、地域及大规模系统实验的效果对等。
 
-因此，下一研究包不应再重复实现 ToyPRE 替换，而应在当前具体后端上优先解决两项
-剩余边界：把轮换解密迁移到 owner/KMS 侧，以及通过 per-record delegating key 或
-label-bound PRE 缩小 KFrag 的密钥对级授权范围。随后才适合扩大 comparative
-baseline、独立环境复现和论文投稿实验。
+因此，下一研究包不应再重复实现 ToyPRE 替换或再次迁移轮换解密，而应在当前具体
+后端上通过 per-record-version delegating key（或具备等价语义的 label-bound PRE）
+缩小 KFrag 的密钥对级授权范围，并用直接保留 KFrag 的跨记录攻击验证。随后才适合
+扩大 comparative baseline、独立环境复现和论文投稿实验。
 
 ## 7 复现
 

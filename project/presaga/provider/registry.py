@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from threading import RLock
 from typing import Any, Literal, Protocol
 
+from presaga.crypto.key_custody import OwnerRewrapArtifact, OwnerRewrapRequest
+
 
 RegistrationStatus = Literal["active", "revoked", "legacy_unverified"]
 RotationStatus = Literal["prepared", "committed", "aborted"]
@@ -58,10 +60,19 @@ class OwnerObjectStore(Protocol):
         self,
         record_id: str,
         target_registration: AgentRecord,
-        source_private_key: bytes,
+        artifact: OwnerRewrapArtifact,
         rotation_id: str,
         expected_object_revision: int,
     ) -> Any:
+        ...
+
+    def build_owner_rewrap_request(
+        self,
+        record_id: str,
+        target_registration: AgentRecord,
+        rotation_id: str,
+        expected_object_revision: int,
+    ) -> OwnerRewrapRequest:
         ...
 
     def cleanup_owner_rotation(
@@ -118,6 +129,7 @@ class AgentRegistry:
             "get",
             "owner_object_revisions",
             "stage_owner_rewrap",
+            "build_owner_rewrap_request",
             "resolve_active_owner_wrap",
             "cleanup_owner_rotation",
         )
@@ -214,7 +226,10 @@ class AgentRegistry:
                 raise RegistrationError("registration_not_active")
             if not isinstance(expected_version, int) or expected_version != current.registration_version:
                 raise RegistrationError("registration_version_conflict")
-            if hmac.compare_digest(current.public_key_fingerprint, key_fingerprint(key)):
+            if hmac.compare_digest(
+                current.public_key_fingerprint,
+                key_fingerprint(key, key_algorithm=current.key_algorithm),
+            ):
                 raise RegistrationError("registration_key_unchanged")
             candidate = replace(
                 current,
@@ -309,7 +324,7 @@ class AgentRegistry:
         rotation_id: str,
         store: OwnerObjectStore,
         record_id: str,
-        source_private_key: bytes,
+        artifact: OwnerRewrapArtifact,
         expected_object_revision: int,
     ) -> Any:
         """Stage one candidate wrapper under exact registration/object CAS values."""
@@ -343,7 +358,7 @@ class AgentRegistry:
                 return store.stage_owner_rewrap(
                     record_id,
                     target_registration=prepared.candidate,
-                    source_private_key=source_private_key,
+                    artifact=artifact,
                     rotation_id=prepared.rotation_id,
                     expected_object_revision=expected_object_revision,
                 )
@@ -351,7 +366,9 @@ class AgentRegistry:
                 raise
             except Exception as error:
                 reason = getattr(error, "reason", str(error))
-                stable = reason if reason in {
+                stable = reason if (
+                    isinstance(reason, str) and reason.startswith("custody_")
+                ) or reason in {
                     "stored_object_revision_conflict",
                     "owner_provenance_mismatch",
                     "stored_object_not_found",
@@ -362,13 +379,82 @@ class AgentRegistry:
                     "rotation_target_conflict",
                     "owner_wrap_not_found",
                     "owner_wrap_ambiguous",
-                    "source_private_key_mismatch",
+                    "custody_request_invalid",
+                    "custody_request_digest_mismatch",
+                    "custody_signature_invalid",
+                    "custody_target_wrapper_invalid",
+                    "custody_artifact_conflict",
                     "rotation_owner_mismatch",
                     "rotation_registration_id_mismatch",
                     "rotation_version_invalid",
                     "rotation_key_unchanged",
                     "rotation_actor_mismatch",
                 } else "owner_rewrap_failed"
+                raise RegistrationError(stable) from error
+
+    def build_prepared_rewrap_request(
+        self,
+        aid: str,
+        *,
+        actor: str,
+        expected_version: int,
+        rotation_id: str,
+        store: OwnerObjectStore,
+        record_id: str,
+        expected_object_revision: int,
+    ) -> OwnerRewrapRequest:
+        """Export one non-secret request from authoritative rotation state."""
+        canonical_aid = validate_aid(aid)
+        principal = validate_actor(actor)
+        with self._lock:
+            current = self._get_existing(canonical_aid)
+            self._authorize(current, principal)
+            prepared = self.prepared_replacement(canonical_aid)
+            if (
+                expected_version != current.registration_version
+                or expected_version != prepared.current_version
+            ):
+                raise RegistrationError("registration_version_conflict")
+            if not hmac.compare_digest(prepared.rotation_id, rotation_id):
+                raise RegistrationError("prepared_rotation_mismatch")
+            store_id = getattr(store, "store_id", None)
+            snapshots = dict(prepared.owner_object_revisions)
+            if (
+                not isinstance(store_id, str)
+                or self._owner_stores.get(store_id) is not store
+                or store_id not in snapshots
+            ):
+                raise RegistrationError("owner_store_not_attached")
+            original_revision = snapshots[store_id].get(record_id)
+            if original_revision is None:
+                raise RegistrationError("owner_object_not_in_rotation")
+            if expected_object_revision != original_revision:
+                raise RegistrationError("owner_object_revision_conflict")
+            try:
+                return store.build_owner_rewrap_request(
+                    record_id,
+                    target_registration=prepared.candidate,
+                    rotation_id=prepared.rotation_id,
+                    expected_object_revision=expected_object_revision,
+                )
+            except RegistrationError:
+                raise
+            except Exception as error:
+                reason = getattr(error, "reason", str(error))
+                stable = reason if reason in {
+                    "owner_object_revision_conflict",
+                    "owner_provenance_mismatch",
+                    "stored_object_not_found",
+                    "stored_object_legacy_unverified",
+                    "stored_object_invalid",
+                    "owner_registration_not_active",
+                    "owner_registration_fingerprint_invalid",
+                    "rotation_owner_mismatch",
+                    "rotation_registration_id_mismatch",
+                    "rotation_version_invalid",
+                    "rotation_key_unchanged",
+                    "rotation_actor_mismatch",
+                } else "owner_rewrap_request_failed"
                 raise RegistrationError(stable) from error
 
     def abort_prepared_replace(

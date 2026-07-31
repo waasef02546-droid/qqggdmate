@@ -26,9 +26,10 @@ Therefore:
 
 The dependency is Alpha and GPLv3. Umbral KFrags are owner/requester key-pair
 scoped, so retained-fragment reuse under Provider/requester collusion is not
-excluded by the context checks. Trusted management-plane rotation performs a
-decrypt-and-fresh-encrypt operation and is outside the malicious data-plane
-Provider claim. See ADR 0008 and the traceability matrix before citing C-003.
+excluded by the context checks. Owner rotation exports a public request and
+accepts a signed artifact created outside the Provider; the owner/KMS process
+still materializes the source key and DEK. See ADR 0008, ADR 0009, and the
+traceability matrix before citing C-003 or C-007.
 
 See `results/release-manifest.json` and
 `docs/traceability_matrix.md` before citing a result.
@@ -88,8 +89,13 @@ Principal endpoints:
 - `POST /v1/management/agents` — register an AID and public key.
 - `POST /v1/management/contact-rulebooks` — configure contact policy.
 - `POST /v1/management/data-policies` — add a Data Sharing Policy.
-- `POST /v1/management/agent-rotation-*` — drive the authenticated,
-  restart-recoverable owner-key rotation lifecycle.
+- `POST /v1/management/agent-rotation-prepares` — prepare an owner-key rotation.
+- `POST /v1/management/agent-rotation-rewrap-requests` — export a deterministic,
+  non-secret owner/KMS request.
+- `POST /v1/management/agent-rotation-rewraps` — stage the signed owner/KMS
+  artifact; legacy `source_private_key_b64` input is rejected.
+- `POST /v1/management/agent-rotation-commits`, `-aborts`, and `-cleanups` —
+  finish the restart-recoverable lifecycle.
 - `POST /v1/contact-sessions` — issue a contact token.
 - `POST /v1/data-tokens` — evaluate data policy and issue a bound DataToken.
 - `POST /v1/re-encryptions` — resolve trusted ciphertext, consume the token,
@@ -100,6 +106,24 @@ Principal endpoints:
 
 Management endpoints use a static Bearer token in this prototype. It is not a
 production identity or authorization mechanism.
+
+### Create the owner-side rotation artifact
+
+Save the exported request JSON and the source owner's base64 private key in a
+file readable only by the owner/KMS process. Create an artifact outside the
+Provider process, then submit the generated `artifact` object to the rewrap
+endpoint:
+
+```powershell
+python scripts/create_owner_rewrap_artifact.py `
+  --request rewrap-request.json `
+  --source-private-key-file owner-private-key.b64 `
+  --output rewrap-artifact.json
+```
+
+The private key is deliberately not accepted as a command-line value and is
+never written to the artifact. This helper is prototype owner-side tooling,
+not an HSM/KMS integration.
 
 ## Run the authoritative release
 
@@ -126,6 +150,7 @@ The release covers:
 - policy and full-service latency/scalability measurements;
 - three ProVerif models with explicit true-query counting;
 - two recorded-SAGA-to-PRE-SAGA bridge cases;
+- one semantic owner-custody boundary probe;
 - one recoverable MongoDB Provider E2E.
 
 Timing is descriptive local evidence. It is not a security proof or a

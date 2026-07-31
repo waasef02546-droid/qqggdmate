@@ -79,9 +79,10 @@ construction would be required to remove it.
 
 - Agent encryption private keys and rekey generation remain owner-side in the sharing flow.
 - The Provider stores public keys, owner ciphertexts, signed KFrags, and CFrags only.
-- The current trusted management plane can receive a source private key for staged rotation.
-  Logical management/data-plane separation does not protect against compromise of a co-located
-  trusted management process.
+- This ADR originally allowed the trusted management plane to receive a source private key for
+  staged rotation. ADR 0009 supersedes that interface: Provider rotation accepts only a signed
+  owner/KMS artifact. The owner/KMS process still handles the source key and DEK, so its compromise
+  remains outside the established boundary.
 - Python byte objects and the Rust extension provide no repository-evidenced secure-memory
   zeroization guarantee.
 - Old KFrags can be copied before revocation. Registration version checks stop normal-path reuse

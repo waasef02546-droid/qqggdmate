@@ -12,7 +12,8 @@ from uuid import uuid4
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-from presaga.crypto.hpke_kem_stub import HPKEKEMStub
+from presaga.crypto.key_custody import OwnerRewrapRequest, UmbralOwnerKeyCustody
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import DataRecord
 from presaga.provider.app import PREProviderApp
 from presaga.provider.mongo_repository import MongoProviderRepository
@@ -35,7 +36,8 @@ class MongoProviderServiceIntegrationTest(unittest.TestCase):
         suffix = uuid4().hex
         self.restart_db = f"presaga_core005_restart_{suffix}"
         self.cas_db = f"presaga_core005_cas_{suffix}"
-        self.backend = HPKEKEMStub()
+        self.backend = UmbralPREBackend()
+        self.custody = UmbralOwnerKeyCustody(self.backend)
         self.management_token = "core005-management-token"
         self._servers: list[tuple[object, threading.Thread]] = []
 
@@ -138,17 +140,36 @@ class MongoProviderServiceIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(HTTPStatus.CREATED, status)
         rotation_id = prepared_response["agent"]["rotation_id"]
-        status, _ = self._request(
+        stage_context = {
+            "aid": owner_aid,
+            "record_id": stored.record.record_id,
+            "expected_version": 1,
+            "rotation_id": rotation_id,
+            "expected_object_revision": 1,
+        }
+        status, legacy_error = self._request(
             server,
             "/v1/management/agent-rotation-rewraps",
             {
-                "aid": owner_aid,
-                "record_id": stored.record.record_id,
+                **stage_context,
                 "source_private_key_b64": _b64(owner_v1.private_key),
-                "expected_version": 1,
-                "rotation_id": rotation_id,
-                "expected_object_revision": 1,
             },
+        )
+        self.assertEqual(HTTPStatus.BAD_REQUEST, status)
+        self.assertEqual("source_private_key_forbidden", legacy_error["error"])
+
+        status, request_response = self._request(
+            server,
+            "/v1/management/agent-rotation-rewrap-requests",
+            stage_context,
+        )
+        self.assertEqual(HTTPStatus.OK, status)
+        request = OwnerRewrapRequest.from_payload(request_response["request"])
+        artifact = self.custody.rewrap(request, owner_v1.private_key)
+        status, _ = self._request(
+            server,
+            "/v1/management/agent-rotation-rewraps",
+            {**stage_context, "artifact": artifact.to_payload()},
         )
         self.assertEqual(HTTPStatus.OK, status)
         self._stop_server(server)

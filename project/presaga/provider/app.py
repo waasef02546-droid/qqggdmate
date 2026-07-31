@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
+from presaga.crypto.key_custody import OwnerRewrapArtifact, OwnerRewrapRequest
 from presaga.crypto.pre_interface import PREBackend
 from presaga.protocol.schemas import ContactToken, DataAccessRequest, DataSharingPolicy, DataToken, PolicyDecision, TokenDecision
 from presaga.provider.audit import AuditLogger
@@ -65,7 +66,13 @@ class TrustedManagementPlane:
             actor=self.principal_id,
             expected_version=expected_version,
         )
-        return self._app._registry.prepared_replacement(aid)
+        prepared = self._app._registry.prepared_replacement(aid)
+        self._record_rotation_event(
+            "prepare",
+            aid=aid,
+            rotation_id=prepared.rotation_id,
+        )
+        return prepared
 
     def stage_agent_rewrap(
         self,
@@ -75,10 +82,10 @@ class TrustedManagementPlane:
         rotation_id: str,
         store,
         record_id: str,
-        source_private_key: bytes,
+        artifact: OwnerRewrapArtifact,
         expected_object_revision: int,
     ) -> StoredObject:
-        return cast(
+        stored = cast(
             StoredObject,
             self._app._registry.stage_prepared_rewrap(
                 aid,
@@ -87,9 +94,36 @@ class TrustedManagementPlane:
                 rotation_id=rotation_id,
                 store=store,
                 record_id=record_id,
-                source_private_key=source_private_key,
+                artifact=artifact,
                 expected_object_revision=expected_object_revision,
             ),
+        )
+        self._record_rotation_event(
+            "stage",
+            aid=aid,
+            rotation_id=rotation_id,
+            record_id=record_id,
+        )
+        return stored
+
+    def build_agent_rewrap_request(
+        self,
+        aid: str,
+        *,
+        expected_version: int,
+        rotation_id: str,
+        store,
+        record_id: str,
+        expected_object_revision: int,
+    ) -> OwnerRewrapRequest:
+        return self._app._registry.build_prepared_rewrap_request(
+            aid,
+            actor=self.principal_id,
+            expected_version=expected_version,
+            rotation_id=rotation_id,
+            store=store,
+            record_id=record_id,
+            expected_object_revision=expected_object_revision,
         )
 
     def commit_agent_replacement(
@@ -99,12 +133,18 @@ class TrustedManagementPlane:
         expected_version: int,
         rotation_id: str,
     ) -> AgentRecord:
-        return self._app._registry.commit_prepared_replace(
+        record = self._app._registry.commit_prepared_replace(
             aid,
             actor=self.principal_id,
             expected_version=expected_version,
             rotation_id=rotation_id,
         )
+        self._record_rotation_event(
+            "commit",
+            aid=aid,
+            rotation_id=rotation_id,
+        )
+        return record
 
     def abort_agent_replacement(
         self,
@@ -119,6 +159,11 @@ class TrustedManagementPlane:
             expected_version=expected_version,
             rotation_id=rotation_id,
         )
+        self._record_rotation_event(
+            "abort",
+            aid=aid,
+            rotation_id=rotation_id,
+        )
 
     def cleanup_agent_rotation(
         self,
@@ -126,10 +171,40 @@ class TrustedManagementPlane:
         *,
         rotation_id: str,
     ) -> PreparedReplacement:
-        return self._app._registry.cleanup_rotation(
+        rotation = self._app._registry.cleanup_rotation(
             aid,
             actor=self.principal_id,
             rotation_id=rotation_id,
+        )
+        self._record_rotation_event(
+            "cleanup",
+            aid=aid,
+            rotation_id=rotation_id,
+        )
+        return rotation
+
+    def _record_rotation_event(
+        self,
+        action: str,
+        *,
+        aid: str,
+        rotation_id: str,
+        record_id: str = "*",
+    ) -> None:
+        """Record non-secret rotation lifecycle evidence in the shared audit log."""
+        self._app.audit.record(
+            event_type="owner_rotation",
+            decision="allow",
+            reason=f"rotation_{action}",
+            owner_aid=aid,
+            requester_aid=self.principal_id,
+            record_id=record_id,
+            data_class="key_custody",
+            purpose=action,
+            policy_id=None,
+            token_id=rotation_id,
+            provider_saw_plaintext_dek=False,
+            provider_saw_plaintext_data=False,
         )
 
     def revoke_agent(self, aid: str, *, expected_version: int) -> AgentRecord:

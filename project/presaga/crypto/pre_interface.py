@@ -51,18 +51,3 @@ class PREBackend(Protocol):
     ) -> bytes:
         """Transform a wrapped DEK under server-supplied binding inputs."""
         ...
-
-    def rewrap_dek(
-        self,
-        encrypted_dek: bytes,
-        source_private_key: bytes,
-        target_public_key: bytes,
-        source_context: bytes,
-        target_context: bytes,
-    ) -> bytes:
-        """Prototype seam for owner-to-owner rewrap without returning a plaintext DEK.
-
-        The bundled implementations remain insecure control-flow stubs. A real
-        adapter must replace this with an authenticated owner/KMS operation.
-        """
-        ...

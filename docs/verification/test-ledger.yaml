@@ -1086,3 +1086,83 @@ entries:
       - project/results/release-manifest.json
     rerun_reason: "Final control-only closure after the accepted post-audit release and evidence-document synchronization."
     notes: "Ledger parsed, the 24-file workflow check passed, RELEASE_VERIFY passed, final manifest facts matched run 20260730T193022Z-41303f6f at commit 95061e6 with all nine gates and clean inputs, and whitespace checking had no errors. Functional tests and release generation were not repeated because only closure documents changed."
+  - id: KEYCUSTODY-001-CRYPTO-UNIT
+    work_package: KEYCUSTODY-001
+    target: canonical_owner_rewrap_request_artifact_and_public_verification
+    command: "python -m unittest tests.unit.test_key_custody -v"
+    relevant_code_state: "new versioned custody request/artifact, owner-side Umbral custodian, public wrapper validation, and owner-side file helper"
+    configuration: "Umbral backend; schema version 1; domain-separated request and attestation messages"
+    environment: "Windows 11, Python 3.12.0, nucypher-core 0.15.0"
+    result: "pass"
+    evidence:
+      - project/presaga/crypto/key_custody.py
+      - project/tests/unit/test_key_custody.py
+      - project/scripts/create_owner_rewrap_artifact.py
+    rerun_reason: "First focused verification for the new custody protocol and owner-side boundary."
+    notes: "Initial 6/6 custody tests passed; the final full regression also covers the subsequently added owner-side file-helper test. This establishes adapter behavior, not independent cryptographic review or HSM security."
+  - id: KEYCUSTODY-001-EXPERIMENT-CAUSAL-CORRECTION
+    work_package: KEYCUSTODY-001
+    target: semantic_owner_kms_custody_release_probe
+    command: "python -m unittest tests.integration.test_key_custody_experiment -v"
+    relevant_code_state: "ProviderService custody lifecycle probe before release integration"
+    configuration: "one Umbral owner rotation; bounded raw/base64/hex scan of exported and persisted Provider-visible surfaces"
+    environment: "Windows 11, Python 3.12.0"
+    result: "pass_after_causal_correction"
+    evidence:
+      - project/experiments/e2e/key_custody.py
+      - project/tests/integration/test_key_custody_experiment.py
+    rerun_reason: "First run of the new experiment; the fixture initially used a nonexistent DataRecord.data_domain argument."
+    notes: "The fixture was corrected to the actual data_class/data_subclass schema; 1/1 then passed. The probe covers signed staging, exact replay, conflicting retry, legacy private-key rejection, target decryption, and bounded secret scans."
+  - id: KEYCUSTODY-001-FOCUSED-CROSS-LAYER
+    work_package: KEYCUSTODY-001
+    target: provider_registry_storage_http_rotation_recovery_and_release_verifier
+    command: "python -m unittest <55 affected unit/integration/security checks> -q; python -m unittest tests.integration.test_key_custody_experiment tests.security.test_release_evidence -v"
+    relevant_code_state: "final custody interfaces, Provider reconstruction/verification, JSON recovery, and ten-gate release-verifier contract"
+    configuration: "Umbral default path; exact artifact idempotency; synthetic release semantic falsification"
+    environment: "Windows 11, Python 3.12.0"
+    result: "pass"
+    evidence:
+      - project/tests/security/test_key_custody_boundary.py
+      - project/tests/integration/test_owner_key_rotation.py
+      - project/tests/integration/test_rotation_recovery.py
+      - project/tests/security/test_release_evidence.py
+    rerun_reason: "Impact-selected checks after changing cross-layer rotation APIs, owner-wrap persistence, recovery serialization, and release semantics."
+    notes: "55/55 affected cross-layer checks passed; the experiment/verifier selection passed 3/3 and rejects a weakened custody row even when artifact hashes are recomputed."
+  - id: KEYCUSTODY-001-MONGODB-FOCUSED
+    work_package: KEYCUSTODY-001
+    target: live_mongo_custody_rotation_object_journal_cas_and_restart
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest tests.integration.test_mongodb_rotation_cas tests.integration.test_mongodb_provider_service -v"
+    relevant_code_state: "signed custody artifacts and persisted custody request digest in Mongo owner wraps"
+    configuration: "isolated runtime/keycustody001-mongodb data directory; live MongoDB on port 27018"
+    environment: "Windows 11, Python 3.12.0, MongoDB 8.3.4"
+    result: "pass"
+    evidence:
+      - project/tests/integration/test_mongodb_rotation_cas.py
+      - project/tests/integration/test_mongodb_provider_service.py
+    rerun_reason: "Mandatory live-Mongo verification because owner-wrap persistence, rotation staging, HTTP recovery, and object CAS changed."
+    notes: "The first background launch used an argument-list form that mishandled paths with spaces and never became ready. The process was relaunched with quoted paths; all 4 tests then passed with no skips, including HTTP restart recovery, journal/object CAS, stale-writer fencing, and orphan rejection."
+  - id: KEYCUSTODY-001-FULL-REGRESSION
+    work_package: KEYCUSTODY-001
+    target: cross_cutting_custody_provider_storage_http_experiment_regression
+    command: "PRESAGA_MONGODB_URI=mongodb://127.0.0.1:27018 python -m unittest discover -s tests -q"
+    relevant_code_state: "final KEYCUSTODY-001 core, persistence, experiment, verifier, and owner-side helper before clean source commit"
+    configuration: "complete test discovery; Umbral authoritative path; explicit toy/HPKE fixtures; live isolated Mongo"
+    environment: "Windows 11, Python 3.12.0, MongoDB 8.3.4 on 127.0.0.1:27018"
+    result: "pass"
+    evidence:
+      - project/tests
+      - docs/verification/reviews/KEYCUSTODY-001-acceptance.md
+    rerun_reason: "One full regression is required because the custody change crosses crypto interfaces, Provider HTTP/management/registry, JSON/Mongo owner-wrap state, rotation recovery, experiments, and release schema."
+    notes: "115/115 tests passed with live Mongo and no skips. An earlier 114-test pass preceded the final owner-side file-helper test; this final run supersedes it."
+  - id: KEYCUSTODY-001-RELEASE-PREFLIGHT
+    work_package: KEYCUSTODY-001
+    target: ten_gate_authoritative_release_preflight
+    command: "python -m experiments.run_all --mongo-uri mongodb://127.0.0.1:27018"
+    relevant_code_state: "final implementation and evidence inputs before deliberate clean Git baseline"
+    configuration: "full release profile; one custody case; eight blocking attacks; unique Mongo release database"
+    environment: "Windows 11, Python 3.12.0, ProVerif 2.05, MongoDB 8.3.4"
+    result: "expected_rejection"
+    evidence:
+      - project/tmp/release-staging/20260731T105855Z-f9b394f3
+    rerun_reason: "Pre-commit dry run required to distinguish scientific/semantic failures from the intentional dirty-input gate."
+    notes: "All scientific, custody, experiment, Mongo, and proof gates passed. Independent staged verification rejected only release_inputs_clean, as expected; the prior accepted result set was not published over."

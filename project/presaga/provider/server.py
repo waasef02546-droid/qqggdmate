@@ -24,6 +24,7 @@ from urllib.parse import parse_qs, urlparse
 from pymongo import MongoClient
 
 from presaga.crypto import envelope
+from presaga.crypto.key_custody import KeyCustodyError, OwnerRewrapArtifact
 from presaga.crypto.pre_interface import PREBackend
 from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import (
@@ -134,9 +135,13 @@ class ProviderService:
         self._require_consistent_state()
         if self.object_store is None:
             raise RegistrationError("trusted_store_required")
+        if "source_private_key_b64" in payload:
+            raise RegistrationError("source_private_key_forbidden")
         aid = _required_str(payload, "aid")
         record_id = _required_str(payload, "record_id")
-        source_private_key = from_b64(_required_str(payload, "source_private_key_b64"))
+        artifact = OwnerRewrapArtifact.from_payload(
+            _required_dict(payload, "artifact")
+        )
         with self._lock:
             stored = self.app.management.stage_agent_rewrap(
                 aid,
@@ -144,7 +149,7 @@ class ProviderService:
                 rotation_id=_required_str(payload, "rotation_id"),
                 store=self.object_store,
                 record_id=record_id,
-                source_private_key=source_private_key,
+                artifact=artifact,
                 expected_object_revision=int(payload["expected_object_revision"]),
             )
             self._persist()
@@ -154,6 +159,22 @@ class ProviderService:
             "object_revision": stored.object_revision,
             "rotation_id": _required_str(payload, "rotation_id"),
         }
+
+    def export_agent_rewrap_request(self, payload: dict[str, Any]) -> dict[str, Any]:
+        self._require_consistent_state()
+        if self.object_store is None:
+            raise RegistrationError("trusted_store_required")
+        if "source_private_key_b64" in payload:
+            raise RegistrationError("source_private_key_forbidden")
+        request = self.app.management.build_agent_rewrap_request(
+            _required_str(payload, "aid"),
+            expected_version=int(payload["expected_version"]),
+            rotation_id=_required_str(payload, "rotation_id"),
+            store=self.object_store,
+            record_id=_required_str(payload, "record_id"),
+            expected_object_revision=int(payload["expected_object_revision"]),
+        )
+        return request.to_payload()
 
     def commit_agent_replacement(self, payload: dict[str, Any]) -> dict[str, Any]:
         self._require_consistent_state()
@@ -458,6 +479,11 @@ def make_handler(service: ProviderService, management_token: str) -> type[BaseHT
                         HTTPStatus.OK,
                         {"rewrap": service.stage_agent_rewrap(payload)},
                     )
+                elif self.path == "/v1/management/agent-rotation-rewrap-requests":
+                    self._write_json(
+                        HTTPStatus.OK,
+                        {"request": service.export_agent_rewrap_request(payload)},
+                    )
                 elif self.path == "/v1/management/agent-rotation-commits":
                     self._write_json(
                         HTTPStatus.OK,
@@ -498,7 +524,9 @@ def make_handler(service: ProviderService, management_token: str) -> type[BaseHT
                 )
                 self._write_json(status, {"error": error.reason})
             except RegistrationError as error:
-                status = HTTPStatus.CONFLICT if error.reason in {
+                if error.reason == "source_private_key_forbidden":
+                    status = HTTPStatus.BAD_REQUEST
+                elif error.reason in {
                     "registration_exists",
                     "registration_version_conflict",
                     "registration_key_unchanged",
@@ -508,8 +536,14 @@ def make_handler(service: ProviderService, management_token: str) -> type[BaseHT
                     "owner_object_revision_conflict",
                     "owner_rotation_object_set_changed",
                     "owner_rewrap_incomplete",
-                } else HTTPStatus.FORBIDDEN
+                    "custody_artifact_conflict",
+                }:
+                    status = HTTPStatus.CONFLICT
+                else:
+                    status = HTTPStatus.FORBIDDEN
                 self._write_json(status, {"error": error.reason})
+            except KeyCustodyError as error:
+                self._write_json(HTTPStatus.BAD_REQUEST, {"error": error.reason})
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
                 self._write_json(HTTPStatus.BAD_REQUEST, {"error": "invalid_request", "detail": str(error)})
 
@@ -808,6 +842,11 @@ def _stored_object_to_payload(stored: StoredObject) -> dict[str, Any]:
                 "encrypted_dek_b64": _b64(wrapped.encrypted_dek),
                 "provenance": asdict(wrapped.provenance),
                 "rotation_id": wrapped.rotation_id,
+                "custody_request_digest_b64": (
+                    _b64(wrapped.custody_request_digest)
+                    if wrapped.custody_request_digest is not None
+                    else None
+                ),
             }
             for wrapped in stored.owner_wraps
         ],
@@ -829,6 +868,11 @@ def _stored_object_from_payload(payload: dict[str, Any]) -> StoredObject:
                 **_required_dict(raw, "provenance")
             ),
             rotation_id=raw.get("rotation_id"),
+            custody_request_digest=(
+                from_b64(_required_str(raw, "custody_request_digest_b64"))
+                if raw.get("custody_request_digest_b64") is not None
+                else None
+            ),
         )
         for raw in raw_wraps
     )

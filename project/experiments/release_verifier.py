@@ -24,6 +24,7 @@ SOURCE_PATHS = (
     "project/README.md",
     "project/docs/traceability_matrix.md",
     "docs/adr/0008-concrete-umbral-pre-backend.md",
+    "docs/adr/0009-authenticated-owner-key-custody.md",
     "docs/claims-evidence-matrix.md",
     "paper/README.md",
     "paper/pre_saga_paper.md",
@@ -40,6 +41,7 @@ EXPECTED_GATES = {
     "performance_rows",
     "proverif_queries",
     "saga_bridge",
+    "key_custody_boundary",
     "mongodb_e2e",
     "release_inputs_clean",
 }
@@ -58,6 +60,7 @@ EXPECTED_ARTIFACTS = {
     "reproducibility/release_report.md",
     "saga_bridge_report.md",
     "tables/denial_reason_summary.csv",
+    "tables/key_custody_summary.csv",
     "tables/mongodb_e2e_summary.csv",
     "tables/performance.csv",
     "tables/saga_bridge_summary.csv",
@@ -349,6 +352,34 @@ def _verify_semantics(
         errors.append("saga_bridge_mallory_semantics_failed")
     if any(Path(row.get("baseline_evidence_path", "")).is_absolute() for row in bridge):
         errors.append("saga_bridge_absolute_evidence_path")
+
+    custody = _read_csv(release_root, "tables/key_custody_summary.csv", errors)
+    if required.get("key_custody_cases") != 1 or len(custody) != 1:
+        errors.append("key_custody_boundary_count_mismatch")
+    elif not (
+        custody[0].get("scenario") == "umbral_owner_kms_rewrap_boundary_v1"
+        and custody[0].get("backend") == "umbral-pre-v1"
+        and custody[0].get("request_schema_version") == "1"
+        and custody[0].get("custody_algorithm")
+        == "umbral-owner-source-key-signature-v1"
+        and custody[0].get("custody_version") == "1"
+        and _as_bool(custody[0].get("custody_key_id_matches_authoritative_source"))
+        and _as_bool(custody[0].get("signed_artifact_verified"))
+        and _as_bool(custody[0].get("exact_retry_idempotent"))
+        and _as_bool(custody[0].get("conflicting_retry_rejected"))
+        and custody[0].get("conflicting_retry_reason")
+        == "custody_artifact_conflict"
+        and _as_bool(custody[0].get("legacy_private_key_input_rejected"))
+        and custody[0].get("legacy_rejection_reason")
+        == "source_private_key_forbidden"
+        and _as_bool(custody[0].get("target_decrypt_succeeded"))
+        and not _as_bool(custody[0].get("provider_received_source_private_key"))
+        and not _as_bool(custody[0].get("provider_saw_plaintext_dek"))
+        and custody[0].get("provider_secret_encodings_checked")
+        == "raw|base64|hex"
+        and _as_bool(custody[0].get("success"))
+    ):
+        errors.append("key_custody_boundary_semantics_failed")
 
     if required.get("mongodb_e2e"):
         mongo = _read_csv(release_root, "tables/mongodb_e2e_summary.csv", errors)

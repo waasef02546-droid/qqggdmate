@@ -534,6 +534,31 @@ transform_response:
 The current authentication step does not verify a requester-signed
 `DataAccessRequest`; live private-key possession remains a future extension.
 
+### 9.4 Owner-Key Rotation Custody
+
+1. The management principal prepares a replacement registration. Provider records the source and
+   candidate registrations plus the exact owner-object revision set.
+2. For each object, Provider reconstructs and exports a versioned `OwnerRewrapRequest` from live
+   registry, journal, provenance, wrapper, context, and object-revision state. The request contains
+   ciphertext and public binding material, but no source private key or plaintext DEK.
+3. An owner/KMS-side custodian verifies the source private key against the authoritative source
+   public key, validates the source wrapper, unwraps and freshly wraps the DEK locally for the
+   target registration, then signs a domain-separated attestation over the canonical request
+   digest and target-wrapper digest.
+4. Provider reconstructs the request, verifies the artifact with the source registration key,
+   validates the target Umbral wrapper against the exact target key and context, and stages it
+   under the expected object-revision compare-and-swap.
+5. Repeating the exact artifact is idempotent. A forged, altered, cross-record, cross-rotation,
+   stale, malformed, or conflicting artifact fails before mutation. The removed
+   `source_private_key_b64` input is rejected without fallback.
+6. Commit is permitted only after every snapshotted object has the prepared target wrap; abort and
+   cleanup retain their restart-recoverable behavior.
+
+The prototype custodian reuses the source Umbral key for a domain-separated signature and still
+materializes the source key and DEK in owner/KMS memory. This is a tested Provider process boundary,
+not HSM certification, secure-memory evidence, remote attestation, side-channel resistance, or a
+whole-process malicious-Provider theorem. Retained KFrags remain owner/requester key-pair scoped.
+
 ## 10. Audit Log Schema
 
 Each decision produces an audit event:
@@ -682,6 +707,9 @@ A conforming PRE-SAGA implementation must:
 10. Ensure Provider / PRE Proxy does not output plaintext data.
 11. Bind transformed encrypted DEK to requester public key.
 12. Bind authorization to owner, requester, record id, data class, purpose, version, expiry, and max uses.
+13. Reject owner-key rotation inputs containing a source private key at the Provider boundary.
+14. Bind a staged owner wrapper to the exact authenticated custody request and object revision.
+15. Make exact custody-artifact replay idempotent and conflicting replay fail closed.
 
 ## 14. Protocol Non-Goals
 

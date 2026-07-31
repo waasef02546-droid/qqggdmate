@@ -12,7 +12,11 @@
 - [x] A concrete versioned Umbral backend verifies KFrags/CFrags and blocks the
   active data-plane public-material recovery probe while requester decryption
   succeeds.
-- [x] Live-Mongo full regression passes (101/101).
+- [x] Owner rotation rejects Provider-side private-key input and accepts only an
+  exactly bound, signed owner/KMS artifact with idempotent exact replay.
+- [x] The release verifier checks custody semantics and secret-scan results,
+  rather than trusting a gate name or test count.
+- [x] Live-Mongo full regression passes (115/115).
 - [x] The authoritative manuscript and historical planning drafts are clearly
   separated.
 

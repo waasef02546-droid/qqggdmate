@@ -3,7 +3,8 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from presaga.crypto.toy_pre import ToyPRE
+from presaga.crypto.key_custody import UmbralOwnerKeyCustody
+from presaga.crypto.umbral_pre import UmbralPREBackend
 from presaga.protocol.schemas import (
     DataAccessRequest,
     DataRecord,
@@ -21,7 +22,8 @@ from presaga.storage.encrypted_store import EncryptedStore
 
 class OwnerKeyRotationIntegrationTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.backend = ToyPRE()
+        self.backend = UmbralPREBackend()
+        self.custody = UmbralOwnerKeyCustody(self.backend)
         self.app = PREProviderApp(self.backend)
         self.owner_v1 = self.backend.generate_keypair()
         self.owner_v2 = self.backend.generate_keypair()
@@ -48,25 +50,53 @@ class OwnerKeyRotationIntegrationTest(unittest.TestCase):
             ).registration_version,
         )
 
+    def _artifact(self, prepared, record_id: str, private_key: bytes, revision: int):
+        request = self.app.management.build_agent_rewrap_request(
+            self.owner_aid,
+            expected_version=prepared.current_version,
+            rotation_id=prepared.rotation_id,
+            store=self.store,
+            record_id=record_id,
+            expected_object_revision=revision,
+        )
+        return self.custody.rewrap(request, private_key)
+
     def _stage(self, prepared, record_id: str, private_key: bytes, revision: int):
+        artifact = self._artifact(prepared, record_id, private_key, revision)
+        return self._stage_artifact(prepared, record_id, artifact, revision)
+
+    def _stage_artifact(self, prepared, record_id: str, artifact, revision: int):
         return self.app.management.stage_agent_rewrap(
             self.owner_aid,
             expected_version=prepared.current_version,
             rotation_id=prepared.rotation_id,
             store=self.store,
             record_id=record_id,
-            source_private_key=private_key,
+            artifact=artifact,
             expected_object_revision=revision,
         )
 
     def test_prepare_stage_commit_retains_source_and_selects_target(self) -> None:
         prepared = self._prepare(self.owner_v2.public_key)
-        staged = self._stage(
+        artifact = self._artifact(
             prepared,
             self.record.record_id,
             self.owner_v1.private_key,
             self.stored.object_revision,
         )
+        staged = self._stage_artifact(
+            prepared,
+            self.record.record_id,
+            artifact,
+            self.stored.object_revision,
+        )
+        repeated = self._stage_artifact(
+            prepared,
+            self.record.record_id,
+            artifact,
+            self.stored.object_revision,
+        )
+        self.assertEqual(staged, repeated)
         self.assertEqual(2, len(staged.owner_wraps))
         self.assertEqual(1, self.app.registry.resolve_active(self.owner_aid).registration_version)
 
