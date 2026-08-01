@@ -1,7 +1,7 @@
 # KEYCUSTODY-001 acceptance checklist
 
 - Work package: `KEYCUSTODY-001`
-- State: `accepted-local / remote-push-pending`
+- State: `accepted`
 - Decision: `ACCEPT`
 - Reviewer rule: a checked item requires an implementation path and repeatable evidence; prose or
   a test without authoritative core behavior is insufficient.
@@ -80,7 +80,6 @@
 - [x] Every applicable item above is checked with evidence links.
 - [x] Current milestone and residual risks are updated.
 - [x] No unrelated user files are staged.
-- [ ] Final implementation/evidence commit `ef0c814` exists; normal push is pending explicit
-  authorization for uploading this branch to the configured GitHub remote. No force push or
-  workaround was attempted.
+- [x] Final implementation/evidence and closure commits exist; `codex/keycustody-001` was normally
+  pushed to `origin` with upstream tracking. No force push or history rewrite was used.
 - [x] `KFRAGSCOPE-001` remains unstarted pending separate authorization.

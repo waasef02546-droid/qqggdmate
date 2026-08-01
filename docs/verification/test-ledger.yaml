@@ -1232,15 +1232,15 @@ entries:
     work_package: KEYCUSTODY-001
     target: publish_accepted_branch_without_history_rewrite
     command: "git push -u origin codex/keycustody-001"
-    relevant_code_state: "local evidence commit ef0c814 on codex/keycustody-001"
+    relevant_code_state: "local closure commit 40579a7 on codex/keycustody-001"
     configuration: "configured origin https://github.com/waasef02546-droid/qqggdmate.git; normal push; no force"
     environment: "local Git repository with restricted network/exfiltration approval"
-    result: "blocked_pending_explicit_authorization"
+    result: "pass_after_explicit_authorization"
     evidence:
       - docs/workflow/current-milestone.md
       - docs/verification/reviews/KEYCUSTODY-001-acceptance.md
-    rerun_reason: "First normal push attempt after local acceptance and evidence commit."
-    notes: "The approval reviewer rejected upload because the branch contains source code, paper, and experiment artifacts and the configured remote had not been explicitly approved for this exact branch/content. No workaround or force push was attempted."
+    rerun_reason: "The first attempt was blocked until the user explicitly authorized uploading this exact branch and its source, paper, and experiment artifacts to the configured GitHub repository."
+    notes: "After explicit authorization, the normal push succeeded and created origin/codex/keycustody-001 with upstream tracking. No force push, workaround, or history rewrite was used."
   - id: KEYCUSTODY-001-RELEASE-PREFLIGHT
     work_package: KEYCUSTODY-001
     target: ten_gate_authoritative_release_preflight
