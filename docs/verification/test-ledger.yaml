@@ -1283,3 +1283,19 @@ entries:
       - project/results/proofs/proverif_summary.csv
     rerun_reason: "Required final release after the clean KEYCUSTODY-001 source commit; the previous accepted manifest did not contain the custody gate or artifact."
     notes: "Run 20260731T110022Z-8efdb27f passed all ten gates with release_inputs_dirty=false and bound 24 artifacts to 145 source files, but was superseded after acceptance self-review added an explicit missing/partial custody-response test. The verifier passed against its recorded clean source; no custody formal claim was added."
+  - id: KEYCUSTODY-001-CONTROL-CLOSURE
+    work_package: KEYCUSTODY-001
+    target: post_push_control_plane_and_short_term_planning_closure
+    command: "python .agents/skills/presaga-paper-grade/scripts/check_repo_workflow.py --root ."
+    relevant_code_state: "accepted source/release unchanged at a3ca60da0cb6c3623fe3543b3a0507768f145fe3, plus control-only closure ledger, roadmap, and draft next-package checklist"
+    configuration: "repository workflow validator; 24 required control files; no PRE-SAGA core execution"
+    environment: "Windows 11, Python 3.12.0"
+    result: "pass"
+    evidence:
+      - docs/workflow/current-milestone.md
+      - docs/workflow/short-term-roadmap.md
+      - docs/verification/reviews/KEYCUSTODY-001-acceptance.md
+      - docs/verification/reviews/KFRAGSCOPE-001-acceptance-draft.md
+      - docs/verification/test-ledger.yaml
+    rerun_reason: "Required after the accepted milestone, acceptance record, push closure, and next-package planning controls changed; the prior ledger did not durably record a post-closure control-plane check."
+    notes: "CONTROL_PLANE_CHECK: PASS (24 required files). Scope was guidance/configuration only. The accepted release fingerprint, implementation, claims, and evidence were not changed, so focused, Mongo, full-regression, and release reruns were intentionally not performed."

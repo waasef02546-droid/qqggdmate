@@ -126,6 +126,8 @@
   KFrag cross-record attack gate.
 - State: `not_authorized`
 - Rule: do not begin until `KEYCUSTODY-001` is accepted and the user authorizes it.
+- Planning: `docs/workflow/short-term-roadmap.md`.
+- Draft acceptance checklist: `docs/verification/reviews/KFRAGSCOPE-001-acceptance-draft.md`.
 
 ## Acceptance record
 
@@ -141,3 +143,5 @@
 - Final closure commit before remote synchronization: `40579a7`. The branch
   `codex/keycustody-001` was normally pushed to `origin` and now tracks
   `origin/codex/keycustody-001`; no force push or history rewrite was used.
+- Post-push control-plane validation: `CONTROL_PLANE_CHECK: PASS (24 required files)`; recorded as
+  `KEYCUSTODY-001-CONTROL-CLOSURE`. No core, Mongo, regression, or release rerun was justified.
